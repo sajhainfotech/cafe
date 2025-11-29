@@ -39,12 +39,12 @@ const CartSidebar = ({
   // add this in your TableMenuPage
 
   const placeOrder = () => {
-    if (cartItems.length === 0) return;
+    if (items.length === 0) return;
 
-    const total = cartItems.reduce((x, y) => x + y.price * y.quantity, 0);
+    const total = items.reduce((x, y) => x + y.price * y.quantity, 0);
     const order = {
       id: Date.now(),
-      items: cartItems,
+      items: items,
       total,
       tableId: tableId,
       time: new Date().toLocaleString(),
@@ -58,7 +58,7 @@ const CartSidebar = ({
     // Auto print for this device (optional)
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`<h1>Table ${tableId} Order</h1>`);
-    cartItems.forEach((i) => {
+    items.forEach((i) => {
       printWindow.document.write(
         `<p>${i.name} x ${i.quantity} — Rs.${i.price}</p>`
       );
