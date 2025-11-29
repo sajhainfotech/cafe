@@ -17,59 +17,26 @@ const CartSidebar = ({
     0
   );
 
-  // const placeOrder = () => {
-  //   const order = {
-  //     id: Date.now(),
-  //     items,
-  //     total,
-  //     tableId: tableId,
-  //     time: new Date().toLocaleString(),
-  //   };
-
-  //   // Save to localStorage
-  //   const existing = JSON.parse(localStorage.getItem("orders")) || [];
-  //   existing.push(order);
-  //   localStorage.setItem("orders", JSON.stringify(existing));
-
-  //   toast(`Order placed! Restaurant will receive it. ${tableId}`);
-  //   onClearCart();
-  //   onClose();
-  // };
-
-  // add this in your TableMenuPage
-
   const placeOrder = () => {
-    if (items.length === 0) return;
-
-    const total = items.reduce((x, y) => x + y.price * y.quantity, 0);
     const order = {
       id: Date.now(),
-      items: items,
+      items,
       total,
       tableId: tableId,
       time: new Date().toLocaleString(),
-      status: "Pending",
     };
 
+    // Save to localStorage
     const existing = JSON.parse(localStorage.getItem("orders")) || [];
     existing.push(order);
     localStorage.setItem("orders", JSON.stringify(existing));
 
-    // Auto print for this device (optional)
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(`<h1>Table ${tableId} Order</h1>`);
-    items.forEach((i) => {
-      printWindow.document.write(
-        `<p>${i.name} x ${i.quantity} — Rs.${i.price}</p>`
-      );
-    });
-    printWindow.document.write(`<p>Total: Rs.${total}</p>`);
-    printWindow.document.close();
-    printWindow.print();
-
-    toast.success("Order placed!");
-    setCartItems([]);
+    toast(`Order placed! Restaurant will receive it. ${tableId}`);
+    onClearCart();
+    onClose();
   };
+
+ 
 
   return (
     <>
