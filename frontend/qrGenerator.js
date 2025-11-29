@@ -11,12 +11,13 @@ const BASE_URL =process.env.NEXT_PUBLIC_URL;
 const tables = [1, 2, 3, 4, 5, 6]; 
 
 // Folder path
-const outputFolder = "C:\\cafe\\qr-images";
+// const outputFolder = "C:\\cafe\\qr-images";
+const qrFolder = path.join(process.cwd(), 'public', 'qrcodes');
 
 // Folder exists check
-if (!fs.existsSync(outputFolder)) {
-  fs.mkdirSync(outputFolder, { recursive: true });
-  console.log(" Created folder: " + outputFolder);
+if (!fs.existsSync(qrFolder)) {
+  fs.mkdirSync(qrFolder, { recursive: true });
+  console.log(" Created folder: " + qrFolder);
 }
 
 
@@ -24,7 +25,7 @@ if (!fs.existsSync(outputFolder)) {
 tables.forEach(async (tableId) => {
   const url = `${BASE_URL}/table/${tableId}`; 
   const fileName = `table-${tableId}.png`;
-  const imgPath = path.join(outputFolder, fileName);
+  const imgPath = path.join(qrFolder, fileName);
 
   try {
     await QRCode.toFile(imgPath, url);
