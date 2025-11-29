@@ -2,7 +2,7 @@ export const menuItems = [
   {
     id: "1",
     name: "Classic Burger",
-    description: "Juicy beef patty with cheese, lettuce, tomato, and our special sauce",
+    description: "Juicy beef patty with cheese, lettuce, tomato, and our special sauce Juicy beef patty with cheese, lettuce, tomato, and our special sauce Juicy beef patty with cheese, lettuce, tomato, and our special sauce",
     price: 12.99,
     image: "/images/burger.jpeg",
     category: "Mains",

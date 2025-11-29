@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { ShoppingCart, Utensils, ArrowRight } from "lucide-react";
+import { ShoppingCart, Utensils, ArrowRight, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CartSidebar from "@/components/CartSidebar";
 import { menuItems } from "@/data/MenuData";
 import Menufilter from "@/components/Menu-filter";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import ToastProvider from "@/components/ToastProvider";
+import toast from "react-hot-toast";
+
 
 
 const TableMenuPage = () => {
@@ -29,7 +30,7 @@ const TableMenuPage = () => {
       setCartItems([...cartItems, { ...item, quantity: 1 }]);
     }
 
-    toast.success(`${item.name} added to order`, { icon: "🍽️" });
+    toast.success(`${item.name} added to order`, { icon: <CheckCircle className="text-green-500"/> });
   };
 
   const updateQty = (id, qty) => {
@@ -49,15 +50,7 @@ const TableMenuPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f7f3ee] to-[#fafafa]">
      
-      <ToastContainer
-        position="top-right"
-        autoClose={2000}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        pauseOnHover
-        theme="light"
-      />
+      <ToastProvider/>
 
       {/* HEADER */}
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 shadow-md border-b border-black/5">
@@ -76,10 +69,10 @@ const TableMenuPage = () => {
           {/* Cart Button */}
           <Button
             onClick={() => setIsCartOpen(true)}
-            className="relative bg-black text-white hover:bg-black/80 rounded-xl px-5 py-2 shadow-lg"
+            className="relative  bg-transparent  text-orange-500  hover:bg-transparent rounded-xl px-5 py-2 shadow-lg cursor-pointer" 
           >
             <ShoppingCart className="h-5 w-5 mr-2" />
-            Cart
+          
             {totalItems > 0 && (
               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center shadow-md animate-bounce">
                 {totalItems}
@@ -103,13 +96,13 @@ const TableMenuPage = () => {
       </div>
 
       {/* MENU LIST */}
-      <main className="container mx-auto px-10 py-8  pb-32">
+      <main className="container mx-auto px-3 py-4  pb-32">
         <Menufilter menu={menuItems} onAdd={addToCart} />
       </main>
 
       {/* BOTTOM TOTAL BAR */}
       {totalItems > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-black text-white p-5 rounded-t-3xl shadow-2xl">
+        <div className="fixed bottom-0 left-0 right-0 bg-orange-600 text-white p-5 rounded-t-3xl shadow-2xl">
           <div className="container mx-auto flex items-center justify-between">
             <div>
               <p className="text-sm opacity-80">{totalItems} items</p>

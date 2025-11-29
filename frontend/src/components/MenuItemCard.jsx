@@ -9,12 +9,13 @@ const MenuItemCard = ({ item, onAdd }) => {
 
       <Card
         className="
-          relative 
-          rounded-3xl overflow-hidden
+         relative  
+          rounded-xl overflow-hidden
           bg-white/70 backdrop-blur-xl
           border border-gray-200 shadow-md
-          hover:shadow-2xl hover:-translate-y-2
-          transition-all duration-300
+          hover:shadow-xl hover:-translate-y-2
+          transition-all duration-300  p-1
+           h-full
         "
       >
         {/* Image Section */}
@@ -23,7 +24,7 @@ const MenuItemCard = ({ item, onAdd }) => {
             src={item.image}
             alt={item.name}
             className="
-              w-full h-full object-cover
+              w-full h-full object-cover rounded
               transition-all duration-700
               group-hover:scale-110 group-hover:brightness-90
             "

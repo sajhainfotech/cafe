@@ -1,7 +1,9 @@
-import { X, Minus, Plus, ShoppingBag } from "lucide-react";
+"use client";
+import { X, Minus, Plus, ShoppingBag, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "./ui/scroll-area";
-import { toast, ToastContainer } from "react-toastify";
+import ToastProvider from "./ToastProvider";
+import { toast } from "react-hot-toast";
 
 const CartSidebar = ({
   isOpen,
@@ -28,35 +30,27 @@ const CartSidebar = ({
 
     // Save to localStorage
     const existing = JSON.parse(localStorage.getItem("orders")) || [];
+
     existing.push(order);
     localStorage.setItem("orders", JSON.stringify(existing));
 
-    toast(`Order placed! Restaurant will receive it. ${tableId}`);
+    toast(
+      `Order sent! The restaurant staff has been notified. ${tableId} `,
+      { icon: <CheckCircle className="text-green-500" /> }
+    );
     onClearCart();
     onClose();
   };
 
- 
-
   return (
     <>
-      <ToastContainer
-        position="top-right"
-        autoClose={2000}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        pauseOnHover
-        theme="light"
-      />
-      {/* Overlay */}
+      <ToastProvider />
       {isOpen && (
         <div
           className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 transition-opacity"
           onClick={onClose}
         />
       )}
-
       {/* Sidebar */}
       <div
         className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-card shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
@@ -168,7 +162,7 @@ const CartSidebar = ({
                 </span>
               </div>
               <Button
-                className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white font-semibold py-6 text-lg shadow-lg"
+                className="w-full bg-orange-500 from-primary to-accent hover:bg-orange-600  text-white cursor-pointer font-semibold py-6 text-lg shadow-lg"
                 onClick={placeOrder}
               >
                 Place Order
