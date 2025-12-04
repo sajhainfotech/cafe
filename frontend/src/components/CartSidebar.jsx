@@ -1,4 +1,5 @@
 "use client";
+
 import { X, Minus, Plus, ShoppingBag, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "./ui/scroll-area";
@@ -8,38 +9,52 @@ import { toast } from "react-hot-toast";
 const CartSidebar = ({
   isOpen,
   onClose,
-  items,
+  items = [],
+  menu = [],
   onUpdateQuantity,
   onRemove,
   tableId,
+  onAdd,
+  onUnitChange,
+  onKgChange,
   onClearCart,
 }) => {
-  const total = items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
+  // Calculate total
+  const total = items.reduce((sum, item) => {
+    if (item.type === "quantity_only") return sum + item.quantity * item.price;
+    if (item.type === "half_full")
+      return (
+        sum +
+        item.quantity * (item.unit === "Half" ? item.halfPrice : item.price)
+      );
+    if (item.type === "kg") return sum + (item.kgQty || 1) * item.pricePerKg;
+    return sum;
+  }, 0);
 
+  // Place order
   const placeOrder = () => {
     const order = {
       id: Date.now(),
-      items,
+      items: items.map((i) => ({
+        ...i,
+        unit: i.unit || "Full", // half/full selection preserve
+        kgQty: i.kgQty || 1, // kg quantity
+      })),
       total,
-      tableId: tableId,
+      tableId,
       time: new Date().toLocaleString(),
+      status: "Pending",
     };
 
-    // Save to localStorage
     const existing = JSON.parse(localStorage.getItem("orders")) || [];
-
     existing.push(order);
     localStorage.setItem("orders", JSON.stringify(existing));
 
-    toast(
-      `Order sent! The restaurant staff has been notified. ${tableId} `,
-      { icon: <CheckCircle className="text-green-500" /> }
-    );
+    toast(`Order sent for Table ${tableId || "N/A"}!`, {
+      icon: <CheckCircle className="text-green-500" />,
+    });
+
     onClearCart();
-    onClose();
   };
 
   return (
@@ -47,122 +62,253 @@ const CartSidebar = ({
       <ToastProvider />
       {isOpen && (
         <div
-          className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 transition-opacity"
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
           onClick={onClose}
         />
       )}
-      {/* Sidebar */}
+
       <div
-        className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-card shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed top-0 right-0 h-full min-w-full md:w-[400px] bg-white z-50 transform transition-transform duration-300 ease-in-out shadow-lg font-sans
+        ${isOpen ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/10 to-accent/10">
-            <div className="flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold text-foreground">Your Order</h2>
-              <span className="bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full">
-                {items.length}
-              </span>
+          <div className="flex flex-col border-b p-4 sticky top-0 bg-white z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-amber-500" />
+                <h2 className="text-xl font-bold">Menu</h2>
+                <span className="bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {items.length}
+                </span>
+              </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-5 w-5" />
-            </Button>
+            {tableId && (
+              <p className="text-sm text-gray-500 mt-2">Table # {tableId}</p>
+            )}
           </div>
 
-          {/* Cart Items */}
-          <ScrollArea className="flex-1 p-4">
-            {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                <ShoppingBag className="h-16 w-16 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground text-lg">
-                  Your cart is empty
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Add items from the menu to get started
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="bg-secondary/50 rounded-lg p-3 border border-border"
-                  >
-                    <div className="flex gap-3">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-20 h-20 object-cover rounded-md"
-                      />
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start mb-1">
-                          <h3 className="font-semibold text-foreground">
-                            {item.name}
-                          </h3>
+          {/* Menu Items */}
+          <ScrollArea className="flex-1 p-4 space-y-4 max-h-[calc(100vh-200px)]">
+            {menu.map((item) => {
+              const inCart = items.find((i) => i.id === item.id);
+              const quantity = inCart ? inCart.quantity : 0;
+              const unit = inCart ? inCart.unit : "Full";
+              const kgQty = inCart ? inCart.kgQty || 1 : 1;
+
+              return (
+                <div
+                  key={item.id}
+                  className="border p-3 rounded-lg flex items-center gap-3"
+                >
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-23 h-23 object-cover rounded "
+                  />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm md:text-base">
+                      {typeof item.name === "string"
+                        ? item.name
+                        : JSON.stringify(item.name)}
+                    </h3>
+                    <p className="text-xs md:text-sm text-gray-600">
+                      {item.description}
+                    </p>
+                    <p className="font-bold mt-1 text-sm md:text-base">
+                      Rs.{" "}
+                      {item.type === "kg"
+                        ? (kgQty * item.pricePerKg).toFixed(2)
+                        : item.type === "half_full"
+                        ? unit === "Half"
+                          ? item.halfPrice.toFixed(2)
+                          : item.price.toFixed(2)
+                        : item.price.toFixed(2)}
+                    </p>
+
+                    {/* Controls */}
+                    {item.type === "quantity_only" && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="border-amber-500 text-amber-500 hover:bg-amber-500 hover:text-white"
+                          onClick={() =>
+                            onUpdateQuantity(item.id, Math.max(0, quantity - 1))
+                          }
+                        >
+                          <Minus className="h-3 w-3 md:h-4 md:w-4" />
+                        </Button>
+                        <span className="font-semibold w-6 text-center">
+                          {quantity}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="border-amber-500 text-amber-500 hover:bg-amber-500 hover:text-white"
+                          onClick={() => onAdd(item)}
+                        >
+                          <Plus className="h-3 w-3 md:h-4 md:w-4" />
+                        </Button>
+                        {quantity > 0 && (
                           <Button
-                            variant="ghost"
                             size="icon"
-                            className="h-6 w-6 -mt-1 -mr-1"
+                            variant="ghost"
                             onClick={() => onRemove(item.id)}
                           >
-                            <X className="h-4 w-4 text-muted-foreground" />
+                            <X className="h-3 w-3 text-red-500 md:h-4 md:w-4" />
                           </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {item.type === "half_full" && (
+                      <>
+                        <div className="flex items-center gap-2 mt-1 text-xs md:text-sm">
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="radio"
+                              name={`unit-${item.id}`}
+                              value="Full"
+                              checked={unit === "Full"}
+                              onChange={() => {
+                                if (!inCart || quantity === 0) {
+                                  toast.error("Add item first");
+                                  return;
+                                }
+                                onUnitChange(item.id, "Full");
+                              }}
+                            />{" "}
+                            Full
+                          </label>
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="radio"
+                              name={`unit-${item.id}`}
+                              value="Half"
+                              checked={unit === "Half"}
+                              onChange={() => {
+                                if (!inCart || quantity === 0) {
+                                  toast.error(
+                                    "Add item first and select half or full!"
+                                  );
+                                  return;
+                                }
+                                onUnitChange(item.id, "Half");
+                              }}
+                            />{" "}
+                            Half
+                          </label>
                         </div>
-                        <p className="text-sm text-primary font-semibold mb-2">
-                          ${item.price.toFixed(2)}
-                        </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mt-2">
                           <Button
-                            variant="outline"
                             size="icon"
-                            className="h-7 w-7 rounded-full"
+                            variant="outline"
+                            className="border-amber-500 text-amber-500 hover:bg-amber-500 hover:text-white"
                             onClick={() =>
                               onUpdateQuantity(
                                 item.id,
-                                Math.max(1, item.quantity - 1)
+                                Math.max(0, quantity - 1)
                               )
                             }
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-3 w-3 md:h-4 md:w-4" />
                           </Button>
-                          <span className="font-semibold text-foreground w-8 text-center">
-                            {item.quantity}
+                          <span className="font-semibold w-6 text-center">
+                            {quantity}
                           </span>
                           <Button
-                            variant="outline"
                             size="icon"
-                            className="h-7 w-7 rounded-full"
-                            onClick={() =>
-                              onUpdateQuantity(item.id, item.quantity + 1)
-                            }
+                            variant="outline"
+                            onClick={() => onAdd(item)}
+                            className="border-amber-500 text-amber-500 hover:bg-amber-500 hover:text-white"
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-3 w-3 md:h-4 md:w-4" />
                           </Button>
+                          {quantity > 0 && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => onRemove(item.id)}
+                            >
+                              <X className="h-3 w-3 text-red-500 md:h-4 md:w-4" />
+                            </Button>
+                          )}
                         </div>
+                      </>
+                    )}
+
+                    {item.type === "kg" && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <select
+                          className="border border-amber-500 text-amber-700 px-2 py-1 rounded-md text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          value={kgQty}
+                          onChange={(e) => {
+                            const selectedKg = parseFloat(e.target.value);
+                            if (!inCart || quantity === 0) {
+                              toast.error("Add item first!");
+                              return;
+                            }
+                            onKgChange(item.id, selectedKg);
+                          }}
+                        >
+                          <option value={0.5}>0.5 kg</option>
+                          <option value={1}>1 kg</option>
+                          <option value={1.5}>1.5 kg</option>
+                          <option value={2}>2 kg</option>
+                          <option value={2.5}>2.5 kg</option>
+                        </select>
+
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="border-amber-500 text-amber-500 hover:bg-amber-500 hover:text-white"
+                          onClick={() => onAdd(item)}
+                        >
+                          <Plus className="h-3 w-3 md:h-4 md:w-4" />
+                        </Button>
+
+                        {quantity > 0 && (
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                            onClick={() => onRemove(item.id)}
+                          >
+                            <X className="h-3 w-3 md:h-4 md:w-4" />
+                          </Button>
+                        )}
                       </div>
-                    </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              );
+            })}
           </ScrollArea>
 
-          {/* Footer - only show if items exist */}
+          {/* Footer */}
           {items.length > 0 && (
-            <div className="p-4 border-t border-border bg-card">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-lg font-semibold text-foreground">
-                  Total
-                </span>
-                <span className="text-2xl font-bold text-primary">
-                  ${total.toFixed(2)}
-                </span>
+            <div className="p-4 border-t flex flex-col gap-3 sticky bottom-0 bg-amber-100 z-10 shadow-lg rounded-t-4xl">
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <span className="text-gray-500 text-sm md:text-base">
+                    Total Items
+                  </span>
+                  <span className="font-semibold text-lg md:text-xl">
+                    {items.length} items
+                  </span>
+                </div>
+                <div className="flex flex-col text-right">
+                  <span className="text-gray-500 text-sm md:text-base">
+                    Total Price
+                  </span>
+                  <span className="font-bold text-xl md:text-2xl text-amber-600">
+                    Rs. {total.toFixed(2)}
+                  </span>
+                </div>
               </div>
               <Button
-                className="w-full bg-amber-500 from-primary to-accent hover:bg-amber-600  text-white cursor-pointer font-semibold py-6 text-lg shadow-lg"
+                className="w-full bg-amber-500 text-white py-3 rounded-lg hover:bg-amber-600 transition-colors font-semibold shadow-md"
                 onClick={placeOrder}
               >
                 Place Order
