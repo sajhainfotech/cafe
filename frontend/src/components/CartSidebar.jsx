@@ -13,11 +13,12 @@ const CartSidebar = ({
   menu = [],
   onUpdateQuantity,
   onRemove,
-  tableId,
+  tableName,
   onAdd,
   onUnitChange,
   onKgChange,
   onClearCart,
+  selectedTable,
 }) => {
   // Calculate total
   const total = items.reduce((sum, item) => {
@@ -32,30 +33,41 @@ const CartSidebar = ({
   }, 0);
 
   // Place order
-  const placeOrder = () => {
-    const order = {
-      id: Date.now(),
-      items: items.map((i) => ({
-        ...i,
-        unit: i.unit || "Full", // half/full selection preserve
-        kgQty: i.kgQty || 1, // kg quantity
-      })),
-      total,
-      tableId,
-      time: new Date().toLocaleString(),
-      status: "Pending",
-    };
+ // Place order function update
+const placeOrder = () => {
+  const total_price = items.reduce((sum, item) => {
+    if (item.type === "quantity_only") return sum + item.quantity * item.price;
+    if (item.type === "half_full")
+      return sum + item.quantity * (item.unit === "Half" ? item.halfPrice : item.price);
+    if (item.type === "kg") return sum + (item.kgQty || 1) * item.pricePerKg;
+    return sum;
+  }, 0);
 
-    const existing = JSON.parse(localStorage.getItem("orders")) || [];
-    existing.push(order);
-    localStorage.setItem("orders", JSON.stringify(existing));
-
-    toast(`Order sent for Table ${tableId || "N/A"}!`, {
-      icon: <CheckCircle className="text-green-500" />,
-    });
-
-    onClearCart();
+  const order = {
+    order_id: Date.now(),  // Use order_id instead of id
+    table_id: selectedTable.id,
+    tableName: selectedTable.table_name,
+    items: items.map((i) => ({
+      ...i,
+      unit: i.unit || "Full",
+      kgQty: i.kgQty || 1,
+    })),
+    total_price, // <-- save total_price here
+    status: "Pending",
+    created_at: new Date().toISOString(),
   };
+
+  const existing = JSON.parse(localStorage.getItem("orders")) || [];
+  existing.push(order);
+  localStorage.setItem("orders", JSON.stringify(existing));
+
+  toast(`Order sent for Table ${tableName || "N/A"}!`, {
+    icon: <CheckCircle className="text-green-500" />,
+  });
+
+  onClearCart();
+};
+
 
   return (
     <>
@@ -83,8 +95,8 @@ const CartSidebar = ({
                 </span>
               </div>
             </div>
-            {tableId && (
-              <p className="text-sm text-gray-500 mt-2">Table # {tableId}</p>
+            {tableName && (
+              <p className="text-sm text-gray-500 mt-2">Table # {tableName}</p>
             )}
           </div>
 
