@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 
 const AdminLoginPage = () => {
   const router = useRouter();
@@ -19,45 +19,57 @@ const AdminLoginPage = () => {
     setLoading(true);
 
     try {
-      // Basic Auth Header (optional depending on API)
       const authHeader = "Basic " + btoa(`${username}:${password}`);
-
       const res = await fetch(`${API_URL}/api/user/login/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": authHeader, // can be removed if API uses JSON payload
+          Authorization: authHeader,
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({}),
       });
 
       const data = await res.json();
       console.log("Login response:", data);
 
-      if (res.ok) {
-        // Check if user is staff/admin
-        if (!data.is_staff) {
-          toast.error("You are not allowed to login as admin!");
-          setLoading(false);
-          return;
-        }
-
-        // Success
-        toast.success("Login successful!");
-
-        // Store tokens and IDs in localStorage
-        localStorage.setItem("adminToken", data.token);
-        localStorage.setItem("isSuperAdmin", data.is_superuser || false);
-        localStorage.setItem("isAdmin", data.is_staff && !data.is_superuser);
-        localStorage.setItem("companyId", data.company_id || "");
-        localStorage.setItem("branchId", data.branch_id || ""); // <-- branch added
-
-        // Redirect to dashboard
-        router.push("/dashboard");
-      } else {
-        // API returned an error
-        toast.error(data.detail || "Invalid credentials!");
+      if (!res.ok || !data.is_staff) {
+        toast.error("Invalid credentials or not admin!");
+        setLoading(false);
+        return;
       }
+
+      // Save token and IDs
+      localStorage.setItem("adminToken", data.token);
+     localStorage.setItem("restaurantId", data.restaurant_id || "");
+      localStorage.setItem("branchId", data.branch_id || "");
+      localStorage.setItem("username", username);
+      
+if (data.restaurant_id) {
+  const resRestaurant = await fetch(
+    `${API_URL}/api/restaurants/${data.restaurant_id}/`,
+    {
+      headers: { Authorization: `Token ${data.token}` },
+    }
+  );
+  if (resRestaurant.ok) {
+    const restaurantData = await resRestaurant.json();
+    localStorage.setItem("restaurantName", restaurantData.name);
+  }
+}
+
+      if (data.branch_id) {
+        const resBranch = await fetch(
+          `${API_URL}/api/branches/${data.branch_id}/`,
+          {
+            headers: { Authorization: `Token ${data.token}` },
+          }
+        );
+        if (resBranch.ok) {
+          const branchData = await resBranch.json();
+          localStorage.setItem("branchName", branchData.name);
+        }
+      }
+      router.push("/dashboard");
     } catch (err) {
       console.error("Login error:", err);
       toast.error("Something went wrong! Please try again.");
@@ -68,6 +80,7 @@ const AdminLoginPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-amber-100 px-4">
+      <Toaster position="top-right" />
       <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
         <h2 className="text-2xl font-bold text-amber-600 text-center mb-4">
           Admin Login
@@ -77,7 +90,6 @@ const AdminLoginPage = () => {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Username */}
           <div>
             <label className="block text-sm font-medium mb-1">Username</label>
             <input
@@ -90,7 +102,6 @@ const AdminLoginPage = () => {
             />
           </div>
 
-          {/* Password */}
           <div className="relative">
             <label className="block text-sm font-medium mb-1">Password</label>
             <input
@@ -109,7 +120,6 @@ const AdminLoginPage = () => {
             </div>
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}

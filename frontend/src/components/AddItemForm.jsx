@@ -2,11 +2,13 @@
 
 import { Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import toast, { Toaster } from "react-hot-toast";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export default function AdminItemPage() {
+export default function AdminMenuUnitPage() {
   const [items, setItems] = useState([]);
+  const [units, setUnits] = useState([]);
   const [form, setForm] = useState({
     item_name: "",
     description: "",
@@ -17,11 +19,28 @@ export default function AdminItemPage() {
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // --- Fetch Units ---
+  const fetchUnits = async () => {
+    try {
+      const token = localStorage.getItem("adminToken");
+      if (!token) return;
+      const res = await fetch(`${API_URL}/api/units/`, {
+        headers: { Authorization: `Token ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch units");
+      const data = await res.json();
+      setUnits(data || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to fetch units");
+    }
+  };
+
+  // --- Fetch Items ---
   const fetchItems = async () => {
     try {
       const token = localStorage.getItem("adminToken");
       const company = localStorage.getItem("companyId");
-
       if (!token || !company) return;
 
       const res = await fetch(`${API_URL}/api/menus/`, {
@@ -31,21 +50,22 @@ export default function AdminItemPage() {
           Company: company,
         },
       });
-
       if (!res.ok) throw new Error("Failed to fetch items");
-
       const data = await res.json();
       setItems(data || []);
     } catch (err) {
       console.error(err);
       setItems([]);
+      toast.error("Failed to fetch items");
     }
   };
 
   useEffect(() => {
+    fetchUnits();
     fetchItems();
   }, []);
 
+  // --- Form Handlers ---
   const handleItemImage = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -81,20 +101,15 @@ export default function AdminItemPage() {
     setForm({ ...form, categories: updatedCategories });
   };
 
+  // --- Submit Item ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       const token = localStorage.getItem("adminToken");
-      // const company = localStorage.getItem("companyId");
-
-      console.log(localStorage.getItem("adminToken"));
-    
-
-      // if (!token || !company) 
-      if (!token ){
-        alert("Please log in as admin or staff first!");
+      if (!token) {
+        toast.error("Please log in as admin or staff first!");
         setLoading(false);
         return;
       }
@@ -123,21 +138,14 @@ export default function AdminItemPage() {
 
       const res = await fetch(url, {
         method,
-        headers: {
-          Authorization: `Token ${token}`,
-          // Company: company,
-        },
+        headers: { Authorization: `Token ${token}` },
         body: formData,
       });
 
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || "Failed to save item");
-      }
+      if (!res.ok) throw new Error("Failed to save item");
 
       await res.json();
       fetchItems();
-
       setForm({
         item_name: "",
         description: "",
@@ -146,11 +154,11 @@ export default function AdminItemPage() {
         categories: [{ name: "", unit: "", price: "", imageFile: null }],
       });
       setEditId(null);
+      toast.success(editId ? "Item updated!" : "Item created!");
     } catch (err) {
-      console.error("Submit error:", err);
-      alert(err.message);
+      console.error(err);
+      toast.error(err.message || "Error saving item");
     }
-
     setLoading(false);
   };
 
@@ -171,32 +179,32 @@ export default function AdminItemPage() {
     try {
       const token = localStorage.getItem("adminToken");
       const company = localStorage.getItem("companyId");
-
       const res = await fetch(`${API_URL}/api/menus/${id}/`, {
         method: "DELETE",
         headers: { Authorization: `Token ${token}`, Company: company },
       });
-
       if (!res.ok) throw new Error("Failed to delete item");
-
+      toast.success("Item deleted!");
       fetchItems();
     } catch (err) {
-      console.error("Delete error:", err);
-      alert("Error deleting item");
+      console.error(err);
+      toast.error("Error deleting item");
     }
   };
 
   return (
     <div className="container mx-auto p-4 font-sans">
+      <Toaster position="top-right" />
+
       <h2 className="text-3xl font-bold text-center mb-6 text-amber-800">
-        Item Management
+        Menu & Unit Management
       </h2>
 
+      {/* --- Add / Edit Item --- */}
       <div className="bg-white shadow-2xl rounded-3xl p-6 mb-6 border border-gray-200">
         <h4 className="text-2xl font-semibold mb-6 text-gray-700">
           {editId ? "Edit Item" : "Add New Item"}
         </h4>
-
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -214,7 +222,6 @@ export default function AdminItemPage() {
                 required
               />
             </div>
-
             <div className="col-span-1 md:col-span-2">
               <label className="block font-medium mb-2 text-gray-600">
                 Description
@@ -259,15 +266,20 @@ export default function AdminItemPage() {
                     }
                     className="border rounded-2xl px-3 py-2 focus:ring-2 focus:ring-amber-500 shadow-sm"
                   />
-                  <input
-                    type="text"
-                    placeholder="Unit"
+                  <select
                     value={cat.unit}
                     onChange={(e) =>
                       handleCategoryChange(index, "unit", e.target.value)
                     }
                     className="border rounded-2xl px-3 py-2 focus:ring-2 focus:ring-amber-500 shadow-sm"
-                  />
+                  >
+                    <option value="">Select Unit</option>
+                    {units.map((u) => (
+                      <option key={u.id || u._id} value={u.name}>
+                        {u.name} ({u.price})
+                      </option>
+                    ))}
+                  </select>
                   <input
                     type="number"
                     placeholder="Price"
@@ -313,8 +325,9 @@ export default function AdminItemPage() {
         </form>
       </div>
 
+      {/* --- Items Table --- */}
       <h3 className="text-xl font-bold mb-4 text-gray-700">Items List</h3>
-      <div className="overflow-x-auto bg-white shadow-2xl border border-gray-200 rounded-2xl">
+      <div className="overflow-x-auto bg-white shadow-2xl border border-gray-200 rounded-2xl mb-6">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-800 text-white rounded-t-2xl">
             <tr>

@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@radix-ui/react-slot": "^1.2.4",
     "auth-header": "^1.0.0",
     "axios": "^1.13.2",

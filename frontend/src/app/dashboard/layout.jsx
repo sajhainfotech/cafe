@@ -17,9 +17,9 @@ export default function DashboardLayout({ children }) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="flex items-center justify-between bg-white shadow px-4 py-3">
+        {/* <header className="flex items-center justify-between bg-white shadow px-4 py-3">
           <div className="flex items-center gap-3">
-            {/* Mobile menu toggle */}
+           
             <div className="md:hidden">
               <button onClick={toggleMobileSidebar} className="p-2 rounded bg-gray-200">
                 {mobileOpen ? <X size={24} /> : <Menu size={24} />}
@@ -33,9 +33,8 @@ export default function DashboardLayout({ children }) {
               Logout
             </button>
           </div>
-        </header>
+        </header> */}
 
-        {/* Content Area */}
         <main className="flex-1 p-6 overflow-auto">{children}</main>
       </div>
     </div>

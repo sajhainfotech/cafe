@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
+import toast from "react-hot-toast";
+import ToastProvider from "@/components/ToastProvider";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -19,6 +21,7 @@ export default function BranchPage() {
   const [editId, setEditId] = useState(null);
   const [message, setMessage] = useState("");
 
+  // Fetch restaurants
   const fetchRestaurants = async () => {
     try {
       const token = localStorage.getItem("adminToken");
@@ -30,12 +33,15 @@ export default function BranchPage() {
       });
       const data = await res.json();
       setRestaurants(data.data || []);
+      return data.data || [];
     } catch (err) {
-      console.log("FETCH RESTAURANTS ERROR:", err);
+      console.log("❌ FETCH RESTAURANTS ERROR:", err);
+      return [];
     }
   };
 
-  const fetchBranches = async () => {
+  // Fetch branches and map restaurant name
+  const fetchBranches = async (restaurantList) => {
     try {
       const token = localStorage.getItem("adminToken");
       const res = await fetch(`${API_URL}/api/branches/`, {
@@ -45,28 +51,34 @@ export default function BranchPage() {
         },
       });
       const data = await res.json();
-      // Map restaurant_id object to reference_id for consistent frontend usage
-      const mappedBranches = (data.data || []).map((b) => ({
-        ...b,
-        restaurant_id:
-          typeof b.restaurant_id === "object"
-            ? b.restaurant_id.reference_id
-            : b.restaurant_id,
-      }));
+
+      const mappedBranches = (data.data || []).map((b) => {
+        const restaurant = restaurantList.find(
+          (r) => r.reference_id === b.restaurant_reference_id
+        );
+        return {
+          ...b,
+          restaurant_name: restaurant?.name || "-",
+        };
+      });
+
       setBranches(mappedBranches);
     } catch (err) {
-      console.log("FETCH BRANCHES ERROR:", err);
+      console.log("❌ FETCH BRANCHES ERROR:", err);
     }
   };
 
+  // Load restaurants first, then branches
   useEffect(() => {
-    fetchRestaurants();
-    fetchBranches();
+    const loadData = async () => {
+      const restaurantList = await fetchRestaurants();
+      fetchBranches(restaurantList);
+    };
+    loadData();
   }, []);
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,11 +91,6 @@ export default function BranchPage() {
       setLoading(false);
       return;
     }
-    if (mobile_number.length > 10) {
-      setMessage("Mobile number max 10 digits");
-      setLoading(false);
-      return;
-    }
 
     try {
       const token = localStorage.getItem("adminToken");
@@ -93,15 +100,12 @@ export default function BranchPage() {
       const method = editId ? "PATCH" : "POST";
 
       const payload = {
-        reference_id: editId ? undefined : uuidv4(),
         name: name.trim(),
         address: address.trim(),
         mobile_number: mobile_number.trim(),
         restaurant_id,
       };
-      if (editId) delete payload.reference_id;
 
-      console.log("📦 PAYLOAD SENT:", payload);
       const res = await fetch(url, {
         method,
         headers: {
@@ -110,15 +114,15 @@ export default function BranchPage() {
         },
         body: JSON.stringify(payload),
       });
+
       const data = await res.json();
-      console.log("🔵 BACKEND RESPONSE:", data);
 
       if (!res.ok || data.response_code === "1") {
         setMessage(
           data?.errors ? JSON.stringify(data.errors) : data?.response || "Error"
         );
       } else {
-        setMessage(editId ? "Updated!" : "Created!");
+        toast.success(editId ? "Branch updated!" : "Branch created!");
         setForm({
           name: "",
           address: "",
@@ -127,11 +131,13 @@ export default function BranchPage() {
         });
         setShowModal(false);
         setEditId(null);
-        fetchBranches();
+
+        // 🔥 Auto-refresh branches after create/edit
+        fetchBranches(restaurants);
       }
     } catch (err) {
-      console.log("SUBMIT ERROR:", err);
-      setMessage("Network Error");
+      console.log("❌ SUBMIT ERROR:", err);
+      toast.error("Network Error");
     } finally {
       setLoading(false);
     }
@@ -146,14 +152,17 @@ export default function BranchPage() {
         headers: { Authorization: `Token ${token}` },
       });
       if (!res.ok) {
-        console.log("DELETE FAILED:", await res.text());
-        alert("Delete failed");
+        const text = await res.text();
+        console.log("❌ DELETE FAILED:", text);
+        toast.error("Delete failed");
       } else {
-        fetchBranches();
+        toast.success("Branch deleted successfully!");
+        // 🔥 Auto-refresh branches after delete
+        fetchBranches(restaurants);
       }
     } catch (err) {
-      console.log("DELETE ERROR:", err);
-      alert("Network error");
+      console.log("❌ DELETE ERROR:", err);
+      toast.error("Network error");
     }
   };
 
@@ -162,7 +171,7 @@ export default function BranchPage() {
       name: b.name,
       address: b.address,
       mobile_number: b.mobile_number,
-      restaurant_id: b.restaurant_id,
+      restaurant_id: b.restaurant_reference_id,
     });
     setEditId(b.reference_id);
     setShowModal(true);
@@ -170,6 +179,7 @@ export default function BranchPage() {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
+      <ToastProvider />
       <h1 className="text-3xl font-bold mb-6 text-amber-600">Branches</h1>
       <button
         onClick={() => {
@@ -182,7 +192,7 @@ export default function BranchPage() {
           setEditId(null);
           setShowModal(true);
         }}
-        className="mb-6 bg-amber-500 text-white px-5 py-2 rounded-lg shadow"
+        className="mb-6 bg-amber-500 text-white px-5 py-2 rounded-lg shadow cursor-pointer"
       >
         + Create Branch
       </button>
@@ -198,45 +208,35 @@ export default function BranchPage() {
               <th className="px-6 py-3 text-left">Actions</th>
             </tr>
           </thead>
-
           <tbody>
-            {branches.map((b, i) => {
-     
-              const restaurantName =
-                b.restaurant_id && typeof b.restaurant_id === "string"
-                  ? restaurants.find((r) => r.reference_id === b.restaurant_id)
-                      ?.name || "-"
-                  : "-";
-
-              return (
-                <tr key={b.reference_id || i} className="border-b">
-                  <td className="px-6 py-3">{b.name}</td>
-                  <td className="px-6 py-3">{b.address}</td>
-                  <td className="px-6 py-3">{b.mobile_number}</td>
-                  <td className="px-6 py-3">{restaurantName}</td>
-                  <td className="px-6 py-3 flex gap-3">
-                    <button
-                      onClick={() => handleEdit(b)}
-                      className="px-3 py-1 bg-amber-500 text-white rounded"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(b)}
-                      className="px-3 py-1 bg-red-500 text-white rounded"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+            {branches.map((b, i) => (
+              <tr key={b.reference_id || i} className="border-b">
+                <td className="px-6 py-3">{b.name}</td>
+                <td className="px-6 py-3">{b.address}</td>
+                <td className="px-6 py-3">{b.mobile_number}</td>
+                <td className="px-6 py-3">{b.restaurant_name}</td>
+                <td className="px-6 py-3 flex gap-3">
+                  <button
+                    onClick={() => handleEdit(b)}
+                    className="flex items-center gap-1 px-3 py-1 text-blue-500 transition"
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(b)}
+                    className="flex items-center gap-1 px-3 py-1 text-red-500 transition"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+        <div className="fixed inset-0 bg-amber-50 bg-opacity-30 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
             <h2 className="text-xl font-bold mb-4">
               {editId ? "Edit Branch" : "Create Branch"}
