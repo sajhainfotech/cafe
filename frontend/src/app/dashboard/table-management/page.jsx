@@ -7,6 +7,7 @@ import ToastProvider from "@/components/ToastProvider";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const FRONTEND_URL = process.env.NEXT_PUBLIC_CLIENT_NETWORK
 
 export default function TableManager() {
   const [tables, setTables] = useState([]);
@@ -70,20 +71,36 @@ export default function TableManager() {
     fetchTables();
   }, []);
 
-  const generateQRCode = async (token) => {
-    try {
-      const url = `https://restaurantsapi.sajhainfotech.com/scan?token=${token}&table_number=${tableName}`;
+  // const generateQRCode = async (token) => {
+  //   try {
+  //     const url = `https://restaurantsapi.sajhainfotech.com/scan?token=${token}&table_number=${tableName}`;
 
-      console.log("Generating QR for:", url);
-      const qrData = await QRCode.toDataURL(url);
-      console.log("QR code generated:", qrData);
-      return qrData;
-    } catch (err) {
-      console.error("QR generation error:", err);
-      toast.error("Failed to generate QR");
-      return "";
-    }
-  };
+  //     console.log("Generating QR for:", url);
+  //     const qrData = await QRCode.toDataURL(url);
+  //     console.log("QR code generated:", qrData);
+  //     return qrData;
+  //   } catch (err) {
+  //     console.error("QR generation error:", err);
+  //     toast.error("Failed to generate QR");
+  //     return "";
+  //   }
+  // };
+
+
+ const generateQRCode = async (tableToken) => {
+  try {
+    const url = `${FRONTEND_URL}/menu?table_token=${tableToken}`;
+    console.log("📎 QR URL:", url);
+
+    const qrData = await QRCode.toDataURL(url);
+    return qrData;
+  } catch (err) {
+    toast.error("QR generate failed");
+    return "";
+  }
+};
+
+
 
   const resetForm = () => {
     setTableName("");
@@ -92,127 +109,126 @@ export default function TableManager() {
     setEditId(null);
   };
 
-  // const handleSubmit = async (e) => {
-  //   e.preventDefault();
-  //   if (!tableName || !capacity) {
-  //     toast.error("Table number and capacity required");
-  //     return;
-  //   }
-
-  //   setLoading(true);
-  //   console.log(editId ? "Updating table..." : "Adding new table...");
-
-  //   try {
-  //     const token = localStorage.getItem("adminToken");
-  //     if (!token) throw new Error("Login required");
-
-  //     const tableToken = editId || Date.now(); 
-  //     const qr = await generateQRCode(tableToken);
-
-  //     const formData = new FormData();
-  //     formData.append("table_number", tableName);
-  //     formData.append("capacity", capacity);
-  //     if (location) formData.append("location", location);
-  //     formData.append("qr_code", qr);
-  //     formData.append("token", tableToken);
-      
-
-  //     const url = editId
-  //       ? `${API_URL}/api/tables/${editId}/`
-  //       : `${API_URL}/api/tables/`;
-  //     const method = editId ? "PATCH" : "POST";
-
-  //     console.log(
-  //       `${method} request to ${url} with FormData:`,
-  //       Object.fromEntries(formData)
-  //     );
-
-  //     const res = await fetch(url, {
-  //       method,
-  //       headers: { Authorization: `Token ${token}` },
-  //       body: formData,
-  //     });
-
-  //     console.log(`${method} response status:`, res.status);
-  //     const data = await res.json();
-  //     console.log(`${method} response:`, data);
-
-  //     if (!res.ok || data.response_code !== "0") {
-  //       const msg = Object.values(data.errors || {})
-  //         .flat()
-  //         .join(" | ");
-  //       throw new Error(msg || "Failed to save table");
-  //     }
-
-  //     toast.success(editId ? "Table updated!" : "Table added!");
-  //     resetForm();
-  //     fetchTables();
-  //   } catch (err) {
-  //     toast.error(err.message || "Failed to save table");
-  //     console.error("Error in handleSubmit:", err);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!tableName || !capacity) {
-    toast.error("Table number and capacity required");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const adminToken = localStorage.getItem("adminToken");
-    if (!adminToken) throw new Error("Login required");
-
-    // Table token (integer)
-    const tableToken = editId ? parseInt(editId, 10) : Date.now();
-
-    // Generate QR code
-    const qr = await generateQRCode(tableToken);
-
-    // FormData
-    const formData = new FormData();
-    formData.append("table_number", tableName);
-    formData.append("capacity", parseInt(capacity, 10));
-    formData.append("location", location || "");
-    formData.append("token", tableToken); // integer
-    formData.append("qr_code", qr); // base64 string
-
-    const url = editId
-      ? `${API_URL}/api/tables/${editId}/`
-      : `${API_URL}/api/tables/`;
-    const method = editId ? "PATCH" : "POST";
-
-    const res = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Token ${adminToken}`,
-        // Do NOT set Content-Type, browser handles multipart/form-data
-      },
-      body: formData,
-    });
-
-    const data = await res.json();
-    if (!res.ok || data.response_code !== "0") {
-      const msg = Object.values(data.errors || {}).flat().join(" | ");
-      throw new Error(msg || "Failed to save table");
+    e.preventDefault();
+    if (!tableName || !capacity) {
+      toast.error("Table number and capacity required");
+      return;
     }
 
-    toast.success(editId ? "Table updated!" : "Table added!");
-    resetForm();
-    fetchTables();
-  } catch (err) {
-    toast.error(err.message || "Failed to save table");
-    console.error("Error in handleSubmit:", err);
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    console.log(editId ? "Updating table..." : "Adding new table...");
+
+    try {
+      const token = localStorage.getItem("adminToken");
+      if (!token) throw new Error("Login required");
+
+      const tableToken = editId || Date.now(); 
+      const qr = await generateQRCode(tableToken);
+
+      const formData = new FormData();
+      formData.append("table_number", tableName);
+      formData.append("capacity", capacity);
+      if (location) formData.append("location", location);
+      formData.append("qr_code", qr);
+      formData.append("token", tableToken);
+      
+
+      const url = editId
+        ? `${API_URL}/api/tables/${editId}/`
+        : `${API_URL}/api/tables/`;
+      const method = editId ? "PATCH" : "POST";
+
+      console.log(
+        `${method} request to ${url} with FormData:`,
+        Object.fromEntries(formData)
+      );
+
+      const res = await fetch(url, {
+        method,
+        headers: { Authorization: `Token ${token}` },
+        body: formData,
+      });
+
+      console.log(`${method} response status:`, res.status);
+      const data = await res.json();
+      console.log(`${method} response:`, data);
+
+      if (!res.ok || data.response_code !== "0") {
+        const msg = Object.values(data.errors || {})
+          .flat()
+          .join(" | ");
+        throw new Error(msg || "Failed to save table");
+      }
+
+      toast.success(editId ? "Table updated!" : "Table added!");
+      resetForm();
+      fetchTables();
+    } catch (err) {
+      toast.error(err.message || "Failed to save table");
+      console.error("Error in handleSubmit:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+//   const handleSubmit = async (e) => {
+//   e.preventDefault();
+//   if (!tableName || !capacity) {
+//     toast.error("Table number and capacity required");
+//     return;
+//   }
+
+//   setLoading(true);
+
+//   try {
+//     const adminToken = localStorage.getItem("adminToken");
+//     if (!adminToken) throw new Error("Login required");
+
+//     // Table token (integer)
+//     const tableToken = editId ? parseInt(editId, 10) : Date.now();
+
+//     // Generate QR code
+//     const qr = await generateQRCode(tableToken);
+
+//     // FormData
+//     const formData = new FormData();
+//     formData.append("table_number", tableName);
+//     formData.append("capacity", parseInt(capacity, 10));
+//     formData.append("location", location || "");
+//     formData.append("token", tableToken); 
+//     formData.append("qr_code", qr); // base64 string
+
+//     const url = editId
+//       ? `${API_URL}/api/tables/${editId}/`
+//       : `${API_URL}/api/tables/`;
+//     const method = editId ? "PATCH" : "POST";
+
+//     const res = await fetch(url, {
+//       method,
+//       headers: {
+        
+//       },
+//       body: formData,
+//     });
+
+//     const data = await res.json();
+//     if (!res.ok || data.response_code !== "0") {
+//       const msg = Object.values(data.errors || {}).flat().join(" | ");
+//       throw new Error(msg || "Failed to save table");
+//     }
+
+//     toast.success(editId ? "Table updated!" : "Table added!");
+//     resetForm();
+//     fetchTables();
+//   } catch (err) {
+//     toast.error(err.message || "Failed to save table");
+//     console.error("Error in handleSubmit:", err);
+//   } finally {
+//     setLoading(false);
+//   }
+// };
 
   const handleEdit = (t) => {
     console.log("Editing table:", t);
@@ -247,7 +263,7 @@ export default function TableManager() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 min-h-screen">
       <ToastProvider />
 
       <h1 className="text-3xl font-bold mb-6 text-amber-600">Tables</h1>
@@ -344,7 +360,7 @@ export default function TableManager() {
 
       {/* Table Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-amber-50 bg-opacity-30 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-opacity-30 flex items-center justify-center p-4">
           <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
             <h2 className="text-xl font-bold mb-4">
               {editId ? "Edit Table" : "Add Table"}

@@ -634,8 +634,8 @@ const AdminOrdersDashboard = () => {
     .reduce((sum, o) => sum + (o.total_price || 0), 0);
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen font-sans">
-      {/* Header */}
+    <div className="p-6  min-h-screen font-sans">
+      
       <div className="flex justify-between items-center mb-8 p-5 rounded-xl bg-white shadow-sm border">
         <h1 className="text-3xl font-bold text-amber-700 tracking-wide">Royal Dine Dashboard</h1>
         <div className="relative">

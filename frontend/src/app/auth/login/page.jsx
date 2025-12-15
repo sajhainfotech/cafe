@@ -42,15 +42,16 @@ const AdminLoginPage = () => {
         return;
       }
 
-      // Save token & username
       localStorage.setItem("adminToken", data.token || "");
       localStorage.setItem("username", username || "");
       localStorage.setItem("restaurant_id", data.restaurant_id || "");
       localStorage.setItem("branch_id", data.branch_id || "");
+      localStorage.setItem(
+        "is_superuser",
+        data.is_superuser ? "true" : "false"
+      );
 
-     
       if (data.is_superuser) {
-        // Superuser -> fetch all restaurants
         const r = await fetch(`${API_URL}/api/restaurants/`, {
           headers: { Authorization: `Token ${data.token}` },
         });
@@ -58,7 +59,6 @@ const AdminLoginPage = () => {
         const restaurantData = rData.data || [];
         localStorage.setItem("restaurants", JSON.stringify(restaurantData));
       } else if (data.restaurant_id) {
-        // Normal staff -> fetch assigned restaurant
         const r = await fetch(
           `${API_URL}/api/restaurants/${data.restaurant_id}/`,
           {
@@ -68,7 +68,7 @@ const AdminLoginPage = () => {
         const rData = await r.json();
         const restaurantData = rData.response ? [rData.response] : [];
         localStorage.setItem("restaurants", JSON.stringify(restaurantData));
-        //  save single restaurant_id for easy access
+
         if (restaurantData.length > 0) {
           localStorage.setItem(
             "restaurant_id",
@@ -77,9 +77,7 @@ const AdminLoginPage = () => {
         }
       }
 
-    
       if (data.is_superuser) {
-        // Superuser -> fetch all branches
         const b = await fetch(`${API_URL}/api/branches/`, {
           headers: { Authorization: `Token ${data.token}` },
         });
@@ -87,14 +85,13 @@ const AdminLoginPage = () => {
         const branchData = bData.data || [];
         localStorage.setItem("branches", JSON.stringify(branchData));
       } else if (data.branch_id) {
-        // Normal staff -> fetch assigned branch
         const b = await fetch(`${API_URL}/api/branches/${data.branch_id}/`, {
           headers: { Authorization: `Token ${data.token}` },
         });
         const bData = await b.json();
         const branchData = bData.response ? [bData.response] : [];
         localStorage.setItem("branches", JSON.stringify(branchData));
-        //  save single branch_id
+
         if (branchData.length > 0) {
           localStorage.setItem(
             "branch_id",
@@ -104,7 +101,11 @@ const AdminLoginPage = () => {
       }
 
       toast.success("Login successful!");
-      router.push("/dashboard");
+      if (data.is_superuser) {
+        router.push("/dashboard");
+      } else {
+        router.push("/dashboard/orders");
+      }
     } catch (err) {
       console.error("Login error:", err);
       toast.error("Something went wrong! Please try again.");

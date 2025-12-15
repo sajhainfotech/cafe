@@ -40,20 +40,20 @@ const MenuCategoryPage = () => {
 
   // Fetch categories
   const fetchCategories = async () => {
-    if (!token || !restaurant_id || !branch_id) return;
+    if (!token) return;
 
     try {
       const res = await axios.get(`${BASE_URL}/api/item-categories/`, {
-        headers: {
-          Authorization: `Token ${token}`,
-          "X-Restaurant-ID": restaurant_id,
-          "X-Branch-ID": branch_id,
-        },
+        headers: { Authorization: `Token ${token}` },
       });
-      setCategories(res.data || []);
+
+      // Ensure res.data is an array
+      const data = Array.isArray(res.data) ? res.data : [];
+      setCategories(data);
     } catch (error) {
       console.error(error);
       toast.error("Failed to fetch categories.");
+      setCategories([]); // fallback
     }
   };
 
@@ -74,14 +74,18 @@ const MenuCategoryPage = () => {
         name: categoryName,
         description,
         restaurant_id,
-        branch_id,     
+        branch_id,
       };
 
       if (editId) {
         // PATCH request for update
-        await axios.patch(`${BASE_URL}/api/item-categories/${editId}/`, payload, {
-          headers: { Authorization: `Token ${token}` },
-        });
+        await axios.patch(
+          `${BASE_URL}/api/item-categories/${editId}/`,
+          payload,
+          {
+            headers: { Authorization: `Token ${token}` },
+          }
+        );
         toast.success("Category updated successfully");
       } else {
         // POST request for new category
@@ -104,7 +108,7 @@ const MenuCategoryPage = () => {
   };
 
   const handleEdit = (cat) => {
-    setCategoryName(cat.name); // changed cat.category_name → cat.name
+    setCategoryName(cat.name);
     setDescription(cat.description || "");
     setEditId(cat.id || cat._id);
   };
@@ -124,9 +128,11 @@ const MenuCategoryPage = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
+    <div className="min-h-screen p-6 ">
       <ToastProvider />
-      <h1 className="text-3xl font-bold text-amber-700 mb-6">Menu Categories</h1>
+      <h1 className="text-3xl font-bold text-amber-700 mb-6">
+        Menu Categories
+      </h1>
 
       <form
         onSubmit={handleSubmit}
@@ -196,28 +202,38 @@ const MenuCategoryPage = () => {
               </tr>
             </thead>
             <tbody>
-              {categories.map((cat) => (
-                <tr key={cat.id || cat._id}>
-                  <td className="border px-4 py-2">{cat.name}</td>
-                  <td className="border px-4 py-2">{cat.description || "-"}</td>
-                  <td className="border px-4 py-2 space-x-2">
-                    <button
-                      onClick={() => handleEdit(cat)}
-                      className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                      disabled={formDisabled}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(cat.id || cat._id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                      disabled={formDisabled}
-                    >
-                      Delete
-                    </button>
+              {Array.isArray(categories) && categories.length > 0 ? (
+                categories.map((cat) => (
+                  <tr key={cat.id || cat._id}>
+                    <td className="border px-4 py-2">{cat.name}</td>
+                    <td className="border px-4 py-2">
+                      {cat.description || "-"}
+                    </td>
+                    <td className="border px-4 py-2 space-x-2">
+                      <button
+                        onClick={() => handleEdit(cat)}
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                        disabled={formDisabled}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(cat.id || cat._id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                        disabled={formDisabled}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="text-center py-2">
+                    No categories found
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         )}
