@@ -1,5 +1,6 @@
 "use client";
 
+import AdminHeader from "@/components/AdminHeader";
 import ToastProvider from "@/components/ToastProvider";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 import React, { useState, useEffect } from "react";
@@ -119,10 +120,11 @@ export default function AdminMenuUnitPage() {
   };
 
   return (
-    <>
-      <div className="flex flex-col items-start md:flex-row justify-between md:items-center bg-white shadow-md border border-gray-200  px-4 sm:px-6   md:px-10 py-2 md:pt-15 lg:py-3 gap-4 ">
-        <div className="flex-1 pt-15 md:pt-0 lg:pt-0">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold text-green-600 leading-tight">
+    <div className="font-robot">
+      <AdminHeader />
+      <div className="flex flex-col items-start md:flex-row justify-between md:items-center px-4 sm:px-6   md:px-10 py-2 md:pt-15 lg:py-3 gap-4 ">
+        <div className="flex-1 pt-10 md:pt-0 lg:pt-0">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight">
             Menu Units
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm mt-1">
@@ -196,54 +198,74 @@ export default function AdminMenuUnitPage() {
       </div>
 
       {showForm && (
-         <div className="fixed inset-0 bg-opacity-30 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
-            <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mb-4 text-blue-700">
-              {editId ? "Edit Unit" : "Create Unit"}
-            </h2>
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+    onClick={(e) => {
+      // Close only if clicked outside modal
+      if (e.target === e.currentTarget) {
+        setShowForm(false);
+        setEditId(null);
+        setUnitName("");
+      }
+    }}
+  >
+    <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-lg animate-fadeIn relative">
+      {/* CLOSE BUTTON */}
+      <button
+        onClick={() => {
+          setShowForm(false);
+          setEditId(null);
+          setUnitName("");
+        }}
+        className="absolute top-3 right-3 text-gray-400 hover:text-red-500"
+      >
+        ✕
+      </button>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Unit Nam
-                </label>
-                <input
-                  type="text"
-                  value={unitName}
-                  onChange={(e) => setUnitName(e.target.value)}
-                  required
-                  className="w-full border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
+      <h2 className="text-xl sm:text-2xl md:text-2xl font-bold mb-4 text-blue-700">
+        {editId ? "Edit Unit" : "Create Unit"}
+      </h2>
 
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditId(null);
-                    setUnitName("");
-                  }}
-                        className="px-2 py-2 border border-gray-600 rounded-lg font-medium text-red-500 hover:bg-red-100
-        w-full sm:w-auto text-sm sm:text-base cursor-pointer"
-                  >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700
-        text-white rounded-lg shadow 
-        w-full sm:w-auto text-sm sm:text-base font-medium cursor-pointer"
-                  >
-                  {loading ? "Processing..." : editId ? "Update" : "Create"}
-                </button>
-              </div>
-            </form>
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Unit Name
+          </label>
+          <input
+            type="text"
+            value={unitName}
+            onChange={(e) => setUnitName(e.target.value)}
+            required
+            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
         </div>
-      )}
-    </>
+
+        <div className="flex justify-end gap-3 pt-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowForm(false);
+              setEditId(null);
+              setUnitName("");
+            }}
+            className="px-2 py-2 border border-red-500 rounded-lg font-medium hover:bg-red-100 w-full sm:w-auto text-sm sm:text-base cursor-pointer"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow w-full sm:w-auto text-sm sm:text-base font-medium cursor-pointer"
+          >
+            {loading ? "Processing..." : editId ? "Update" : "Create"}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+    </div>
   );
 }

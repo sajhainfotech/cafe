@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import ToastProvider from "@/components/ToastProvider";
+import AdminHeader from "../../../components/AdminHeader";
+import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 
 const MenuCategoryPage = () => {
   const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -17,7 +19,8 @@ const MenuCategoryPage = () => {
   const [description, setDescription] = useState("");
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [formDisabled, setFormDisabled] = useState(false);
+  const [setFormDisabled] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   // Load token and IDs from localStorage
   useEffect(() => {
@@ -128,116 +131,162 @@ const MenuCategoryPage = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 ">
+    <div className="min-h-screen ">
+      {/* HEADER */}
+      <AdminHeader />
       <ToastProvider />
-      <h1 className="text-3xl font-bold text-amber-700 mb-6">
-        Menu Categories
-      </h1>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded shadow mb-6 max-w-md"
-      >
-        <h2 className="text-xl font-semibold mb-4">
-          {editId ? "Edit" : "Add"} Category
-        </h2>
+      {/* PAGE HEADER */}
+      <div className=" px-4 sm:px-6 md:px-10 py-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-blue-700">
+              Menu Categories
+            </h1>
+            <p className="text-gray-500 text-sm mt-1">
+              Manage all your menu categories here
+            </p>
+          </div>
 
-        <div className="mb-4">
-          <label className="block mb-1 font-medium">Category Name</label>
-          <input
-            type="text"
-            value={categoryName}
-            onChange={(e) => setCategoryName(e.target.value)}
-            className="w-full border px-3 py-2 rounded"
-            required
-            disabled={formDisabled}
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block mb-1 font-medium">Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full border px-3 py-2 rounded"
-            disabled={formDisabled}
-          ></textarea>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading || formDisabled}
-          className="bg-amber-600 text-white px-4 py-2 rounded hover:bg-amber-700"
-        >
-          {loading ? "Processing..." : editId ? "Update" : "Add"}
-        </button>
-
-        {editId && (
           <button
-            type="button"
             onClick={() => {
               setEditId(null);
               setCategoryName("");
               setDescription("");
+              setShowForm(true);
             }}
-            className="ml-2 bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
-            disabled={formDisabled}
+            className="flex items-center justify-center gap-2 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
           >
-            Cancel
+            + Add Category
           </button>
-        )}
-      </form>
+        </div>
+      </div>
 
-      <div className="bg-white rounded shadow p-4">
-        <h2 className="text-xl font-semibold mb-4">Category List</h2>
-        {categories.length === 0 ? (
-          <p>No categories found</p>
-        ) : (
-          <table className="w-full table-auto border-collapse">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border px-4 py-2">Name</th>
-                <th className="border px-4 py-2">Description</th>
-                <th className="border px-4 py-2">Actions</th>
+      {/* CONTENT */}
+      <div className="p-4 md:p-6">
+        <div className="overflow-x-auto rounded border border-blue-200">
+          <table className="min-w-full border-collapse">
+            <thead className="bg-blue-50 uppercase text-sm">
+              <tr>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Name
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Description
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Actions
+                </th>
               </tr>
             </thead>
+
             <tbody>
-              {Array.isArray(categories) && categories.length > 0 ? (
+              {categories.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="text-center py-6 text-gray-400">
+                    No categories found
+                  </td>
+                </tr>
+              ) : (
                 categories.map((cat) => (
-                  <tr key={cat.id || cat._id}>
+                  <tr key={cat.id} className="border-b hover:bg-gray-50">
                     <td className="border px-4 py-2">{cat.name}</td>
                     <td className="border px-4 py-2">
                       {cat.description || "-"}
                     </td>
-                    <td className="border px-4 py-2 space-x-2">
-                      <button
-                        onClick={() => handleEdit(cat)}
-                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                        disabled={formDisabled}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(cat.id || cat._id)}
-                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                        disabled={formDisabled}
-                      >
-                        Delete
-                      </button>
+                    <td className="border px-4 py-2">
+                      <div className="flex justify-center gap-4">
+                        <button
+                          onClick={() => handleEdit(cat)}
+                          className="text-blue-600 hover:underline"
+                        >
+                          <PencilIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(cat.id)}
+                          className="text-red-600 hover:underline"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
-              ) : (
-                <tr>
-                  <td colSpan={3} className="text-center py-2">
-                    No categories found
-                  </td>
-                </tr>
               )}
             </tbody>
           </table>
-        )}
+        </div>
       </div>
+
+      {/* MODAL FORM */}
+      {showForm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowForm(false);
+            }
+          }}
+        >
+          <div className="bg-white w-full max-w-md rounded-xl shadow-lg p-6 relative animate-fadeIn">
+            {/* CLOSE */}
+            <button
+              onClick={() => setShowForm(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-red-500"
+            >
+              ✕
+            </button>
+
+            <h2 className="text-xl font-semibold mb-4 text-blue-700">
+              {editId ? "Edit Category" : "Add Category"}
+            </h2>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Category Name
+                </label>
+                <input
+                  type="text"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-2 py-2 border border-red-500 hover:bg-red-100 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg cursor-pointer"
+                >
+                  {loading ? "Saving..." : editId ? "Update" : "Create"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

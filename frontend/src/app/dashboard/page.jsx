@@ -1,21 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Bell, User } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-
-} from "recharts";
-import {
-
-  Menu,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import AdminHeader from "../../components/AdminHeader";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from "recharts";
 import { useSidebar } from "./SidebarContext";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /* -------- Date Helpers -------- */
@@ -30,10 +20,13 @@ const formatDate = (dateString) => {
   return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 };
 
-export default function AdminOrdersDashboard({handleLogout}) {
-  const { collapsed, setCollapsed } = useSidebar(); 
+export default function AdminOrdersDashboard() {
+  
+  const { collapsed } = useSidebar();
   const [orders, setOrders] = useState([]);
-  const [showProfile, setShowProfile] = useState(false);
+
+
+  
 
   /* -------- Fetch Orders -------- */
   useEffect(() => {
@@ -44,13 +37,11 @@ export default function AdminOrdersDashboard({handleLogout}) {
         setOrders(data || []);
       } catch (err) {
         console.error(err);
-        setOrders([]);
       }
     };
     fetchOrders();
   }, []);
 
-  
   const today = getNepalToday();
 
   const todayOrders = orders.filter(
@@ -79,17 +70,14 @@ export default function AdminOrdersDashboard({handleLogout}) {
 
   /* -------- Weekly Revenue -------- */
   const getLast7Days = () => {
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
+    return Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
-      d.setDate(d.getDate() - i);
-      days.push({
-        label: d.toLocaleDateString("en-US", { weekday: "short" }),
+      d.setDate(d.getDate() - (6 - i));
+      return {
+        day: d.toLocaleDateString("en-US", { weekday: "short" }),
         date: `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`,
-        total: 0,
-      });
-    }
-    return days;
+      };
+    });
   };
 
   const weeklyData = getLast7Days().map((day) => {
@@ -97,117 +85,46 @@ export default function AdminOrdersDashboard({handleLogout}) {
       (o) => formatDate(o.created_at) === day.date
     );
     return {
-      day: day.label,
-      total: dayOrders.reduce(
-        (sum, o) => sum + (o.total_price || 0),
-        0
-      ),
+      day: day.day,
+      total: dayOrders.reduce((sum, o) => sum + (o.total_price || 0), 0),
     };
   });
 
   return (
-    <div className="p-0 min-h-screen">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8 p-6 border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center gap-4">
-          {/* Toggle Button with Icon */}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
-            title="Toggle Sidebar"
-          >
-            <Menu size={24} className="text-gray-700" />
-          </button>
+    <div className="min-h-screen">
+      <AdminHeader  />
 
-           <h1 className="text-3xl font-bold text-green-500">
-          Royal Dine Dashboard
-        </h1>
-        </div>
-       
-
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Bell className="w-6 h-6 text-amber-700" />
-            {pendingOrders > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 rounded-full">
-                {pendingOrders}
-              </span>
-            )}
-          </div>
-
-          <div className="relative">
-            <button
-              className="p-2 bg-amber-50 rounded-full"
-              onClick={() => setShowProfile(!showProfile)}
-            >
-              <User className="w-6 h-6 text-amber-700" />
-            </button>
-
-            {showProfile && (
-              <div className="absolute right-0 mt-3 w-40 bg-white border shadow rounded-lg">
-                <button className="w-full p-3 hover:bg-gray-100">
-                  Profile
-                </button>
-                <button onClick={handleLogout} className="w-full p-3 text-red-500 hover:bg-gray-100">
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-6">
+        <Stat title="Today Orders" value={totalOrdersToday} color="text-amber-600" />
+        <Stat title="Items Sold" value={totalItemsSold} color="text-blue-600" />
+        <Stat title="Today Revenue" value={`Rs. ${todayRevenue.toFixed(2)}`} color="text-green-600" />
+        <Stat title="Pending Orders" value={pendingOrders} color="text-red-600" />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 p-6">
-        <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500">Today Orders</p>
-          <h2 className="text-3xl font-bold text-amber-600">
-            {totalOrdersToday}
-          </h2>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500">Items Sold</p>
-          <h2 className="text-3xl font-bold text-blue-600">
-            {totalItemsSold}
-          </h2>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500">Today Revenue</p>
-          <h2 className="text-3xl font-bold text-green-600">
-            Rs. {todayRevenue.toFixed(2)}
-          </h2>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500">Pending Orders</p>
-          <h2 className="text-3xl font-bold text-red-600">
-            {pendingOrders}
-          </h2>
-        </div>
-      </div>
+      {/* Chart */}
       <div className="p-6">
-        <div className="p-6 rounded-xl shadow">
-          <h2 className="text-xl font-semibold mb-4">
-            Weekly Revenue
-          </h2>
-
+        <div className="bg-white p-6 rounded-xl shadow">
+          <h2 className="text-xl font-semibold mb-4">Weekly Revenue</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={weeklyData}>
               <XAxis dataKey="day" />
               <YAxis />
               <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke="#f59e0b"
-                strokeWidth={3}
-              />
+              <Line type="monotone" dataKey="total" stroke="#f59e0b" strokeWidth={3} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Stat({ title, value, color }) {
+  return (
+    <div className="bg-white p-6 rounded-xl shadow">
+      <p className="text-gray-500">{title}</p>
+      <h2 className={`text-3xl font-bold ${color}`}>{value}</h2>
     </div>
   );
 }

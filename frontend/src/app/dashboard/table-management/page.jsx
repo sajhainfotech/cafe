@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import toast from "react-hot-toast";
 import ToastProvider from "@/components/ToastProvider";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
+import AdminHeader from "../../../components/AdminHeader";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const FRONTEND_URL = process.env.NEXT_PUBLIC_CLIENT_NETWORK;
@@ -69,21 +70,6 @@ export default function TableManager() {
   useEffect(() => {
     fetchTables();
   }, []);
-
-  // const generateQRCode = async (token) => {
-  //   try {
-  //     const url = `https://restaurantsapi.sajhainfotech.com/scan?token=${token}&table_number=${tableName}`;
-
-  //     console.log("Generating QR for:", url);
-  //     const qrData = await QRCode.toDataURL(url);
-  //     console.log("QR code generated:", qrData);
-  //     return qrData;
-  //   } catch (err) {
-  //     console.error("QR generation error:", err);
-  //     toast.error("Failed to generate QR");
-  //     return "";
-  //   }
-  // };
 
   const generateQRCode = async (tableToken) => {
     try {
@@ -256,15 +242,14 @@ export default function TableManager() {
   };
 
   return (
-    <>
-      <div className="flex flex-col items-start md:flex-row justify-between md:items-center bg-white shadow-md border border-gray-200  px-4 sm:px-6   md:px-10 py-2 md:pt-15 lg:py-3 gap-4 ">
-        <div className="flex-1 pt-15 md:pt-0 lg:pt-0">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold text-green-600 leading-tight">
+    <div className="min-h-screen">
+      <AdminHeader />
+      <div className="flex flex-col items-start md:flex-row  justify-between md:items-center px-4 sm:px-6   md:px-10 py-3 md:pt-15 lg:py-3 gap-4 ">
+        <div className="flex-1 pt-15 md:pt-0 lg:pt-0 ">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight">
             Tables Management
           </h1>
-          <p className="text-gray-500 text-xs sm:text-sm md:text-base mt-1 md:mt-2">
-            Manage all your tables here
-          </p>
+          
         </div>
         <div className="w-full md:w-auto flex justify-end">
           <button
@@ -285,7 +270,6 @@ export default function TableManager() {
       <div className="p-4 md:p-6 min-h-screen font-roboto">
         <ToastProvider />
 
-        {/* TABLE LIST */}
         <div className="overflow-x-auto rounded border border-blue-200">
           <table className="min-w-full border-collapse">
             <thead className="bg-blue-50 uppercase text-sm">
@@ -300,7 +284,7 @@ export default function TableManager() {
                   Location
                 </th>
                 <th className="border border-gray-300 px-4 py-3 text-left">
-                  QR Code
+                  QR 
                 </th>
                 <th className="border border-gray-300 px-4 py-3 text-left">
                   Actions
@@ -352,57 +336,104 @@ export default function TableManager() {
 
       {/* Table Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-opacity-30 flex items-center justify-center p-4 shadow-2xl">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
-            <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mb-4 text-blue-700">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => {
+            
+            if (e.target === e.currentTarget) {
+              setShowForm(false);
+              setEditId(null);
+              setTableName("");
+              setCapacity("");
+              setLocation("");
+            }
+          }}
+        >
+          <div className="bg-white w-full max-w-md rounded-xl shadow-lg p-6 animate-fadeIn relative">
+            
+            <button
+              onClick={() => {
+                setShowForm(false);
+                setEditId(null);
+                setTableName("");
+                setCapacity("");
+                setLocation("");
+              }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-red-500"
+            >
+              ✕
+            </button>
+
+            <h2 className="text-xl font-bold mb-4 text-blue-700">
               {editId ? "Edit Table" : "Add Table"}
             </h2>
-            {message && <p className="text-red-500 mb-2">{message}</p>}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                value={tableName}
-                onChange={(e) => setTableName(e.target.value)}
-                placeholder="Table Name / Number"
-                required
-                className="w-full border p-2 rounded text-sm sm:text-base"
-              />
-              <input
-                type="number"
-                value={capacity}
-                onChange={(e) => setCapacity(e.target.value)}
-                placeholder="Capacity"
-                required
-                className="w-full border p-2 rounded text-sm sm:text-base"
-              />
-              <input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Location (optional)"
-                className="w-full border p-2 rounded text-sm sm:text-base"
-              />
 
-              <div className="flex justify-end gap-3">
+            {message && <p className="text-red-500 mb-2">{message}</p>}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Table Number
+                </label>
+                <input
+                  value={tableName}
+                  onChange={(e) => setTableName(e.target.value)}
+                  required
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Capacity
+                </label>
+                <input
+                  type="number"
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                  required
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Location (optional)
+                </label>
+                <input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
-                       className="px-2 py-2 border border-gray-600 rounded-lg font-medium text-red-500 hover:bg-red-100
-        w-full sm:w-auto text-sm sm:text-base cursor-pointer"
-                  >
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditId(null);
+                    setTableName("");
+                    setCapacity("");
+                    setLocation("");
+                  }}
+                  className="px-2 py-2 border border-red-500 rounded-lg font-medium hover:bg-red-100 w-full sm:w-auto text-sm sm:text-base cursor-pointer"
+                >
                   Cancel
                 </button>
+
                 <button
                   type="submit"
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700
-        text-white rounded-lg shadow 
-        w-full sm:w-auto text-sm sm:text-base font-medium cursor-pointer"
-                  >
-                  {loading ? "Saving..." : editId ? "Update" : "Create"}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow w-full sm:w-auto text-sm sm:text-base font-medium cursor-pointer"
+                >
+                  {loading ? "Saving..." : editId ? "Update" : "Create Table"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
