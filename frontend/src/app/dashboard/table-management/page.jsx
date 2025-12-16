@@ -244,14 +244,16 @@ export default function TableManager() {
   return (
     <div className="min-h-screen">
       <AdminHeader />
-      <div className="flex flex-col items-start md:flex-row  justify-between md:items-center px-4 sm:px-6   md:px-10 py-3 md:pt-15 lg:py-3 gap-4 ">
-        <div className="flex-1 pt-15 md:pt-0 lg:pt-0 ">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight">
+      <div className="flex flex-row items-center justify-between px-4 sm:px-6 md:px-10 py-3 gap-4">
+       
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight truncate">
             Tables Management
           </h1>
-          
         </div>
-        <div className="w-full md:w-auto flex justify-end">
+
+      
+        <div className="flex-shrink-0 ml-4">
           <button
             onClick={() => {
               setTableName("");
@@ -260,7 +262,7 @@ export default function TableManager() {
               setEditId(null);
               setShowForm(true);
             }}
-            className="flex items-center justify-center gap-2 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
+            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
           >
             + Add Table
           </button>
@@ -284,7 +286,7 @@ export default function TableManager() {
                   Location
                 </th>
                 <th className="border border-gray-300 px-4 py-3 text-left">
-                  QR 
+                  QR
                 </th>
                 <th className="border border-gray-300 px-4 py-3 text-left">
                   Actions
@@ -304,8 +306,8 @@ export default function TableManager() {
                     {t.qr_code ? (
                       <img
                         src={t.qr_code}
-                        alt="QR"
-                        className="w-16 h-16 rounded shadow cursor-pointer hover:scale-105 transition"
+                        alt="QR Code"
+                        className="w-12 h-12 sm:w-10 sm:h-10 md:w-8 md:h-8 lg:w-10 lg:h-10 object-contain"
                       />
                     ) : (
                       <span className="text-gray-400">No QR</span>
@@ -339,7 +341,6 @@ export default function TableManager() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           onClick={(e) => {
-            
             if (e.target === e.currentTarget) {
               setShowForm(false);
               setEditId(null);
@@ -350,7 +351,6 @@ export default function TableManager() {
           }}
         >
           <div className="bg-white w-full max-w-md rounded-xl shadow-lg p-6 animate-fadeIn relative">
-            
             <button
               onClick={() => {
                 setShowForm(false);
@@ -425,9 +425,9 @@ export default function TableManager() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow w-full sm:w-auto text-sm sm:text-base font-medium cursor-pointer"
+                  className="px-4 py-2 bg-blue-600  hover:bg-blue-700 text-white rounded-lg shadow w-full sm:w-auto text-sm sm:text-base font-medium cursor-pointer"
                 >
-                  {loading ? "Saving..." : editId ? "Update" : "Create Table"}
+                  {loading ? "Saving..." : editId ? "Update" : "Create "}
                 </button>
               </div>
             </form>

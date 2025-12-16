@@ -49,10 +49,10 @@ const MenuCategoryPage = () => {
       const res = await axios.get(`${BASE_URL}/api/item-categories/`, {
         headers: { Authorization: `Token ${token}` },
       });
-
+      console.table(res.data.data);
       // Ensure res.data is an array
       const data = Array.isArray(res.data) ? res.data : [];
-      setCategories(data);
+      setCategories(res.data.data);
     } catch (error) {
       console.error(error);
       toast.error("Failed to fetch categories.");

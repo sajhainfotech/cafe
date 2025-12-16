@@ -114,19 +114,37 @@ export default function AdminMenuManager() {
       const token = localStorage.getItem("adminToken");
       if (!token) throw new Error("Login again!");
 
+      // const formData = new FormData();
+      // formData.append("menu_date", form.menu_date);
+
+      // form.categories.forEach((cat, index) => {
+      //   formData.append(`name_${index}`, cat.name);
+      //   formData.append(`price_${index}`, cat.price);
+      //   formData.append(`item_category_${index}`, cat.item_category);
+      //   formData.append(`unit_${index}`, cat.unit);
+
+      //   if (cat.imageFile) {
+      //     formData.append(`imageFile_${index}`, cat.imageFile);
+      //   }
+      // });
+
       const formData = new FormData();
       formData.append("menu_date", form.menu_date);
 
       form.categories.forEach((cat, index) => {
-        formData.append(`name_${index}`, cat.name);
-        formData.append(`price_${index}`, cat.price);
-        formData.append(`item_category_${index}`, cat.item_category);
-        formData.append(`unit_${index}`, cat.unit);
+        formData.append(`items[${index}][name]`, cat.name);
+        formData.append(`items[${index}][price]`, cat.price);
+        formData.append(`items[${index}][item_category]`, cat.item_category);
+        formData.append(`items[${index}][unit]`, cat.unit);
 
         if (cat.imageFile) {
-          formData.append(`imageFile_${index}`, cat.imageFile);
+          formData.append(`items[${index}][image]`, cat.imageFile);
         }
       });
+
+      for (let pair of formData.entries()) {
+        console.log(pair[0], pair[1]);
+      }
 
       const url = editingMenuId
         ? `${API_URL}/api/menus/${editingMenuId}/`
@@ -185,7 +203,6 @@ export default function AdminMenuManager() {
         block: "start",
       });
     }
-
   };
 
   const handleDeleteMenu = async (menuId) => {
@@ -205,34 +222,39 @@ export default function AdminMenuManager() {
     }
   };
 
-
   const onSubmit = async (e) => {
     e.preventDefault();
     await handleSubmit(e);
     setShowForm(false);
   };
   return (
-    <div className="container">
+    <div className="container min-h-screen">
       <ToastProvider />
 
-    
       {!showForm && (
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight">
-            Menus Management
-          </h1>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-semibold w-full sm:w-auto"
-          >
-            + Create Menu
-          </button>
+        <div className="flex flex-row items-center justify-between px-4 sm:px-6 md:px-10 py-3 gap-4">
+          {/* Title */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight truncate">
+              Menus Management
+            </h1>
+          </div>
+
+          {/* Button */}
+          <div className="flex-shrink-0 ml-4">
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
+            >
+              + Create Menu
+            </button>
+          </div>
         </div>
       )}
 
       {/* FORM */}
       {showForm && (
-        <div className="bg-white shadow-lg rounded-xl p-4 sm:p-6 mb-8" >
+        <div className="bg-white shadow-lg rounded-xl p-4 sm:p-6 mb-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
             <h2 className="text-xl sm:text-2xl font-semibold text-blue-600">
               {editingMenuId ? "Edit Menu" : "Create Menu"}
@@ -241,16 +263,14 @@ export default function AdminMenuManager() {
               onClick={() => setShowForm(false)}
               className="text-gray-600 hover:text-red-600 font-medium"
             >
-              < X size={20} />
+              <X size={20} />
             </button>
           </div>
 
           <form ref={formRef} onSubmit={onSubmit} className="space-y-6">
             {/* MENU DATE */}
             <div>
-              <label className="block mb-2 font-semibold ">
-                Menu Date
-              </label>
+              <label className="block mb-2 font-semibold ">Menu Date</label>
               <input
                 type="date"
                 value={form.menu_date}
@@ -357,27 +377,39 @@ export default function AdminMenuManager() {
                 {loading
                   ? "Saving..."
                   : editingMenuId
-                    ? "Update Menu"
-                    : "Create Menu"}
+                  ? "Update Menu"
+                  : "Create Menu"}
               </button>
             </div>
           </form>
         </div>
       )}
 
-     
-
-      <div className="overflow-x-auto rounded-lg border border-blue-200">
-        <table className="min-w-full">
-          <thead className="bg-blue-50">
+      <div className="overflow-x-auto rounded border border-blue-200">
+        <table className="min-w-full border-collapse">
+          <thead className="bg-blue-50 uppercase text-sm">
             <tr>
-              <th className="px-4 py-2 border">Menu Date</th>
-              <th className="px-4 py-2 border">Name</th>
-              <th className="px-4 py-2 border">Price</th>
-              <th className="px-4 py-2 border">Item Category</th>
-              <th className="px-4 py-2 border">Unit</th>
-              <th className="px-4 py-2 border">Image</th>
-              <th className="px-4 py-2 border">Actions</th>
+              <th className="border border-gray-300 px-4 py-3 text-left">
+                Menu Date
+              </th>
+              <th className="border border-gray-300 px-4 py-3 text-left">
+                Name
+              </th>
+              <th className="border border-gray-300 px-4 py-3 text-left">
+                Price
+              </th>
+              <th className="border border-gray-300 px-4 py-3 text-left">
+                Item Category
+              </th>
+              <th className="border border-gray-300 px-4 py-3 text-left">
+                Unit
+              </th>
+              <th className="border border-gray-300 px-4 py-3 text-left">
+                Image
+              </th>
+              <th className="border border-gray-300 px-4 py-3 text-left">
+                Actions
+              </th>
             </tr>
           </thead>
 
@@ -393,7 +425,8 @@ export default function AdminMenuManager() {
                   )?.name || "N/A"}
                 </td>
                 <td className="px-4 py-2 border">
-                  {units.find((u) => u.reference_id === menu.unit)?.name || "N/A"}
+                  {units.find((u) => u.reference_id === menu.unit)?.name ||
+                    "N/A"}
                 </td>
                 <td className="px-4 py-2 border">
                   {menu.imageFile || menu.image_url ? (
@@ -433,6 +466,5 @@ export default function AdminMenuManager() {
         </table>
       </div>
     </div>
-
   );
 }
