@@ -39,6 +39,8 @@ export default function DesktopSidebar({ router, handleLogout, is_superuser, chi
 
   const menuItems = isSuperUser ? menuItemsSuperUser : menuItemsStaff;
 
+
+  
   const SidebarContent = () => (
     <>
       {menuItems.map((item, i) => {

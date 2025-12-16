@@ -4,9 +4,14 @@ import React, { createContext, useContext, useState } from "react";
 
 const SidebarContext = createContext();
 
+const getInitialCollapsed = () => {
+  if (typeof window === "undefined") return true; // SSR safe
+  return window.innerWidth < 992; // mobile → closed, desktop → open
+};
+
 export const SidebarProvider = ({ children }) => {
-  const [collapsed, setCollapsed] = useState(false); // desktop
-  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile
+  const [collapsed, setCollapsed] = useState(getInitialCollapsed);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <SidebarContext.Provider

@@ -12,7 +12,10 @@ export default function AdminHeader({
   const { collapsed, setCollapsed } = useSidebar();
   const [showProfile, setShowProfile] = useState(false);
 
+
+
   return (
+    
     <>
       <div className="flex justify-between items-center gap-4 lg:mb-6 p-4 md:p-6 border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center gap-3 md:gap-4">
