@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import AdminHeader from "../AdminHeader";
 
 export default function AdminMenuUnitPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -128,89 +129,93 @@ export default function AdminMenuUnitPage() {
   };
 
   return (
-    <div className="min-h-screen p-6 ">
-      <h1 className="text-3xl font-bold text-amber-700 mb-6">Menu Units</h1>
+    <div className="min-h-screen">
+       {/* Header */}
+       <AdminHeader/>
+      <div className="p-6">
+        <h1 className="text-3xl font-bold text-amber-700 mb-6">Menu Units</h1>
 
-      {/* Form */}
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded shadow mb-6 max-w-md"
-      >
-        <h2 className="text-xl font-semibold mb-4">
-          {editId ? "Edit Unit" : "Add Unit"}
-        </h2>
-
-        <div className="mb-4">
-          <label className="block mb-1 font-medium">Unit Name</label>
-          <input
-            type="text"
-            value={unitName}
-            onChange={(e) => setUnitName(e.target.value)}
-            className="w-full border px-3 py-2 rounded"
-            required
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-amber-600 text-white px-4 py-2 rounded hover:bg-amber-700"
+        {/* Form */}
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white p-6 rounded shadow mb-6 max-w-md"
         >
-          {loading ? "Processing..." : editId ? "Update" : "Add"}
-        </button>
+          <h2 className="text-xl font-semibold mb-4">
+            {editId ? "Edit Unit" : "Add Unit"}
+          </h2>
 
-        {editId && (
+          <div className="mb-4">
+            <label className="block mb-1 font-medium">Unit Name</label>
+            <input
+              type="text"
+              value={unitName}
+              onChange={(e) => setUnitName(e.target.value)}
+              className="w-full border px-3 py-2 rounded"
+              required
+            />
+          </div>
+
           <button
-            type="button"
-            onClick={() => {
-              setEditId(null);
-              setUnitName("");
-            }}
-            className="ml-2 bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
+            type="submit"
+            disabled={loading}
+            className="bg-amber-600 text-white px-4 py-2 rounded hover:bg-amber-700"
           >
-            Cancel
+            {loading ? "Processing..." : editId ? "Update" : "Add"}
           </button>
-        )}
-      </form>
 
-      {/* Table */}
-      <div className="bg-white p-4 rounded shadow">
-        <h2 className="text-xl font-semibold mb-4">Unit List</h2>
+          {editId && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditId(null);
+                setUnitName("");
+              }}
+              className="ml-2 bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+          )}
+        </form>
 
-        {units.length === 0 ? (
-          <p>No units found</p>
-        ) : (
-          <table className="w-full table-auto border-collapse">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border px-4 py-2">Name</th>
-                <th className="border px-4 py-2">Actions</th>
-              </tr>
-            </thead>
+        {/* Table */}
+        <div className="bg-white p-4 rounded shadow">
+          <h2 className="text-xl font-semibold mb-4">Unit List</h2>
 
-            <tbody>
-              {units.map((u) => (
-                <tr key={u.reference_id}>
-                  <td className="border px-4 py-2">{u.name}</td>
-                  <td className="border px-4 py-2 space-x-2">
-                    <button
-                      onClick={() => handleEdit(u)}
-                      className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(u.reference_id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                    >
-                      Delete
-                    </button>
-                  </td>
+          {units.length === 0 ? (
+            <p>No units found</p>
+          ) : (
+            <table className="w-full table-auto border-collapse">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border px-4 py-2">Name</th>
+                  <th className="border px-4 py-2">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+
+              <tbody>
+                {units.map((u) => (
+                  <tr key={u.reference_id}>
+                    <td className="border px-4 py-2">{u.name}</td>
+                    <td className="border px-4 py-2 space-x-2">
+                      <button
+                        onClick={() => handleEdit(u)}
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u.reference_id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );

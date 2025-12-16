@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import toast from "react-hot-toast";
 import ToastProvider from "@/components/ToastProvider";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
+import AdminHeader from "../AdminHeader";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const FRONTEND_URL = process.env.NEXT_PUBLIC_CLIENT_NETWORK
@@ -60,7 +61,7 @@ export default function TableManager() {
       );
 
       setTables(tablesWithQR);
-      
+
     } catch (err) {
       toast.error(err.message || "Failed to load tables");
       console.error("Error fetching tables:", err);
@@ -87,18 +88,18 @@ export default function TableManager() {
   // };
 
 
- const generateQRCode = async (tableToken) => {
-  try {
-    const url = `${FRONTEND_URL}/menu?table_token=${tableToken}`;
-    console.log("📎 QR URL:", url);
+  const generateQRCode = async (tableToken) => {
+    try {
+      const url = `${FRONTEND_URL}/menu?table_token=${tableToken}`;
+      console.log("📎 QR URL:", url);
 
-    const qrData = await QRCode.toDataURL(url);
-    return qrData;
-  } catch (err) {
-    toast.error("QR generate failed");
-    return "";
-  }
-};
+      const qrData = await QRCode.toDataURL(url);
+      return qrData;
+    } catch (err) {
+      toast.error("QR generate failed");
+      return "";
+    }
+  };
 
 
 
@@ -123,7 +124,7 @@ export default function TableManager() {
       const token = localStorage.getItem("adminToken");
       if (!token) throw new Error("Login required");
 
-      const tableToken = editId || Date.now(); 
+      const tableToken = editId || Date.now();
       const qr = await generateQRCode(tableToken);
 
       const formData = new FormData();
@@ -132,7 +133,7 @@ export default function TableManager() {
       if (location) formData.append("location", location);
       formData.append("qr_code", qr);
       formData.append("token", tableToken);
-      
+
 
       const url = editId
         ? `${API_URL}/api/tables/${editId}/`
@@ -173,62 +174,62 @@ export default function TableManager() {
   };
 
 
-//   const handleSubmit = async (e) => {
-//   e.preventDefault();
-//   if (!tableName || !capacity) {
-//     toast.error("Table number and capacity required");
-//     return;
-//   }
+  //   const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   if (!tableName || !capacity) {
+  //     toast.error("Table number and capacity required");
+  //     return;
+  //   }
 
-//   setLoading(true);
+  //   setLoading(true);
 
-//   try {
-//     const adminToken = localStorage.getItem("adminToken");
-//     if (!adminToken) throw new Error("Login required");
+  //   try {
+  //     const adminToken = localStorage.getItem("adminToken");
+  //     if (!adminToken) throw new Error("Login required");
 
-//     // Table token (integer)
-//     const tableToken = editId ? parseInt(editId, 10) : Date.now();
+  //     // Table token (integer)
+  //     const tableToken = editId ? parseInt(editId, 10) : Date.now();
 
-//     // Generate QR code
-//     const qr = await generateQRCode(tableToken);
+  //     // Generate QR code
+  //     const qr = await generateQRCode(tableToken);
 
-//     // FormData
-//     const formData = new FormData();
-//     formData.append("table_number", tableName);
-//     formData.append("capacity", parseInt(capacity, 10));
-//     formData.append("location", location || "");
-//     formData.append("token", tableToken); 
-//     formData.append("qr_code", qr); // base64 string
+  //     // FormData
+  //     const formData = new FormData();
+  //     formData.append("table_number", tableName);
+  //     formData.append("capacity", parseInt(capacity, 10));
+  //     formData.append("location", location || "");
+  //     formData.append("token", tableToken); 
+  //     formData.append("qr_code", qr); // base64 string
 
-//     const url = editId
-//       ? `${API_URL}/api/tables/${editId}/`
-//       : `${API_URL}/api/tables/`;
-//     const method = editId ? "PATCH" : "POST";
+  //     const url = editId
+  //       ? `${API_URL}/api/tables/${editId}/`
+  //       : `${API_URL}/api/tables/`;
+  //     const method = editId ? "PATCH" : "POST";
 
-//     const res = await fetch(url, {
-//       method,
-//       headers: {
-        
-//       },
-//       body: formData,
-//     });
+  //     const res = await fetch(url, {
+  //       method,
+  //       headers: {
 
-//     const data = await res.json();
-//     if (!res.ok || data.response_code !== "0") {
-//       const msg = Object.values(data.errors || {}).flat().join(" | ");
-//       throw new Error(msg || "Failed to save table");
-//     }
+  //       },
+  //       body: formData,
+  //     });
 
-//     toast.success(editId ? "Table updated!" : "Table added!");
-//     resetForm();
-//     fetchTables();
-//   } catch (err) {
-//     toast.error(err.message || "Failed to save table");
-//     console.error("Error in handleSubmit:", err);
-//   } finally {
-//     setLoading(false);
-//   }
-// };
+  //     const data = await res.json();
+  //     if (!res.ok || data.response_code !== "0") {
+  //       const msg = Object.values(data.errors || {}).flat().join(" | ");
+  //       throw new Error(msg || "Failed to save table");
+  //     }
+
+  //     toast.success(editId ? "Table updated!" : "Table added!");
+  //     resetForm();
+  //     fetchTables();
+  //   } catch (err) {
+  //     toast.error(err.message || "Failed to save table");
+  //     console.error("Error in handleSubmit:", err);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleEdit = (t) => {
     console.log("Editing table:", t);
@@ -236,8 +237,8 @@ export default function TableManager() {
     setTableName(t.table_number);
     setCapacity(t.capacity || "");
     setLocation(t.location || "");
-    setShowForm(true); 
-    
+    setShowForm(true);
+
   };
 
   const handleDelete = async (id) => {
@@ -263,151 +264,154 @@ export default function TableManager() {
   };
 
   return (
-    <div className="p-6 min-h-screen">
-      <ToastProvider />
+    <div className="min-h-screen">
+      {/* Header */}
+      <AdminHeader />
 
-      <h1 className="text-3xl font-bold mb-6 text-amber-600">Tables</h1>
+      <div className="p-6">
+        <ToastProvider />
+        <h1 className="text-3xl font-bold mb-6 text-amber-600">Tables</h1>
+        {/* Add Table Button */}
+        <button
+          onClick={() => {
+            setTableName("");
+            setCapacity("");
+            setLocation("");
+            setEditId(null);
+            setShowForm(true);
+          }}
+          className="mb-6 bg-amber-500 text-white px-5 py-2 rounded-lg shadow cursor-pointer"
+        >
+          + Add Table
+        </button>
 
-      {/* Add Table Button */}
-      <button
-        onClick={() => {
-          setTableName("");
-          setCapacity("");
-          setLocation("");
-          setEditId(null);
-          setShowForm(true);
-        }}
-        className="mb-6 bg-amber-500 text-white px-5 py-2 rounded-lg shadow cursor-pointer"
-      >
-        + Add Table
-      </button>
-
-      {/* Table List */}
-      <div className="overflow-x-auto shadow rounded-lg">
-        <table className="min-w-full bg-white rounded-lg table-auto">
-          <thead className="bg-amber-400 text-white">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm sm:text-base">
-                Table
-              </th>
-              <th className="px-4 py-3 text-left text-sm sm:text-base">
-                Capacity
-              </th>
-              <th className="px-4 py-3 text-left text-sm sm:text-base">
-                Location
-              </th>
-              <th className="px-4 py-3 text-left text-sm sm:text-base">
-                QR Code
-              </th>
-              <th className="px-4 py-3 text-left text-sm sm:text-base">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {tables.map((t, i) => (
-              <tr
-                key={t.reference_id || i}
-                className="border-b hover:bg-gray-50 transition"
-              >
-                <td className="px-4 py-2 text-sm sm:text-base">
-                  Table {t.table_number}
-                </td>
-                <td className="px-4 py-2 text-sm sm:text-base">
-                  {t.capacity || "-"}
-                </td>
-                <td className="px-4 py-2 text-sm sm:text-base">
-                  {t.location || "-"}
-                </td>
-                <td className="px-4 py-2">
-                  {t.qr_code ? (
-                    <a
-                      href={t.qr_code}
-                      download={`QR-${t.table_number || t.reference_id}`}
-                      title="Download QR Code"
-                    >
-                      <img
-                        src={t.qr_code}
-                        alt="QR"
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded shadow-sm cursor-pointer hover:scale-105 transition-transform"
-                      />
-                    </a>
-                  ) : (
-                    <span className="text-gray-400 text-sm sm:text-base">
-                      No QR
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-2 mt-7 flex gap-4 sm:gap-3">
-                  <button
-                    onClick={() => handleEdit(t)}
-                    className="flex items-center gap-1 px-2 py-1 text-blue-500 transition hover:text-blue-600"
-                  >
-                    <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(t.reference_id)}
-                    className="flex items-center gap-1 px-2 py-1 text-red-500 transition hover:text-red-600"
-                  >
-                    <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                </td>
+        {/* Table List */}
+        <div className="overflow-x-auto shadow rounded-lg">
+          <table className="min-w-full bg-white rounded-lg table-auto">
+            <thead className="bg-amber-400 text-white">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm sm:text-base">
+                  Table
+                </th>
+                <th className="px-4 py-3 text-left text-sm sm:text-base">
+                  Capacity
+                </th>
+                <th className="px-4 py-3 text-left text-sm sm:text-base">
+                  Location
+                </th>
+                <th className="px-4 py-3 text-left text-sm sm:text-base">
+                  QR Code
+                </th>
+                <th className="px-4 py-3 text-left text-sm sm:text-base">
+                  Actions
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Table Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-opacity-30 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
-            <h2 className="text-xl font-bold mb-4">
-              {editId ? "Edit Table" : "Add Table"}
-            </h2>
-            {message && <p className="text-red-500 mb-2">{message}</p>}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                value={tableName}
-                onChange={(e) => setTableName(e.target.value)}
-                placeholder="Table Name / Number"
-                required
-                className="w-full border p-2 rounded text-sm sm:text-base"
-              />
-              <input
-                type="number"
-                value={capacity}
-                onChange={(e) => setCapacity(e.target.value)}
-                placeholder="Capacity"
-                required
-                className="w-full border p-2 rounded text-sm sm:text-base"
-              />
-              <input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Location (optional)"
-                className="w-full border p-2 rounded text-sm sm:text-base"
-              />
-
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 border rounded text-sm sm:text-base"
+            </thead>
+            <tbody>
+              {tables.map((t, i) => (
+                <tr
+                  key={t.reference_id || i}
+                  className="border-b hover:bg-gray-50 transition"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-amber-500 text-white rounded text-sm sm:text-base"
-                >
-                  {loading ? "Saving..." : editId ? "Update" : "Add Table"}
-                </button>
-              </div>
-            </form>
-          </div>
+                  <td className="px-4 py-2 text-sm sm:text-base">
+                    Table {t.table_number}
+                  </td>
+                  <td className="px-4 py-2 text-sm sm:text-base">
+                    {t.capacity || "-"}
+                  </td>
+                  <td className="px-4 py-2 text-sm sm:text-base">
+                    {t.location || "-"}
+                  </td>
+                  <td className="px-4 py-2">
+                    {t.qr_code ? (
+                      <a
+                        href={t.qr_code}
+                        download={`QR-${t.table_number || t.reference_id}`}
+                        title="Download QR Code"
+                      >
+                        <img
+                          src={t.qr_code}
+                          alt="QR"
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded shadow-sm cursor-pointer hover:scale-105 transition-transform"
+                        />
+                      </a>
+                    ) : (
+                      <span className="text-gray-400 text-sm sm:text-base">
+                        No QR
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 mt-7 flex gap-4 sm:gap-3">
+                    <button
+                      onClick={() => handleEdit(t)}
+                      className="flex items-center gap-1 px-2 py-1 text-blue-500 transition hover:text-blue-600"
+                    >
+                      <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(t.reference_id)}
+                      className="flex items-center gap-1 px-2 py-1 text-red-500 transition hover:text-red-600"
+                    >
+                      <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* Table Modal */}
+        {showForm && (
+          <div className="fixed inset-0 bg-opacity-30 flex items-center justify-center p-4">
+            <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
+              <h2 className="text-xl font-bold mb-4">
+                {editId ? "Edit Table" : "Add Table"}
+              </h2>
+              {message && <p className="text-red-500 mb-2">{message}</p>}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <input
+                  value={tableName}
+                  onChange={(e) => setTableName(e.target.value)}
+                  placeholder="Table Name / Number"
+                  required
+                  className="w-full border p-2 rounded text-sm sm:text-base"
+                />
+                <input
+                  type="number"
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                  placeholder="Capacity"
+                  required
+                  className="w-full border p-2 rounded text-sm sm:text-base"
+                />
+                <input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Location (optional)"
+                  className="w-full border p-2 rounded text-sm sm:text-base"
+                />
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="px-4 py-2 border rounded text-sm sm:text-base"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-amber-500 text-white rounded text-sm sm:text-base"
+                  >
+                    {loading ? "Saving..." : editId ? "Update" : "Add Table"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

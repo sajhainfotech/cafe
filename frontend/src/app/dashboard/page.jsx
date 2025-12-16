@@ -16,6 +16,7 @@ import {
   Menu,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
+import AdminHeader from "./AdminHeader";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /* -------- Date Helpers -------- */
@@ -30,7 +31,7 @@ const formatDate = (dateString) => {
   return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 };
 
-export default function AdminOrdersDashboard({handleLogout}) {
+export default function AdminOrdersDashboard({ handleLogout }) {
   const { collapsed, setCollapsed } = useSidebar(); // ✅ now works
   const [orders, setOrders] = useState([]);
   const [showProfile, setShowProfile] = useState(false);
@@ -109,54 +110,7 @@ export default function AdminOrdersDashboard({handleLogout}) {
   return (
     <div className="p-0 min-h-screen">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8 p-6 border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center gap-4">
-          {/* Toggle Button with Icon */}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
-            title="Toggle Sidebar"
-          >
-            <Menu size={24} className="text-gray-700" />
-          </button>
-
-           <h1 className="text-3xl font-bold text-green-500">
-          Royal Dine Dashboard
-        </h1>
-        </div>
-       
-
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Bell className="w-6 h-6 text-amber-700" />
-            {pendingOrders > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 rounded-full">
-                {pendingOrders}
-              </span>
-            )}
-          </div>
-
-          <div className="relative">
-            <button
-              className="p-2 bg-amber-50 rounded-full"
-              onClick={() => setShowProfile(!showProfile)}
-            >
-              <User className="w-6 h-6 text-amber-700" />
-            </button>
-
-            {showProfile && (
-              <div className="absolute right-0 mt-3 w-40 bg-white border shadow rounded-lg">
-                <button className="w-full p-3 hover:bg-gray-100">
-                  Profile
-                </button>
-                <button onClick={handleLogout} className="w-full p-3 text-red-500 hover:bg-gray-100">
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <AdminHeader/>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 p-6">
