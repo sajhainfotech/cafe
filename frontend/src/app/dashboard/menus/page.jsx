@@ -9,7 +9,7 @@ export default function MenuManagement() {
   };
 
   return (
-    <div className="p-6">
+    <div >
       <AddItemForm onAddItem={handleAddItem} />
     </div>
   );

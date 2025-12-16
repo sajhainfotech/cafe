@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
+import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
+
+import ToastProvider from "@/components/ToastProvider";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -132,120 +135,173 @@ export default function RestaurantPage() {
   };
 
   return (
-    <div className="p-6  min-h-screen">
-      <Toaster position="top-right" />
-      <h1 className="text-3xl font-bold mb-6 text-amber-600">Restaurants</h1>
+    <>
+      <div className="flex flex-col items-start md:flex-row justify-between md:items-center bg-white shadow-md border border-gray-200  px-4 sm:px-6   md:px-10 py-2 md:pt-15 lg:py-3 gap-4 ">
+        <div className="flex-1 pt-15 md:pt-0 lg:pt-0">
+          <h1 className="text-lg sm:text-xl  md:text-2xl  lg-tesxt-3xl font-extrabold text-green-600 tracking-wide leading-tight ">
+            Restaurants Management
+          </h1>
+          <p className="text-gray-500 text-xs sm:text-sm md:text-base mt-1 md:mt-2">
+            Manage all your restaurants here
+          </p>
+        </div>
 
-      <button
-        onClick={() => {
-          setForm({ name: "", address: "", mobile_number: "" });
-          setEditId(null);
-          setShowModal(true);
-        }}
-        className="mb-6 bg-amber-500 text-white px-5 py-2 rounded-lg shadow"
-      >
-        + Create Restaurant
-      </button>
-
-      <div className="overflow-x-auto shadow rounded-lg">
-        <table className="min-w-full bg-white rounded-lg">
-          <thead className="bg-amber-400 text-white">
-            <tr>
-              <th className="px-6 py-3 text-left">Name</th>
-              <th className="px-6 py-3 text-left">Address</th>
-              <th className="px-6 py-3 text-left">Phone</th>
-              <th className="px-6 py-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {restaurants.map((r) => (
-              <tr
-                key={r.reference_id}
-                className="border-b hover:bg-gray-50 transition"
-              >
-                <td className="px-6 py-3">{r.name}</td>
-                <td className="px-6 py-3">{r.address}</td>
-                <td className="px-6 py-3">{r.mobile_number}</td>
-                <td className="px-6 py-3 flex gap-3">
-                  <button
-                    onClick={() => handleEdit(r)}
-                    className="px-3 py-1 bg-amber-500 text-white rounded hover:bg-amber-600 transition"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(r)}
-                    className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {restaurants.length === 0 && (
-              <tr>
-                <td colSpan="4" className="text-center py-6 text-gray-400">
-                  No restaurants found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <div className="w-full md:w-auto flex justify-end">
+          <button
+            onClick={() => {
+              setForm({ name: "", address: "", mobile_number: "" });
+              setEditId(null);
+              setShowModal(true);
+            }}
+            className="flex items-center justify-center gap-2 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transform transition cursor-pointer"
+          >
+            + Create Restaurants
+          </button>
+        </div>
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
-            <h2 className="text-xl font-bold mb-4">
-              {editId ? "Edit Restaurant" : "Create Restaurant"}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Name"
-                maxLength={100}
-                required
-                className="w-full border p-2 rounded"
-              />
-              <input
-                name="address"
-                value={form.address}
-                onChange={handleChange}
-                placeholder="Address"
-                maxLength={100}
-                required
-                className="w-full border p-2 rounded"
-              />
-              <input
-                name="mobile_number"
-                value={form.mobile_number}
-                onChange={handleChange}
-                placeholder="Mobile Number"
-                maxLength={30}
-                required
-                className="w-full border p-2 rounded"
-              />
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border rounded"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-amber-500 text-white rounded"
-                >
-                  {loading ? "Saving..." : editId ? "Update" : "Create"}
-                </button>
-              </div>
-            </form>
+      <div className="p-4 md:p-6 min-h-screen font-roboto ">
+        <ToastProvider position="top-right" />
+
+     <div className="overflow-x-auto rounded border border-blue-200">
+          <div className="rounded overflow-hidden border border-gray-300">
+            <table className="min-w-full border-collapse">
+              <thead className="bg-blue-100">
+                <tr>
+                  <th className="border border-gray-300 px-6 py-3 text-left text-sm  uppercase ">
+                    Name
+                  </th>
+                  <th className="border border-gray-300 px-6 py-2 text-left text-sm  uppercase ">
+                    Address
+                  </th>
+                  <th className="border border-gray-300 px-6 py-3 text-left text-sm  uppercase ">
+                    Phone
+                  </th>
+                  <th className="border border-gray-300 px-6 py-3 text-center text-sm  uppercase ">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {restaurants.length > 0 ? (
+                  restaurants.map((r) => (
+                    <tr
+                      key={r.reference_id}
+                      className="hover:bg-blue-50 "
+                      
+                    >
+                      <td className="border  px-3 py-2 font-medium text-gray-700">
+                        {r.name}
+                      </td>
+                      <td className="border  px-6 py-3 ">
+                        {r.address}
+                      </td>
+                      <td className="border  px-6 py-3 ">
+                        {r.mobile_number}
+                      </td>
+                      <td className="border  px-6 py-3">
+                        <div className="flex justify-center gap-4">
+                          <button
+                            onClick={() => handleEdit(r)}
+                            className="text-blue-600 hover:bg-blue-100 p-2 rounded"
+                          >
+                            <PencilIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(r)}
+                            className="text-red-600 hover:bg-red-100 p-2 rounded"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="border  text-center py-8 text-gray-400"
+                    >
+                      No restaurants found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Modal */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-2 sm:p-4 md:p-6 animate-fadeIn">
+            <div className="bg-white rounded-2xl w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg p-4 sm:p-6 md:p-8 shadow-2xl animate-scaleIn">
+              <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mb-4 text-blue-700">
+                {editId ? "Edit Restaurant" : "Create Restaurant"}
+              </h2>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <input
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Restaurant Name"
+                  required
+                  className="w-full border rounded-lg p-2 sm:p-3 outline-none
+      text-sm sm:text-base md:text-base
+      focus:border-blue-500
+      focus:ring-1 focus:ring-blue-400 focus:ring-offset-1"
+                />
+
+                <input
+                  name="address"
+                  value={form.address}
+                  onChange={handleChange}
+                  placeholder="Address"
+                  required
+                  className="w-full border rounded-lg p-2 sm:p-3 outline-none
+      text-sm sm:text-base md:text-base
+      focus:border-blue-500
+      focus:ring-1 focus:ring-blue-400 focus:ring-offset-1"
+                />
+
+                <input
+                  name="mobile_number"
+                  value={form.mobile_number}
+                  onChange={handleChange}
+                  placeholder="Mobile Number"
+                  required
+                  className="w-full border rounded-lg p-2 sm:p-3 outline-none
+      text-sm sm:text-base md:text-base
+      focus:border-blue-500
+      focus:ring-1 focus:ring-blue-400 focus:ring-offset-1"
+                />
+
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-2 py-2 border border-gray-600 rounded-lg font-medium text-red-500 hover:bg-red-100
+        w-full sm:w-auto text-sm sm:text-base cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700
+        text-white rounded-lg shadow 
+        w-full sm:w-auto text-sm sm:text-base font-medium cursor-pointer"
+                  >
+                    {loading ? "Saving..." : editId ? "Update" : "Create"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

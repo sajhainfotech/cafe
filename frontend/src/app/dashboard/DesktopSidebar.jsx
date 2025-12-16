@@ -42,7 +42,7 @@ export default function AdminLayout({
 
   const menuItems = isSuperUser ? menuItemsSuperUser : menuItemsStaff;
 
-  const SidebarContent = () => (
+  const SidebarContent = ({ collapsed }) => (
     <>
       {menuItems.map((item, i) => {
         const Icon = item.icon;
@@ -56,11 +56,11 @@ export default function AdminLayout({
               setSidebarOpen(false);
             }}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg w-full transition
-              ${
-                active
-                  ? "bg-white text-blue-600 font-semibold"
-                  : "text-white hover:bg-blue-500"
-              }`}
+            ${
+              active
+                ? "bg-blue-100 text-blue-600 font-semibold" 
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
           >
             <Icon size={20} />
             {!collapsed && <span>{item.label}</span>}
@@ -79,44 +79,56 @@ export default function AdminLayout({
   );
 
   return (
-    <div className="flex min-h-screen">
-      {/* Desktop Sidebar */}
+    <div className="flex min-h-screen ">
+      
       <aside
-        className={`hidden lg:flex flex-col bg-blue-600 text-white transition-all duration-300
-          ${collapsed ? "w-20" : "w-64"}`}
+        className={`hidden lg:flex flex-col bg-white text-gray-800 transition-all duration-300 border-r shadow
+      ${collapsed ? "w-20" : "w-64"}`}
       >
-        <div className="flex items-center justify-between px-4 h-16 border-b border-blue-500">
-          {!collapsed && <h2 className="font-bold">Admin Panel</h2>}
-          <button onClick={() => setCollapsed(!collapsed)}>
-            <Menu />
+        
+        <div className="flex items-center justify-between px-4 h-16 ">
+          {!collapsed && (
+            <h2 className="font-bold text-blue-600 text-lg">Admin Panel</h2>
+          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-1 rounded hover:bg-gray-100 transition"
+          >
+            <Menu className="w-6 h-6" />
           </button>
         </div>
 
+        
         <nav className="flex-1 p-3 space-y-2">
-          <SidebarContent />
+          <SidebarContent collapsed={collapsed} />
         </nav>
       </aside>
 
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-blue-600 text-white flex items-center justify-between px-4 z-50">
-        <h2 className="font-bold">Admin Panel</h2>
-        <button onClick={() => setSidebarOpen(!sidebarOpen)}>
-          <Menu />
+      
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white text-gray-800 flex items-center justify-between px-4 ">
+        <h2 className="font-bold text-blue-600">Admin Panel</h2>
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-1 rounded hover:bg-gray-100 transition"
+        >
+          <Menu className="w-6 h-6" />
         </button>
       </div>
 
-      {/* Mobile TOP SLIDE Sidebar (SAME UI) */}
+      {/* Mobile Sidebar */}
       <div
-        className={`lg:hidden fixed top-14 left-0 w-full bg-blue-600 z-40 transition-all duration-300
-          ${sidebarOpen ? "max-h-screen py-4" : "max-h-0 overflow-hidden"}`}
+        className={`lg:hidden fixed top-14 left-0 w-full bg-white z-40 border  transition-all duration-300
+      ${
+        sidebarOpen ? "max-h-screen py-4 shadow-md" : "max-h-0 overflow-hidden"
+      }`}
       >
         <nav className="px-4 space-y-2">
-          <SidebarContent />
+          <SidebarContent collapsed={false} />
         </nav>
       </div>
 
-      {/* Content */}
-      <main className="flex-1 p-6 pt-20 lg:pt-6">{children}</main>
+      {/* Main Content */}
+      <main className="flex-1">{children}</main>
     </div>
   );
 }

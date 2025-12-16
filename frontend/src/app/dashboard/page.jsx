@@ -44,7 +44,7 @@ export default function AdminOrdersDashboard() {
     fetchOrders();
   }, []);
 
-  /* -------- Today Stats -------- */
+  
   const today = getNepalToday();
 
   const todayOrders = orders.filter(
@@ -99,7 +99,6 @@ export default function AdminOrdersDashboard() {
     };
   });
 
-  /* -------- UI -------- */
   return (
     <div className="p-6 min-h-screen">
       {/* Header */}

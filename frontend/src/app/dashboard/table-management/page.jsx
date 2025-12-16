@@ -7,7 +7,7 @@ import ToastProvider from "@/components/ToastProvider";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const FRONTEND_URL = process.env.NEXT_PUBLIC_CLIENT_NETWORK
+const FRONTEND_URL = process.env.NEXT_PUBLIC_CLIENT_NETWORK;
 
 export default function TableManager() {
   const [tables, setTables] = useState([]);
@@ -60,7 +60,6 @@ export default function TableManager() {
       );
 
       setTables(tablesWithQR);
-      
     } catch (err) {
       toast.error(err.message || "Failed to load tables");
       console.error("Error fetching tables:", err);
@@ -86,21 +85,18 @@ export default function TableManager() {
   //   }
   // };
 
+  const generateQRCode = async (tableToken) => {
+    try {
+      const url = `${FRONTEND_URL}/menu?table_token=${tableToken}`;
+      console.log("📎 QR URL:", url);
 
- const generateQRCode = async (tableToken) => {
-  try {
-    const url = `${FRONTEND_URL}/menu?table_token=${tableToken}`;
-    console.log("📎 QR URL:", url);
-
-    const qrData = await QRCode.toDataURL(url);
-    return qrData;
-  } catch (err) {
-    toast.error("QR generate failed");
-    return "";
-  }
-};
-
-
+      const qrData = await QRCode.toDataURL(url);
+      return qrData;
+    } catch (err) {
+      toast.error("QR generate failed");
+      return "";
+    }
+  };
 
   const resetForm = () => {
     setTableName("");
@@ -123,7 +119,7 @@ export default function TableManager() {
       const token = localStorage.getItem("adminToken");
       if (!token) throw new Error("Login required");
 
-      const tableToken = editId || Date.now(); 
+      const tableToken = editId || Date.now();
       const qr = await generateQRCode(tableToken);
 
       const formData = new FormData();
@@ -132,7 +128,6 @@ export default function TableManager() {
       if (location) formData.append("location", location);
       formData.append("qr_code", qr);
       formData.append("token", tableToken);
-      
 
       const url = editId
         ? `${API_URL}/api/tables/${editId}/`
@@ -172,63 +167,62 @@ export default function TableManager() {
     }
   };
 
+  //   const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   if (!tableName || !capacity) {
+  //     toast.error("Table number and capacity required");
+  //     return;
+  //   }
 
-//   const handleSubmit = async (e) => {
-//   e.preventDefault();
-//   if (!tableName || !capacity) {
-//     toast.error("Table number and capacity required");
-//     return;
-//   }
+  //   setLoading(true);
 
-//   setLoading(true);
+  //   try {
+  //     const adminToken = localStorage.getItem("adminToken");
+  //     if (!adminToken) throw new Error("Login required");
 
-//   try {
-//     const adminToken = localStorage.getItem("adminToken");
-//     if (!adminToken) throw new Error("Login required");
+  //     // Table token (integer)
+  //     const tableToken = editId ? parseInt(editId, 10) : Date.now();
 
-//     // Table token (integer)
-//     const tableToken = editId ? parseInt(editId, 10) : Date.now();
+  //     // Generate QR code
+  //     const qr = await generateQRCode(tableToken);
 
-//     // Generate QR code
-//     const qr = await generateQRCode(tableToken);
+  //     // FormData
+  //     const formData = new FormData();
+  //     formData.append("table_number", tableName);
+  //     formData.append("capacity", parseInt(capacity, 10));
+  //     formData.append("location", location || "");
+  //     formData.append("token", tableToken);
+  //     formData.append("qr_code", qr); // base64 string
 
-//     // FormData
-//     const formData = new FormData();
-//     formData.append("table_number", tableName);
-//     formData.append("capacity", parseInt(capacity, 10));
-//     formData.append("location", location || "");
-//     formData.append("token", tableToken); 
-//     formData.append("qr_code", qr); // base64 string
+  //     const url = editId
+  //       ? `${API_URL}/api/tables/${editId}/`
+  //       : `${API_URL}/api/tables/`;
+  //     const method = editId ? "PATCH" : "POST";
 
-//     const url = editId
-//       ? `${API_URL}/api/tables/${editId}/`
-//       : `${API_URL}/api/tables/`;
-//     const method = editId ? "PATCH" : "POST";
+  //     const res = await fetch(url, {
+  //       method,
+  //       headers: {
 
-//     const res = await fetch(url, {
-//       method,
-//       headers: {
-        
-//       },
-//       body: formData,
-//     });
+  //       },
+  //       body: formData,
+  //     });
 
-//     const data = await res.json();
-//     if (!res.ok || data.response_code !== "0") {
-//       const msg = Object.values(data.errors || {}).flat().join(" | ");
-//       throw new Error(msg || "Failed to save table");
-//     }
+  //     const data = await res.json();
+  //     if (!res.ok || data.response_code !== "0") {
+  //       const msg = Object.values(data.errors || {}).flat().join(" | ");
+  //       throw new Error(msg || "Failed to save table");
+  //     }
 
-//     toast.success(editId ? "Table updated!" : "Table added!");
-//     resetForm();
-//     fetchTables();
-//   } catch (err) {
-//     toast.error(err.message || "Failed to save table");
-//     console.error("Error in handleSubmit:", err);
-//   } finally {
-//     setLoading(false);
-//   }
-// };
+  //     toast.success(editId ? "Table updated!" : "Table added!");
+  //     resetForm();
+  //     fetchTables();
+  //   } catch (err) {
+  //     toast.error(err.message || "Failed to save table");
+  //     console.error("Error in handleSubmit:", err);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleEdit = (t) => {
     console.log("Editing table:", t);
@@ -236,8 +230,7 @@ export default function TableManager() {
     setTableName(t.table_number);
     setCapacity(t.capacity || "");
     setLocation(t.location || "");
-    setShowForm(true); 
-    
+    setShowForm(true);
   };
 
   const handleDelete = async (id) => {
@@ -263,99 +256,98 @@ export default function TableManager() {
   };
 
   return (
-    <div className="p-6 min-h-screen">
-      <ToastProvider />
+    <>
+      <div className="flex flex-col items-start md:flex-row justify-between md:items-center bg-white shadow-md border border-gray-200  px-4 sm:px-6   md:px-10 py-2 md:pt-15 lg:py-3 gap-4 ">
+        <div className="flex-1 pt-15 md:pt-0 lg:pt-0">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold text-green-600 leading-tight">
+            Tables Management
+          </h1>
+          <p className="text-gray-500 text-xs sm:text-sm md:text-base mt-1 md:mt-2">
+            Manage all your tables here
+          </p>
+        </div>
+        <div className="w-full md:w-auto flex justify-end">
+          <button
+            onClick={() => {
+              setTableName("");
+              setCapacity("");
+              setLocation("");
+              setEditId(null);
+              setShowForm(true);
+            }}
+            className="flex items-center justify-center gap-2 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
+          >
+            + Add Table
+          </button>
+        </div>
+      </div>
 
-      <h1 className="text-3xl font-bold mb-6 text-amber-600">Tables</h1>
+      <div className="p-4 md:p-6 min-h-screen font-roboto">
+        <ToastProvider />
 
-      {/* Add Table Button */}
-      <button
-        onClick={() => {
-          setTableName("");
-          setCapacity("");
-          setLocation("");
-          setEditId(null);
-          setShowForm(true);
-        }}
-        className="mb-6 bg-amber-500 text-white px-5 py-2 rounded-lg shadow cursor-pointer"
-      >
-        + Add Table
-      </button>
-
-      {/* Table List */}
-      <div className="overflow-x-auto shadow rounded-lg">
-        <table className="min-w-full bg-white rounded-lg table-auto">
-          <thead className="bg-amber-400 text-white">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm sm:text-base">
-                Table
-              </th>
-              <th className="px-4 py-3 text-left text-sm sm:text-base">
-                Capacity
-              </th>
-              <th className="px-4 py-3 text-left text-sm sm:text-base">
-                Location
-              </th>
-              <th className="px-4 py-3 text-left text-sm sm:text-base">
-                QR Code
-              </th>
-              <th className="px-4 py-3 text-left text-sm sm:text-base">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {tables.map((t, i) => (
-              <tr
-                key={t.reference_id || i}
-                className="border-b hover:bg-gray-50 transition"
-              >
-                <td className="px-4 py-2 text-sm sm:text-base">
-                  Table {t.table_number}
-                </td>
-                <td className="px-4 py-2 text-sm sm:text-base">
-                  {t.capacity || "-"}
-                </td>
-                <td className="px-4 py-2 text-sm sm:text-base">
-                  {t.location || "-"}
-                </td>
-                <td className="px-4 py-2">
-                  {t.qr_code ? (
-                    <a
-                      href={t.qr_code}
-                      download={`QR-${t.table_number || t.reference_id}`}
-                      title="Download QR Code"
-                    >
+        {/* TABLE LIST */}
+        <div className="overflow-x-auto rounded border border-blue-200">
+          <table className="min-w-full border-collapse">
+            <thead className="bg-blue-50 uppercase text-sm">
+              <tr>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Table
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Capacity
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Location
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  QR Code
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {tables.map((t, i) => (
+                <tr
+                  key={t.reference_id || i}
+                  className="border-b hover:bg-gray-50 transition"
+                >
+                  <td className="border px-4 py-2">Table {t.table_number}</td>
+                  <td className="border px-4 py-2">{t.capacity || "-"}</td>
+                  <td className="border px-4 py-2">{t.location || "-"}</td>
+                  <td className="border px-4 py-2">
+                    {t.qr_code ? (
                       <img
                         src={t.qr_code}
                         alt="QR"
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded shadow-sm cursor-pointer hover:scale-105 transition-transform"
+                        className="w-16 h-16 rounded shadow cursor-pointer hover:scale-105 transition"
                       />
-                    </a>
-                  ) : (
-                    <span className="text-gray-400 text-sm sm:text-base">
-                      No QR
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-2 mt-7 flex gap-4 sm:gap-3">
-                  <button
-                    onClick={() => handleEdit(t)}
-                    className="flex items-center gap-1 px-2 py-1 text-blue-500 transition hover:text-blue-600"
-                  >
-                    <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(t.reference_id)}
-                    className="flex items-center gap-1 px-2 py-1 text-red-500 transition hover:text-red-600"
-                  >
-                    <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    ) : (
+                      <span className="text-gray-400">No QR</span>
+                    )}
+                  </td>
+                  <td className="border px-4 py-2">
+                    <div className="flex justify-center gap-4">
+                      <button
+                        onClick={() => handleEdit(t)}
+                        className="text-blue-600 hover:bg-blue-100 p-2 rounded"
+                      >
+                        <PencilIcon className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(t.reference_id)}
+                        className="text-red-600 hover:bg-red-100 p-2 rounded"
+                      >
+                        <TrashIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Table Modal */}
@@ -393,7 +385,7 @@ export default function TableManager() {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-4 py-2 border rounded text-sm sm:text-base"
+                  className="px-2 py-2 border border-red-500 rounded hover:bg-red-100 text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -408,6 +400,6 @@ export default function TableManager() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

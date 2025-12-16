@@ -66,11 +66,10 @@ export default function BranchPage() {
       });
       const data = await res.json();
 
-       console.log("🏢 BRANCHES RAW DATA:", data);
+      console.log("🏢 BRANCHES RAW DATA:", data);
 
       const mappedBranches = (data.data || []).map((b) => {
-
-         console.log(
+        console.log(
           `🔗 Branch: ${b.name} | branch_ref_id=${b.reference_id} | restaurant_reference_id=${b.restaurant_reference_id}`
         );
         const restaurant = restaurantList.find(
@@ -204,123 +203,185 @@ export default function BranchPage() {
   };
 
   return (
-    <div className="p-6 min-h-screen">
-      <ToastProvider />
-      <h1 className="text-3xl font-bold mb-6 text-amber-600">Branches</h1>
-      <button
-        onClick={() => {
-          setForm({
-            name: "",
-            address: "",
-            mobile_number: "",
-            restaurant_id: "",
-          });
-          setEditId(null);
-          setShowModal(true);
-        }}
-        className="mb-6 bg-amber-500 text-white px-5 py-2 rounded-lg shadow cursor-pointer"
-      >
-        + Create Branch
-      </button>
+    <>
+      <div className="flex flex-col items-start md:flex-row justify-between md:items-center bg-white shadow-md border border-gray-200  px-4 sm:px-6   md:px-10 py-2 md:pt-15 lg:py-3 gap-4 ">
+        <div className="flex-1 pt-15 md:pt-0 lg:pt-0">
+          <h1 className="text-lg sm:text-xl  md:text-2xl  lg-tesxt-3xl font-extrabold text-green-600 tracking-wide leading-tight ">
+            Branches Management
+          </h1>
+          <p className="text-gray-500 text-xs sm:text-sm md:text-base mt-1 md:mt-2">
+            Manage all your branches here
+          </p>
+        </div>
 
-      <div className="overflow-x-auto shadow rounded-lg">
-        <table className="min-w-full bg-white rounded-lg">
-          <thead className="bg-amber-400 text-white">
-            <tr>
-              <th className="px-6 py-3 text-left">Name</th>
-              <th className="px-6 py-3 text-left">Address</th>
-              <th className="px-6 py-3 text-left">Phone</th>
-              <th className="px-6 py-3 text-left">Restaurant</th>
-              <th className="px-6 py-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {branches.map((b, i) => (
-              <tr key={b.reference_id || i} className="border-b">
-                <td className="px-6 py-3">{b.name}</td>
-                <td className="px-6 py-3">{b.address}</td>
-                <td className="px-6 py-3">{b.mobile_number}</td>
-                <td className="px-6 py-3">{b.restaurant_name}</td>
-                <td className="px-6 py-3 flex gap-3">
-                  <button
-                    onClick={() => handleEdit(b)}
-                    className="flex items-center gap-1 px-3 py-1 text-blue-500 transition"
-                  >
-                    <PencilIcon className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(b)}
-                    className="flex items-center gap-1 px-3 py-1 text-red-500 transition"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </td>
+        <div className="w-full md:w-auto flex justify-end">
+          <button
+            onClick={() => {
+              setForm({
+                name: "",
+                address: "",
+                mobile_number: "",
+                restaurant_id: "",
+              });
+              setEditId(null);
+              setShowModal(true);
+            }}
+            className="flex items-center justify-center gap-2 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
+          >
+            + Create Branches
+          </button>
+        </div>
+      </div>
+
+      <div className="p-4 md:p-6 min-h-screen font-roboto">
+        <ToastProvider />
+
+        <div className="overflow-x-auto rounded border border-blue-200">
+           <div className="rounded overflow-hidden border border-gray-300">
+          <table className="min-w-full border-collapse">
+            <thead className="bg-blue-100 ">
+              <tr>
+                <th className="border border-gray-300 px-6 py-3 text-left text-sm  uppercase">
+                  Name
+                </th>
+                <th className="border border-gray-300 px-6 py-3 text-left text-sm uppercase">
+                  Address
+                </th>
+                <th className="border border-gray-300 px-6 py-3 text-left text-sm uppercase">
+                  Phone
+                </th>
+                <th className="border border-gray-300 px-6 py-3 text-left text-sm uppercase">
+                  Restaurant
+                </th>
+                <th className="border border-gray-300 px-6 py-3 text-center text-sm uppercase">
+                  Actions
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {branches.length > 0 ? (
+                branches.map((b, index) => (
+                  <tr
+                    key={b.reference_id || index}
+                    className="hover:bg-blue-50 "
+                  >
+                    <td className="border px-3 py-2 font-medium ">{b.name}</td>
+                    <td className="border px-6 py-3">{b.address}</td>
+                    <td className="border px-6 py-3">{b.mobile_number}</td>
+                    <td className="border px-6 py-3">{b.restaurant_name}</td>
+                    <td className="border px-6 py-3">
+                      <div className="flex justify-center gap-4">
+                        <button
+                          onClick={() => handleEdit(b)}
+                          className="text-blue-600 hover:bg-blue-100 p-2 rounded"
+                        >
+                          <PencilIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(b)}
+                          className="text-red-600 hover:bg-red-100 p-2 rounded"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="border border-gray-300 text-center py-8 text-gray-400"
+                  >
+                    No branches found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          </div>
+        </div>
       </div>
 
       {showModal && (
-        <div className="fixed inset-0  bg-opacity-30 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
-            <h2 className="text-xl font-bold mb-4">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-2 animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-scaleIn">
+            <h2 className="text-xl md:text-2xl font-bold mb-4 text-blue-600">
               {editId ? "Edit Branch" : "Create Branch"}
             </h2>
-            {message && <p className="text-red-500">{message}</p>}
+
+            {message && <p className="text-red-500 text-sm mb-2">{message}</p>}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 name="name"
                 value={form.name}
                 onChange={handleChange}
-                placeholder="Name"
-                maxLength={100}
+                placeholder="Branch Name"
                 required
-                className="w-full border p-2 rounded"
+                className="w-full border rounded-lg p-3 outline-none
+      focus:border-blue-500
+      focus:ring-1 focus:ring-blue-400 focus:ring-offset-1"
               />
+
               <input
                 name="address"
                 value={form.address}
                 onChange={handleChange}
                 placeholder="Address"
-                maxLength={100}
                 required
-                className="w-full border p-2 rounded"
+                className="w-full border rounded-lg p-3 outline-none
+      focus:border-blue-500
+      focus:ring-1 focus:ring-blue-400 focus:ring-offset-1"
               />
+
               <input
                 name="mobile_number"
                 value={form.mobile_number}
                 onChange={handleChange}
                 placeholder="Mobile Number"
-                maxLength={10}
                 required
-                className="w-full border p-2 rounded"
+                className="w-full border rounded-lg p-3 outline-none
+      focus:border-blue-500
+      focus:ring-1 focus:ring-blue-400 focus:ring-offset-1"
               />
+
               <select
                 name="restaurant_id"
                 value={form.restaurant_id}
                 onChange={handleChange}
                 required
-                className="w-full border p-2 rounded"
+                className="w-full border rounded-lg p-3 outline-none
+             bg-white text-gray-800
+             focus:border-blue-500 focus:ring-1 focus:ring-blue-400 focus:ring-offset-1"
               >
-                <option value="">Select Restaurant</option>
+                <option value="" className="text-gray-400">
+                  Select Restaurant
+                </option>
                 {restaurants.map((r) => (
-                  <option key={r.reference_id} value={r.reference_id}>
+                  <option
+                    key={r.reference_id}
+                    value={r.reference_id}
+                    className="text-green-800 bg-white hover:bg-blue-400 selected:bg-blue-500 selected:text-white"
+                  >
                     {r.name}
                   </option>
                 ))}
               </select>
-              <div className="flex justify-end gap-3">
+
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border rounded"
+                  className="px-2 py-2 border border-gray-600 text-red-600 rounded-lg hover:bg-red-50 transition duration-200 font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
+
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-amber-500 text-white rounded"
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg cursor-pointer"
                 >
                   {loading ? "Saving..." : editId ? "Update" : "Create"}
                 </button>
@@ -329,6 +390,6 @@ export default function BranchPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
