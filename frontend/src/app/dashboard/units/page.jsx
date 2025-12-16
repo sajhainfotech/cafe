@@ -122,29 +122,26 @@ export default function AdminMenuUnitPage() {
   return (
     <div className="font-robot">
       <AdminHeader />
-      <div className="flex flex-col items-start md:flex-row justify-between md:items-center px-4 sm:px-6   md:px-10 py-2 md:pt-15 lg:py-3 gap-4 ">
-        <div className="flex-1 pt-10 md:pt-0 lg:pt-0">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight">
-            Menu Units
-          </h1>
-          <p className="text-gray-500 text-xs sm:text-sm mt-1">
-            Manage all menu units here
-          </p>
-        </div>
+      <div className="flex flex-row items-center justify-between flex-wrap px-4 sm:px-6 md:px-10 py-3 gap-2">
+        {/* Heading */}
+        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 truncate">
+          Menu Units
+        </h1>
 
+        {/* Button */}
         <button
           onClick={() => {
             setEditId(null);
             setUnitName("");
             setShowForm(true);
           }}
-          className="flex items-center justify-center gap-2 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
+          className="flex-shrink-0 flex items-center font-bold justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
         >
-          + Create Unit
+          + Create 
         </button>
       </div>
 
-      <div className="p-4 md:p-6 min-h-screen font-roboto">
+      <div className="p-4 md:p-3 min-h-screen font-roboto">
         <ToastProvider />
         <div className="overflow-x-auto rounded border border-blue-200">
           <table className="min-w-full border-collapse">
@@ -198,74 +195,73 @@ export default function AdminMenuUnitPage() {
       </div>
 
       {showForm && (
-  <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    onClick={(e) => {
-      // Close only if clicked outside modal
-      if (e.target === e.currentTarget) {
-        setShowForm(false);
-        setEditId(null);
-        setUnitName("");
-      }
-    }}
-  >
-    <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-lg animate-fadeIn relative">
-      {/* CLOSE BUTTON */}
-      <button
-        onClick={() => {
-          setShowForm(false);
-          setEditId(null);
-          setUnitName("");
-        }}
-        className="absolute top-3 right-3 text-gray-400 hover:text-red-500"
-      >
-        ✕
-      </button>
-
-      <h2 className="text-xl sm:text-2xl md:text-2xl font-bold mb-4 text-blue-700">
-        {editId ? "Edit Unit" : "Create Unit"}
-      </h2>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Unit Name
-          </label>
-          <input
-            type="text"
-            value={unitName}
-            onChange={(e) => setUnitName(e.target.value)}
-            required
-            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          />
-        </div>
-
-        <div className="flex justify-end gap-3 pt-3">
-          <button
-            type="button"
-            onClick={() => {
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => {
+            // Close only if clicked outside modal
+            if (e.target === e.currentTarget) {
               setShowForm(false);
               setEditId(null);
               setUnitName("");
-            }}
-            className="px-2 py-2 border border-red-500 rounded-lg font-medium hover:bg-red-100 w-full sm:w-auto text-sm sm:text-base cursor-pointer"
-          >
-            Cancel
-          </button>
+            }
+          }}
+        >
+          <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-lg animate-fadeIn relative">
+            {/* CLOSE BUTTON */}
+            <button
+              onClick={() => {
+                setShowForm(false);
+                setEditId(null);
+                setUnitName("");
+              }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-red-500"
+            >
+              ✕
+            </button>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow w-full sm:w-auto text-sm sm:text-base font-medium cursor-pointer"
-          >
-            {loading ? "Processing..." : editId ? "Update" : "Create"}
-          </button>
+            <h2 className="text-xl sm:text-2xl md:text-2xl font-bold mb-4 text-blue-700">
+              {editId ? "Edit Unit" : "Create Unit"}
+            </h2>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Unit Name
+                </label>
+                <input
+                  type="text"
+                  value={unitName}
+                  onChange={(e) => setUnitName(e.target.value)}
+                  required
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditId(null);
+                    setUnitName("");
+                  }}
+                  className="px-2 py-2 border border-red-500 rounded-lg font-medium hover:bg-red-100 w-full sm:w-auto text-sm sm:text-base cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow w-full sm:w-auto text-sm sm:text-base font-medium cursor-pointer"
+                >
+                  {loading ? "Processing..." : editId ? "Update" : "Create"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </form>
-    </div>
-  </div>
-)}
-
+      )}
     </div>
   );
 }

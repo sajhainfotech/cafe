@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import ToastProvider from "./ToastProvider";
 import { useRef } from "react";
+import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -244,9 +245,9 @@ export default function AdminMenuManager() {
           <div className="flex-shrink-0 ml-4">
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold shadow-lg transition duration-300 cursor-pointer"
             >
-              + Create Menu
+              + Create 
             </button>
           </div>
         </div>
@@ -377,93 +378,101 @@ export default function AdminMenuManager() {
                 {loading
                   ? "Saving..."
                   : editingMenuId
-                  ? "Update Menu"
-                  : "Create Menu"}
+                  ? "Update "
+                  : "Create "}
               </button>
             </div>
           </form>
         </div>
       )}
-
-      <div className="overflow-x-auto rounded border border-blue-200">
-        <table className="min-w-full border-collapse">
-          <thead className="bg-blue-50 uppercase text-sm">
-            <tr>
-              <th className="border border-gray-300 px-4 py-3 text-left">
-                Menu Date
-              </th>
-              <th className="border border-gray-300 px-4 py-3 text-left">
-                Name
-              </th>
-              <th className="border border-gray-300 px-4 py-3 text-left">
-                Price
-              </th>
-              <th className="border border-gray-300 px-4 py-3 text-left">
-                Item Category
-              </th>
-              <th className="border border-gray-300 px-4 py-3 text-left">
-                Unit
-              </th>
-              <th className="border border-gray-300 px-4 py-3 text-left">
-                Image
-              </th>
-              <th className="border border-gray-300 px-4 py-3 text-left">
-                Actions
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {menus.map((menu) => (
-              <tr key={menu.reference_id} className="hover:bg-blue-50">
-                <td className="px-4 py-2 border">{menu.menu_date}</td>
-                <td className="px-4 py-2 border">{menu.name}</td>
-                <td className="px-4 py-2 border">{menu.price}</td>
-                <td className="px-4 py-2 border">
-                  {categoriesList.find(
-                    (c) => c.reference_id === menu.item_category
-                  )?.name || "N/A"}
-                </td>
-                <td className="px-4 py-2 border">
-                  {units.find((u) => u.reference_id === menu.unit)?.name ||
-                    "N/A"}
-                </td>
-                <td className="px-4 py-2 border">
-                  {menu.imageFile || menu.image_url ? (
-                    <img
-                      src={
-                        menu.imageFile
-                          ? URL.createObjectURL(menu.imageFile)
-                          : menu.image_url
-                      }
-                      alt={menu.name}
-                      className="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded"
-                    />
-                  ) : (
-                    "No Image"
-                  )}
-                </td>
-                <td className="px-4 py-2 border flex justify-center gap-3">
-                  <button
-                    onClick={() => {
-                      handleEditMenu(menu);
-                      setShowForm(true);
-                    }}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteMenu(menu.reference_id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
+      <div className="p-3">
+        <div className="overflow-x-auto rounded border border-blue-200">
+          <table className="min-w-full divide-y divide-blue-200">
+            {/* Table Head */}
+            <thead className="bg-blue-50 uppercase text-sm">
+              <tr>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Menu Date
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Name
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Price
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Item Category
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Unit
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Image
+                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">
+                  Actions
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            {/* Table Body */}
+            <tbody className="bg-white divide-y divide-blue-200 text-sm">
+              {menus.map((menu) => (
+                <tr
+                  key={menu.reference_id}
+                  className="border-b hover:bg-gray-50 transition"
+                >
+                  <td className="border px-4 py-2">{menu.menu_date}</td>
+                  <td className="border px-4 py-2">{menu.name}</td>
+                  <td className="border px-4 py-2">{menu.price}</td>
+                  <td className="border px-4 py-2">
+                    {categoriesList.find(
+                      (c) => c.reference_id === menu.item_category
+                    )?.name || "N/A"}
+                  </td>
+                  <td className="border px-4 py-2">
+                    {units.find((u) => u.reference_id === menu.unit)?.name ||
+                      "N/A"}
+                  </td>
+                  <td className="border px-4 py-2">
+                    {menu.imageFile || menu.image_url ? (
+                      <img
+                        src={
+                          menu.imageFile
+                            ? URL.createObjectURL(menu.imageFile)
+                            : menu.image_url
+                        }
+                        alt={menu.name}
+                        className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded"
+                      />
+                    ) : (
+                      "No Image"
+                    )}
+                  </td>
+                  <td className="px-4 py-2 flex justify-center gap-2">
+                    <div className="flex justify-center gap-4">
+                      <button
+                        onClick={() => {
+                          handleEditMenu(menu);
+                          setShowForm(true);
+                        }}
+                        className="text-blue-600 hover:bg-blue-100 p-2 rounded"
+                      >
+                         <PencilIcon className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteMenu(menu.reference_id)}
+                        className="text-red-600 hover:bg-red-100 p-2 rounded"
+                      >
+                        <TrashIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

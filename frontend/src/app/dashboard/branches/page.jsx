@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 import toast from "react-hot-toast";
 import ToastProvider from "@/components/ToastProvider";
+import AdminHeader from "@/components/AdminHeader";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -204,36 +205,40 @@ export default function BranchPage() {
 
   return (
     <>
-      <div className="flex flex-col items-start md:flex-row justify-between md:items-center bg-white shadow-md border border-gray-200  px-4 sm:px-6   md:px-10 py-2 md:pt-15 lg:py-3 gap-4 ">
-        <div className="flex-1 pt-15 md:pt-0 lg:pt-0">
-          <h1 className="text-lg sm:text-xl  md:text-2xl  lg-tesxt-3xl font-extrabold text-green-600 tracking-wide leading-tight ">
-            Branches Management
-          </h1>
-          <p className="text-gray-500 text-xs sm:text-sm md:text-base mt-1 md:mt-2">
-            Manage all your branches here
-          </p>
-        </div>
+    <AdminHeader/>
+     <div className=" px-4 sm:px-6 md:px-10 py-3">
+  <div className="flex flex-row items-center justify-between gap-3 flex-wrap">
+    
+    {/* LEFT CONTENT */}
+    <div className="flex-1 min-w-0">
+      <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight truncate">
+        Branches Management
+      </h1>
+      
+    </div>
 
-        <div className="w-full md:w-auto flex justify-end">
-          <button
-            onClick={() => {
-              setForm({
-                name: "",
-                address: "",
-                mobile_number: "",
-                restaurant_id: "",
-              });
-              setEditId(null);
-              setShowModal(true);
-            }}
-            className="flex items-center justify-center gap-2 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
-          >
-            + Create Branches
-          </button>
-        </div>
-      </div>
+    {/* BUTTON */}
+    <button
+      onClick={() => {
+        setForm({
+          name: "",
+          address: "",
+          mobile_number: "",
+          restaurant_id: "",
+        });
+        setEditId(null);
+        setShowModal(true);
+      }}
+      className="flex-shrink-0 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
+    >
+      + Create 
+    </button>
 
-      <div className="p-4 md:p-6 min-h-screen font-roboto">
+  </div>
+</div>
+
+
+      <div className="p-4 md:p-4 min-h-screen font-roboto">
         <ToastProvider />
 
         <div className="overflow-x-auto rounded border border-blue-200">

@@ -262,14 +262,14 @@ export default function TableManager() {
               setEditId(null);
               setShowForm(true);
             }}
-            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
+            className="flex items-center font-bold justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
           >
-            + Add Table
+            + Create
           </button>
         </div>
       </div>
 
-      <div className="p-4 md:p-6 min-h-screen font-roboto">
+      <div className="p-4 md:p-3 min-h-screen font-roboto">
         <ToastProvider />
 
         <div className="overflow-x-auto rounded border border-blue-200">
@@ -336,7 +336,7 @@ export default function TableManager() {
         </div>
       </div>
 
-      {/* Table Modal */}
+      
       {showForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"

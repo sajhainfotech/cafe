@@ -14,7 +14,7 @@ export default function MenuManagement() {
       <div className="min-h-screen">
         {/* header */}
         <AdminHeader  />
-        <div className="p-4 md:p-6">
+        <div>
           <AddItemForm onAddItem={handleAddItem} />
         </div>
       </div>

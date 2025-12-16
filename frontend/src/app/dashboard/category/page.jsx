@@ -110,44 +110,62 @@ const MenuCategoryPage = () => {
     }
   };
 
-  const handleEdit = (cat) => {
-    setCategoryName(cat.name);
-    setDescription(cat.description || "");
-    setEditId(cat.id || cat._id);
-  };
+ const handleEdit = (cat) => {
+  setCategoryName(cat.name);
+  setDescription(cat.description || "");
+  setEditId(cat.reference_id);
+  setShowForm(true); 
+};
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this category?")) return;
-    try {
-      await axios.delete(`${BASE_URL}/api/item-categories/${id}/`, {
-        headers: { Authorization: `Token ${token}` },
-      });
-      toast.success("Category deleted successfully");
-      fetchCategories();
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete category.");
-    }
-  };
+const handleDelete = async (id) => {
+  if (!id) {
+    toast.error("Invalid category ID");
+    return;
+  }
+
+  if (!confirm("Are you sure you want to delete this category?")) return;
+
+  try {
+    await axios.delete(
+      `${BASE_URL}/api/item-categories/${id}/`,
+      {
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+        data: {
+          restaurant_id,
+          branch_id,
+        },
+      }
+    );
+
+    toast.success("Category deleted successfully");
+    fetchCategories();
+  } catch (error) {
+    console.error("DELETE ERROR:", error.response?.data || error);
+    toast.error(
+      error.response?.data?.message ||
+        "Server error while deleting category"
+    );
+  }
+};
+
+
 
   return (
     <div className="min-h-screen ">
-      {/* HEADER */}
       <AdminHeader />
       <ToastProvider />
 
-      {/* PAGE HEADER */}
-      <div className=" px-4 sm:px-6 md:px-10 py-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-blue-700">
-              Menu Categories
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">
-              Manage all your menu categories here
-            </p>
-          </div>
+      <div className="flex flex-row items-center justify-between px-4 sm:px-6 md:px-10 py-3 gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight truncate">
+            Menu Categories
+          </h1>
+        </div>
 
+        <div className="flex-shrink-0 ml-4">
+          {/* Button */}
           <button
             onClick={() => {
               setEditId(null);
@@ -155,15 +173,15 @@ const MenuCategoryPage = () => {
               setDescription("");
               setShowForm(true);
             }}
-            className="flex items-center justify-center gap-2 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
+            className="flex items-center font-bold justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
           >
-            + Add Category
+            + Create
           </button>
         </div>
       </div>
 
       {/* CONTENT */}
-      <div className="p-4 md:p-6">
+      <div className="p-4 md:p-3">
         <div className="overflow-x-auto rounded border border-blue-200">
           <table className="min-w-full border-collapse">
             <thead className="bg-blue-50 uppercase text-sm">
@@ -189,7 +207,7 @@ const MenuCategoryPage = () => {
                 </tr>
               ) : (
                 categories.map((cat) => (
-                  <tr key={cat.id} className="border-b hover:bg-gray-50">
+                  <tr key={cat.reference_id} className="border-b hover:bg-gray-50">
                     <td className="border px-4 py-2">{cat.name}</td>
                     <td className="border px-4 py-2">
                       {cat.description || "-"}
@@ -203,7 +221,7 @@ const MenuCategoryPage = () => {
                           <PencilIcon className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleDelete(cat.id)}
+                          onClick={() => handleDelete(cat.reference_id)}
                           className="text-red-600 hover:underline"
                         >
                           <TrashIcon className="w-5 h-5" />

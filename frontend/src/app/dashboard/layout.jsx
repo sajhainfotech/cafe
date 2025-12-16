@@ -25,6 +25,7 @@ export default function DashboardLayout({ children }) {
     
     const superUserRoutes = [ "/dashboard/restaurants", "/dashboard/branches"];
     const staffRoutes = [
+      "/dashboard",
       "/dashboard/orders",
       "/dashboard/menus",
       "/dashboard/table-management",
@@ -37,7 +38,7 @@ export default function DashboardLayout({ children }) {
       router.push("/dashboard/restaurants"); 
     } else if (!superUserFlag && superUserRoutes.includes(pathname)) {
     
-      router.push("/dashboard/orders");
+      router.push("/dashboard");
     }
   }, [pathname, router]);
 

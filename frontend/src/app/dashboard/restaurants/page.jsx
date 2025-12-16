@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 
 import ToastProvider from "@/components/ToastProvider";
+import AdminHeader from "@/components/AdminHeader";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -136,34 +137,35 @@ export default function RestaurantPage() {
 
   return (
     <>
-      <div className="flex flex-col items-start md:flex-row justify-between md:items-center bg-white shadow-md border border-gray-200  px-4 sm:px-6   md:px-10 py-2 md:pt-15 lg:py-3 gap-4 ">
-        <div className="flex-1 pt-15 md:pt-0 lg:pt-0">
-          <h1 className="text-lg sm:text-xl  md:text-2xl  lg-tesxt-3xl font-extrabold text-green-600 tracking-wide leading-tight ">
-            Restaurants Management
-          </h1>
-          <p className="text-gray-500 text-xs sm:text-sm md:text-base mt-1 md:mt-2">
-            Manage all your restaurants here
-          </p>
-        </div>
+      <AdminHeader />
+      <div className="px-4 sm:px-6 md:px-10 py-3">
+        <div className="flex flex-row items-center justify-between gap-3 flex-wrap">
+          {/* LEFT CONTENT */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight truncate">
+              Restaurants Management
+            </h1>
+           
+          </div>
 
-        <div className="w-full md:w-auto flex justify-end">
+         
           <button
             onClick={() => {
               setForm({ name: "", address: "", mobile_number: "" });
               setEditId(null);
               setShowModal(true);
             }}
-            className="flex items-center justify-center gap-2 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transform transition cursor-pointer"
+            className="flex-shrink-0 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl shadow-lg transition cursor-pointer"
           >
-            + Create Restaurants
+            + Create
           </button>
         </div>
       </div>
 
-      <div className="p-4 md:p-6 min-h-screen font-roboto ">
+      <div className="p-4 md:p-4 min-h-screen font-roboto ">
         <ToastProvider position="top-right" />
 
-     <div className="overflow-x-auto rounded border border-blue-200">
+        <div className="overflow-x-auto rounded border border-blue-200">
           <div className="rounded overflow-hidden border border-gray-300">
             <table className="min-w-full border-collapse">
               <thead className="bg-blue-100">
@@ -186,20 +188,12 @@ export default function RestaurantPage() {
               <tbody>
                 {restaurants.length > 0 ? (
                   restaurants.map((r) => (
-                    <tr
-                      key={r.reference_id}
-                      className="hover:bg-blue-50 "
-                      
-                    >
+                    <tr key={r.reference_id} className="hover:bg-blue-50 ">
                       <td className="border  px-3 py-2 font-medium text-gray-700">
                         {r.name}
                       </td>
-                      <td className="border  px-6 py-3 ">
-                        {r.address}
-                      </td>
-                      <td className="border  px-6 py-3 ">
-                        {r.mobile_number}
-                      </td>
+                      <td className="border  px-6 py-3 ">{r.address}</td>
+                      <td className="border  px-6 py-3 ">{r.mobile_number}</td>
                       <td className="border  px-6 py-3">
                         <div className="flex justify-center gap-4">
                           <button

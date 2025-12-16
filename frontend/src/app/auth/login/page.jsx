@@ -102,9 +102,9 @@ const AdminLoginPage = () => {
 
       toast.success("Login successful!");
       if (data.is_superuser) {
-        router.push("/dashboard");
+        router.push("/dashboard/restaurants");
       } else {
-        router.push("/dashboard/orders");
+        router.push("/dashboard");
       }
     } catch (err) {
       console.error("Login error:", err);
