@@ -10,7 +10,6 @@
   animation: fadeIn 0.2s ease-out;
 }
 
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

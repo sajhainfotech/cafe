@@ -1,11 +1,12 @@
 import React from "react";
-import TableMenuPage from "./table/[tableName]/page";
+
+import CustomerMenuPage from "./menu/page";
 
 
 const Main = () => {
   return (
     <div>
-      <TableMenuPage />
+      <CustomerMenuPage />
     </div>
   );
 };

@@ -1,51 +1,214 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { Bell, User } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
 
-export default function DashboardPage() {
-  const router = useRouter();
+} from "recharts";
+import {
 
-  const [adminName, setAdminName] = useState("");
-  const [restaurantName, setRestaurantName] = useState("");
-  const [branchName, setBranchName] = useState("");
+  Menu,
+} from "lucide-react";
+import { useSidebar } from "./SidebarContext";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+/* -------- Date Helpers -------- */
+const getNepalToday = () => {
+  const now = new Date();
+  const nepalTime = new Date(now.getTime() + (5 * 60 + 45) * 60000);
+  return `${nepalTime.getMonth() + 1}/${nepalTime.getDate()}/${nepalTime.getFullYear()}`;
+};
+
+const formatDate = (dateString) => {
+  const d = new Date(dateString);
+  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+};
+
+export default function AdminOrdersDashboard({handleLogout}) {
+  const { collapsed, setCollapsed } = useSidebar(); // ✅ now works
+  const [orders, setOrders] = useState([]);
+  const [showProfile, setShowProfile] = useState(false);
+
+  /* -------- Fetch Orders -------- */
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-
-    if (!token) {
-      router.push("/");
-      return;
-    }
-
-    setAdminName(localStorage.getItem("username") || "Admin");
-    setRestaurantName(localStorage.getItem("restaurant_id") || "N/A");
-    setBranchName(localStorage.getItem("branch_id") || "N/A");
+    const fetchOrders = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/orders`);
+        const data = await res.json();
+        setOrders(data || []);
+      } catch (err) {
+        console.error(err);
+        setOrders([]);
+      }
+    };
+    fetchOrders();
   }, []);
 
+  /* -------- Today Stats -------- */
+  const today = getNepalToday();
+
+  const todayOrders = orders.filter(
+    (o) => formatDate(o.created_at) === today
+  );
+
+  const totalOrdersToday = todayOrders.length;
+
+  const totalItemsSold = todayOrders.reduce(
+    (sum, o) =>
+      sum +
+      (o.items || []).reduce(
+        (iSum, i) => iSum + (i.quantity || 0),
+        0
+      ),
+    0
+  );
+
+  const todayRevenue = todayOrders
+    .filter((o) => o.status !== "Cancelled")
+    .reduce((sum, o) => sum + (o.total_price || 0), 0);
+
+  const pendingOrders = orders.filter(
+    (o) => o.status === "Pending"
+  ).length;
+
+  /* -------- Weekly Revenue -------- */
+  const getLast7Days = () => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push({
+        label: d.toLocaleDateString("en-US", { weekday: "short" }),
+        date: `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`,
+        total: 0,
+      });
+    }
+    return days;
+  };
+
+  const weeklyData = getLast7Days().map((day) => {
+    const dayOrders = orders.filter(
+      (o) => formatDate(o.created_at) === day.date
+    );
+    return {
+      day: day.label,
+      total: dayOrders.reduce(
+        (sum, o) => sum + (o.total_price || 0),
+        0
+      ),
+    };
+  });
+
+  /* -------- UI -------- */
   return (
-    <>
-      <h1 className="text-3xl font-bold text-amber-700">Dashboard</h1>
-      <p className="text-gray-600 mt-2">
-        Welcome, <strong>{adminName}</strong>
-      </p>
+    <div className="p-0 min-h-screen">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8 p-6 border border-gray-200 bg-white shadow-sm">
+        <div className="flex items-center gap-4">
+          {/* Toggle Button with Icon */}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-2 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+            title="Toggle Sidebar"
+          >
+            <Menu size={24} className="text-gray-700" />
+          </button>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold text-amber-600">Restaurant</h3>
-          <p className="text-gray-700 mt-1">{restaurantName}</p>
+           <h1 className="text-3xl font-bold text-green-500">
+          Royal Dine Dashboard
+        </h1>
         </div>
+       
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold text-amber-600">Branch</h3>
-          <p className="text-gray-700 mt-1">{branchName}</p>
-        </div>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Bell className="w-6 h-6 text-amber-700" />
+            {pendingOrders > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 rounded-full">
+                {pendingOrders}
+              </span>
+            )}
+          </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold text-amber-600">Role</h3>
-          <p className="text-gray-700 mt-1">Admin</p>
+          <div className="relative">
+            <button
+              className="p-2 bg-amber-50 rounded-full"
+              onClick={() => setShowProfile(!showProfile)}
+            >
+              <User className="w-6 h-6 text-amber-700" />
+            </button>
+
+            {showProfile && (
+              <div className="absolute right-0 mt-3 w-40 bg-white border shadow rounded-lg">
+                <button className="w-full p-3 hover:bg-gray-100">
+                  Profile
+                </button>
+                <button onClick={handleLogout} className="w-full p-3 text-red-500 hover:bg-gray-100">
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 p-6">
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">Today Orders</p>
+          <h2 className="text-3xl font-bold text-amber-600">
+            {totalOrdersToday}
+          </h2>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">Items Sold</p>
+          <h2 className="text-3xl font-bold text-blue-600">
+            {totalItemsSold}
+          </h2>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">Today Revenue</p>
+          <h2 className="text-3xl font-bold text-green-600">
+            Rs. {todayRevenue.toFixed(2)}
+          </h2>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">Pending Orders</p>
+          <h2 className="text-3xl font-bold text-red-600">
+            {pendingOrders}
+          </h2>
+        </div>
+      </div>
+      <div className="p-6">
+        <div className="p-6 rounded-xl shadow">
+          <h2 className="text-xl font-semibold mb-4">
+            Weekly Revenue
+          </h2>
+
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={weeklyData}>
+              <XAxis dataKey="day" />
+              <YAxis />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="#f59e0b"
+                strokeWidth={3}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
   );
 }

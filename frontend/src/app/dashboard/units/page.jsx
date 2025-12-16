@@ -128,7 +128,7 @@ export default function AdminMenuUnitPage() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
+    <div className="min-h-screen p-6 ">
       <h1 className="text-3xl font-bold text-amber-700 mb-6">Menu Units</h1>
 
       {/* Form */}

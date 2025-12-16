@@ -132,7 +132,7 @@ export default function RestaurantPage() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6  min-h-screen">
       <Toaster position="top-right" />
       <h1 className="text-3xl font-bold mb-6 text-amber-600">Restaurants</h1>
 
@@ -194,7 +194,7 @@ export default function RestaurantPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
             <h2 className="text-xl font-bold mb-4">
               {editId ? "Edit Restaurant" : "Create Restaurant"}
