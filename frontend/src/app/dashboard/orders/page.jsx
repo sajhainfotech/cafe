@@ -1,15 +1,10 @@
-
-
-
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { X, Trash2, Printer, CheckCircle, Bell } from "lucide-react";
 import Swal from "sweetalert2";
 import AdminHeader from "../../../components/AdminHeader";
 
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
 
 const getNepalToday = () => {
   const now = new Date();
@@ -27,11 +22,16 @@ const AdminOrdersDashboard = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const prevOrdersRef = useRef([]);
   const dropdownRef = useRef(null);
+  const token = localStorage.getItem("adminToken") || "";
 
   // Fetch tables from API
   const fetchTables = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/tables`);
+      const res = await fetch(`${API_URL}/api/tables/`, {
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+      });
       if (!res.ok) throw new Error("Failed to fetch tables");
       const data = await res.json();
       setTables(data);
@@ -44,16 +44,20 @@ const AdminOrdersDashboard = () => {
   // Fetch orders from API
   const fetchOrders = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/orders`);
+      const res = await fetch(`${API_URL}/api/orders/`, {
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+      });
       if (!res.ok) throw new Error("Failed to fetch orders");
       const data = await res.json();
-      const normalizedOrders = data.map((o) => ({
-        order_id: o.order_id || o._id || Date.now(),
-        table_id: o.table_id,
-        tableName: o.tableName || "Unknown",
-        items: o.items || [],
-        total_price: o.total_price || 0,
-        status: o.status || "Pending",
+      const normalizedOrders = data?.data?.map((o) => ({
+        order_id: o?.order_id || o?._id || Date.now(),
+        table_id: o?.table_id,
+        tableName: o?.tableName || "Unknown",
+        items: o?.items || [],
+        total_price: o?.total_price || 0,
+        status: o?.status || "Pending",
         created_at: o.created_at || new Date().toISOString(),
       }));
       setOrders(normalizedOrders);
@@ -88,7 +92,9 @@ const AdminOrdersDashboard = () => {
         (o) => !prevOrdersRef.current.includes(o.order_id)
       );
       if (newOrders.length > 0) {
-        const tableNames = newOrders.map((o) => o.tableName || o.table_id).join(", ");
+        const tableNames = newOrders
+          .map((o) => o.tableName || o.table_id)
+          .join(", ");
         showToast(`New Order at Table(s): ${tableNames}`, "info");
       }
       prevOrdersRef.current = orders.map((o) => o.order_id);
@@ -216,9 +222,13 @@ const AdminOrdersDashboard = () => {
     myWindow.document.write(`<p>Time: ${order.created_at}</p><hr/>`);
     order.items.forEach((i) => {
       const price = i.price || 0;
-      myWindow.document.write(`<p>${i.name} x ${i.quantity} — Rs.${price.toFixed(2)}</p>`);
+      myWindow.document.write(
+        `<p>${i.name} x ${i.quantity} — Rs.${price.toFixed(2)}</p>`
+      );
     });
-    myWindow.document.write(`<hr/><h3>Total: Rs.${(order.total_price || 0).toFixed(2)}</h3>`);
+    myWindow.document.write(
+      `<hr/><h3>Total: Rs.${(order.total_price || 0).toFixed(2)}</h3>`
+    );
     myWindow.document.close();
     myWindow.focus();
     myWindow.print();
@@ -228,15 +238,25 @@ const AdminOrdersDashboard = () => {
   const getStatusIndicator = (status) => {
     switch (status) {
       case "Pending":
-        return <span className="w-3 h-3 rounded-full bg-yellow-500 mr-2 inline-block"></span>;
+        return (
+          <span className="w-3 h-3 rounded-full bg-yellow-500 mr-2 inline-block"></span>
+        );
       case "In Progress":
-        return <span className="w-3 h-3 rounded-full bg-blue-500 mr-2 inline-block"></span>;
+        return (
+          <span className="w-3 h-3 rounded-full bg-blue-500 mr-2 inline-block"></span>
+        );
       case "Served":
-        return <span className="w-3 h-3 rounded-full bg-green-500 mr-2 inline-block"></span>;
+        return (
+          <span className="w-3 h-3 rounded-full bg-green-500 mr-2 inline-block"></span>
+        );
       case "Paid":
-        return <span className="w-3 h-3 rounded-full bg-indigo-500 mr-2 inline-block"></span>;
+        return (
+          <span className="w-3 h-3 rounded-full bg-indigo-500 mr-2 inline-block"></span>
+        );
       case "Cancelled":
-        return <span className="w-3 h-3 rounded-full bg-red-500 mr-2 inline-block"></span>;
+        return (
+          <span className="w-3 h-3 rounded-full bg-red-500 mr-2 inline-block"></span>
+        );
       default:
         return null;
     }
@@ -253,99 +273,107 @@ const AdminOrdersDashboard = () => {
   };
 
   const today = getNepalToday();
-  const todayOrders = orders.filter((o) => formatOrderDate(o.created_at) === today);
+  const todayOrders = orders.filter(
+    (o) => formatOrderDate(o.created_at) === today
+  );
   const todayTotal = todayOrders
     .filter((o) => o.status !== "Cancelled")
     .reduce((sum, o) => sum + (o.total_price || 0), 0);
 
   return (
     <>
-
       <div className="min-h-screen font-sans">
         {/* Header */}
         <AdminHeader />
 
-       <div className="p-6">
-        <h1 className="text-xl font-semibold mb-4">Today’s Orders {today}</h1>
+        <div className="p-6">
+          <h1 className="text-xl font-semibold mb-4">Today’s Orders {today}</h1>
 
-        {/* Orders List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {todayOrders.map((order, idx) => (
-            <div
-              key={order.order_id}
-              className={`relative p-5 border rounded-xl shadow-sm bg-white hover:shadow-md ${order.status === "Cancelled" ? "opacity-50" : ""
+          {/* Orders List */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {todayOrders.map((order, idx) => (
+              <div
+                key={order.order_id}
+                className={`relative p-5 border rounded-xl shadow-sm bg-white hover:shadow-md ${
+                  order.status === "Cancelled" ? "opacity-50" : ""
                 }`}
-            >
-              {order.status !== "Cancelled" && (
-                <button
-                  className="absolute top-2 right-2 p-1 text-red-500 hover:text-red-700 rounded"
-                  onClick={() => cancelOrder(order.order_id)}
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
-
-              <div className="flex items-center gap-2 mb-2">
-                <span className="font-semibold">Order:{idx + 1}</span>
-                <span className="font-semibold text-gray-700">
-                  Table: {order.tableName} ({getTableLocation(order.table_id)})
-                </span>
-              </div>
-
-              <p className="mb-2 text-sm text-gray-500">{order.created_at}</p>
-
-              <ul className="ml-2 mb-2">
-                {order.items.map((i) => (
-                  <li key={i.id || i.name}>
-                    {i.name} x {i.quantity} — Rs.{Number(i.price || 0).toFixed(2)}
-                  </li>
-                ))}
-              </ul>
-
-              <p className="font-bold mt-2">Total: Rs.{(order.total_price || 0).toFixed(2)}</p>
-
-              <div className="flex justify-between mt-4 items-center">
-                <div className="flex items-center">
-                  {getStatusIndicator(order.status)}
-                  <span className="text-sm font-medium">{order.status}</span>
-                </div>
-
-                <div className="flex gap-4">
-                  {order.status !== "Cancelled" && (
-                    <>
-                      <button
-                        className="text-blue-500 hover:text-blue-600 p-1"
-                        onClick={() => printBill(order)}
-                      >
-                        <Printer />
-                      </button>
-                      <button
-                        className="p-1 rounded hover:scale-110 transition text-yellow-500 hover:text-yellow-600"
-                        onClick={() => toggleStatus(order.order_id)}
-                      >
-                        <CheckCircle />
-                      </button>
-                    </>
-                  )}
+              >
+                {order.status !== "Cancelled" && (
                   <button
-                    className="text-red-500 hover:text-red-600 p-1 rounded"
-                    onClick={() => deleteOrder(order.order_id)}
+                    className="absolute top-2 right-2 p-1 text-red-500 hover:text-red-700 rounded"
+                    onClick={() => cancelOrder(order.order_id)}
                   >
-                    <Trash2 />
+                    <X className="w-5 h-5" />
                   </button>
+                )}
+
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-semibold">Order:{idx + 1}</span>
+                  <span className="font-semibold text-gray-700">
+                    Table: {order.tableName} ({getTableLocation(order.table_id)}
+                    )
+                  </span>
+                </div>
+
+                <p className="mb-2 text-sm text-gray-500">{order.created_at}</p>
+
+                <ul className="ml-2 mb-2">
+                  {order.items.map((i) => (
+                    <li key={i.id || i.name}>
+                      {i.name} x {i.quantity} — Rs.
+                      {Number(i.price || 0).toFixed(2)}
+                    </li>
+                  ))}
+                </ul>
+
+                <p className="font-bold mt-2">
+                  Total: Rs.{(order.total_price || 0).toFixed(2)}
+                </p>
+
+                <div className="flex justify-between mt-4 items-center">
+                  <div className="flex items-center">
+                    {getStatusIndicator(order.status)}
+                    <span className="text-sm font-medium">{order.status}</span>
+                  </div>
+
+                  <div className="flex gap-4">
+                    {order.status !== "Cancelled" && (
+                      <>
+                        <button
+                          className="text-blue-500 hover:text-blue-600 p-1"
+                          onClick={() => printBill(order)}
+                        >
+                          <Printer />
+                        </button>
+                        <button
+                          className="p-1 rounded hover:scale-110 transition text-yellow-500 hover:text-yellow-600"
+                          onClick={() => toggleStatus(order.order_id)}
+                        >
+                          <CheckCircle />
+                        </button>
+                      </>
+                    )}
+                    <button
+                      className="text-red-500 hover:text-red-600 p-1 rounded"
+                      onClick={() => deleteOrder(order.order_id)}
+                    >
+                      <Trash2 />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Footer Total */}
-        <div className="p-5 mt-8 bg-white border rounded-xl shadow-sm flex justify-between items-center">
-          <span className="font-semibold text-lg text-gray-700">Today’s Total Amount</span>
-          <span className="text-2xl font-extrabold text-amber-600">
-            Rs. {todayTotal.toFixed(2)}
-          </span>
-        </div>
+          {/* Footer Total */}
+          <div className="p-5 mt-8 bg-white border rounded-xl shadow-sm flex justify-between items-center">
+            <span className="font-semibold text-lg text-gray-700">
+              Today’s Total Amount
+            </span>
+            <span className="text-2xl font-extrabold text-amber-600">
+              Rs. {todayTotal.toFixed(2)}
+            </span>
+          </div>
         </div>
       </div>
     </>

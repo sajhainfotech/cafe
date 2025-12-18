@@ -110,25 +110,23 @@ const MenuCategoryPage = () => {
     }
   };
 
- const handleEdit = (cat) => {
-  setCategoryName(cat.name);
-  setDescription(cat.description || "");
-  setEditId(cat.reference_id);
-  setShowForm(true); 
-};
+  const handleEdit = (cat) => {
+    setCategoryName(cat.name);
+    setDescription(cat.description || "");
+    setEditId(cat.reference_id);
+    setShowForm(true);
+  };
 
-const handleDelete = async (id) => {
-  if (!id) {
-    toast.error("Invalid category ID");
-    return;
-  }
+  const handleDelete = async (id) => {
+    if (!id) {
+      toast.error("Invalid category ID");
+      return;
+    }
 
-  if (!confirm("Are you sure you want to delete this category?")) return;
+    if (!confirm("Are you sure you want to delete this category?")) return;
 
-  try {
-    await axios.delete(
-      `${BASE_URL}/api/item-categories/${id}/`,
-      {
+    try {
+      await axios.delete(`${BASE_URL}/api/item-categories/${id}/`, {
         headers: {
           Authorization: `Token ${token}`,
         },
@@ -136,21 +134,18 @@ const handleDelete = async (id) => {
           restaurant_id,
           branch_id,
         },
-      }
-    );
+      });
 
-    toast.success("Category deleted successfully");
-    fetchCategories();
-  } catch (error) {
-    console.error("DELETE ERROR:", error.response?.data || error);
-    toast.error(
-      error.response?.data?.message ||
-        "Server error while deleting category"
-    );
-  }
-};
-
-
+      toast.success("Category deleted successfully");
+      fetchCategories();
+    } catch (error) {
+      console.log(error);
+      console.error("DELETE ERROR:", error.response?.data || error.message);
+      toast.error(
+        error.response?.data?.message || "Server error while deleting category"
+      );
+    }
+  };
 
   return (
     <div className="min-h-screen ">
@@ -207,7 +202,10 @@ const handleDelete = async (id) => {
                 </tr>
               ) : (
                 categories.map((cat) => (
-                  <tr key={cat.reference_id} className="border-b hover:bg-gray-50">
+                  <tr
+                    key={cat.reference_id}
+                    className="border-b hover:bg-gray-50"
+                  >
                     <td className="border px-4 py-2">{cat.name}</td>
                     <td className="border px-4 py-2">
                       {cat.description || "-"}

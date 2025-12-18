@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
@@ -14,6 +14,13 @@ const AdminLoginPage = () => {
   const [loading, setLoading] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+  useEffect(() => {
+    const adminToken = localStorage.getItem("adminToken");
+    if (adminToken) {
+      router.replace("/");
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

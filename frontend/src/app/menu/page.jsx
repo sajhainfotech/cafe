@@ -34,8 +34,11 @@ export default function CustomerMenu() {
   const fetchMenus = async (token) => {
     try {
       const adminToken = localStorage.getItem("adminToken");
+
+
+
       const headers = adminToken
-        ? { Authorization: `Token ${adminToken}` } 
+        ? { Authorization: `Token ${adminToken}` }
         : token
         ? { "Table-Token": token }
         : {};
@@ -172,7 +175,7 @@ export default function CustomerMenu() {
             className="flex bg-amber-50 border-l-4 border-amber-600 p-3 rounded-lg shadow"
           >
             <img
-              src={menu.image_url}
+              src={menu.image_url || menu?.image}
               alt={menu.name}
               className="w-24 h-24 rounded mr-4"
             />
