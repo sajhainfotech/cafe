@@ -17,6 +17,7 @@ export default function TableManager() {
   const [location, setLocation] = useState("");
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [openQr, setOpenQr] = useState(null);
 
   const [showForm, setShowForm] = useState(false);
 
@@ -245,14 +246,12 @@ export default function TableManager() {
     <div className="min-h-screen">
       <AdminHeader />
       <div className="flex flex-row items-center justify-between px-4 sm:px-6 md:px-10 py-3 gap-4">
-       
         <div className="flex-1 min-w-0">
           <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 leading-tight truncate">
             Tables Management
           </h1>
         </div>
 
-      
         <div className="flex-shrink-0 ml-4">
           <button
             onClick={() => {
@@ -306,8 +305,9 @@ export default function TableManager() {
                     {t.qr_code ? (
                       <img
                         src={t.qr_code}
+                        onClick={(e) => setOpenQr(t?.qr_code)}
                         alt="QR Code"
-                        className="w-12 h-12 sm:w-10 sm:h-10 md:w-8 md:h-8 lg:w-10 lg:h-10 object-contain"
+                        className="w-12 h-12 sm:w-10 sm:h-10 md:w-8 md:h-8 lg:w-10 lg:h-10 object-contain cursor-pointer"
                       />
                     ) : (
                       <span className="text-gray-400">No QR</span>
@@ -336,7 +336,6 @@ export default function TableManager() {
         </div>
       </div>
 
-      
       {showForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -431,6 +430,31 @@ export default function TableManager() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {openQr && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onClick={() => setOpenQr(null)}
+        >
+          <div
+            className="bg-white p-4 rounded-lg max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={openQr}
+              alt="QR Preview"
+              className="w-full h-auto object-contain"
+            />
+
+            <button
+              onClick={() => setOpenQr(null)}
+              className="mt-4 w-full bg-gray-800 text-white py-2 rounded hover:bg-gray-900 cursor-pointer"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
