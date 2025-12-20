@@ -133,6 +133,12 @@ export default function AdminMenuManager() {
       formData.append("menu_date", form.menu_date);
 
       form.categories.forEach((cat, index) => {
+        const categoryJSON = {
+          name: cat.name,
+          price: cat.price,
+          item_category: cat.item_category,
+          unit: cat.unit,
+        };
         formData.append(`items[${index}][name]`, cat.name);
         formData.append(`items[${index}][price]`, cat.price);
         formData.append(`items[${index}][item_category]`, cat.item_category);
@@ -247,7 +253,7 @@ export default function AdminMenuManager() {
               onClick={() => setShowForm(true)}
               className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold shadow-lg transition duration-300 cursor-pointer"
             >
-              + Create 
+              + Create
             </button>
           </div>
         </div>
@@ -375,11 +381,7 @@ export default function AdminMenuManager() {
                 disabled={loading}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 w-full sm:w-auto"
               >
-                {loading
-                  ? "Saving..."
-                  : editingMenuId
-                  ? "Update "
-                  : "Create "}
+                {loading ? "Saving..." : editingMenuId ? "Update " : "Create "}
               </button>
             </div>
           </form>
@@ -458,7 +460,7 @@ export default function AdminMenuManager() {
                         }}
                         className="text-blue-600 hover:bg-blue-100 p-2 rounded"
                       >
-                         <PencilIcon className="w-5 h-5" />
+                        <PencilIcon className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => handleDeleteMenu(menu.reference_id)}
