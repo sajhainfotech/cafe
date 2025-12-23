@@ -134,7 +134,7 @@ export default function DesktopSidebar({ router, is_superuser, children }) {
           >
             <div className="flex items-center justify-between gap-3 px-4 py-3 h-16">
               <div className="flex items-center gap-3">
-                <User size={20} />
+                <LayoutDashboardIcon size={20} />
                 <h2 className="font-bold text-lg">Admin Panel</h2>
               </div>
 

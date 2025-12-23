@@ -5,7 +5,8 @@ import React, { createContext, useContext, useState } from "react";
 const SidebarContext = createContext();
 
 const getInitialCollapsed = () => {
-  if (typeof window === "undefined") return true; 
+  if (typeof window === "undefined") return true;
+  return window.innerWidth < 1024; 
 };
 
 export const SidebarProvider = ({ children }) => {
