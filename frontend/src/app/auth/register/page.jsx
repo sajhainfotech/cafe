@@ -87,7 +87,7 @@ export default function AdminRegisterPage({
     if (adminData) {
       setForm({
         username: adminData.username,
-        password: "", // leave empty for security
+        password: "",
         first_name: adminData.first_name,
         last_name: adminData.last_name,
         email: adminData.email,
@@ -209,7 +209,7 @@ export default function AdminRegisterPage({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 rounded-2xl">
+    <div className="min-h-screen flex justify-center items-center bg-amber-50 relative rounded-2xl ">
       <ToastProvider />
 
       <svg
@@ -321,115 +321,102 @@ export default function AdminRegisterPage({
         <rect width="100%" height="100%" fill="url(#momo-pattern)" />
       </svg>
 
-      {/* Card */}
-      <div
-        className="z-10 bg-white/90 backdrop-blur rounded-2xl shadow-2xl
-   sm:p-8 md:p-10  w-full max-w-3xl mx-2 sm:mx-4 md:mx-auto border border-amber-100"
-      >
-        {/* Header */}
-        <div className="text-center mb-8 sm:mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-100 rounded-full mb-4">
-            <UserPlus className="w-8 h-8 text-amber-600" />
+      <div className="w-full max-w-2xl bg-white rounded-xl border border-amber-200 p-3 m-1 sm:p-8 z-10">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-amber-100 rounded-full mb-3">
+            <UserPlus className="w-7 h-7 text-amber-600" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-amber-600 mb-1 sm:mb-2">
+          <h2 className="text-2xl font-bold text-amber-600 mb-1">
             Admin Register
           </h2>
-          <p className="text-gray-600 text-sm sm:text-base">
-            Create a new admin account
-          </p>
+          <p className="text-gray-600 text-sm">Create a new admin account</p>
         </div>
 
         {/* Form */}
         <form
           onSubmit={handleSubmit}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-4"
         >
           {/* Username */}
           <div className="relative">
-            <User className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
             <input
               type="text"
               placeholder="Username"
               value={form.username}
               onChange={(e) => setForm({ ...form, username: e.target.value })}
               required
-              className="w-full pl-10 sm:pl-11 pr-4 py-3 border border-amber-300 rounded-xl
-          focus:ring-2 focus:ring-amber-400 outline-none"
+              className="w-full pl-10 pr-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
             />
           </div>
 
           {/* Password */}
           <div className="relative">
-            <Lock className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
             <input
               type="password"
               placeholder="Password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
-              className="w-full pl-10 sm:pl-11 pr-4 py-3 border border-amber-300 rounded-xl
-          focus:ring-2 focus:ring-amber-400 outline-none"
+              className="w-full pl-10 pr-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
             />
           </div>
 
           {/* First Name */}
           <div className="relative">
-            <User className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
             <input
               type="text"
               placeholder="First Name"
               value={form.first_name}
               onChange={(e) => setForm({ ...form, first_name: e.target.value })}
               required
-              className="w-full pl-10 sm:pl-11 pr-4 py-3 border border-amber-300 rounded-xl
-          focus:ring-2 focus:ring-amber-400 outline-none"
+              className="w-full pl-10 pr-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
             />
           </div>
 
           {/* Last Name */}
           <div className="relative">
-            <User className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
             <input
               type="text"
               placeholder="Last Name"
               value={form.last_name}
               onChange={(e) => setForm({ ...form, last_name: e.target.value })}
               required
-              className="w-full pl-10 sm:pl-11 pr-4 py-3 border border-amber-300 rounded-xl
-          focus:ring-2 focus:ring-amber-400 outline-none"
+              className="w-full pl-10 pr-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
             />
           </div>
 
           {/* Email */}
-          <div className="relative">
-            <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
+          <div className="relative sm:col-span-2">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
             <input
               type="email"
               placeholder="Email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               required
-              className="w-full pl-10 sm:pl-11 pr-4 py-3 border border-amber-300 rounded-xl
-          focus:ring-2 focus:ring-amber-400 outline-none"
+              className="w-full pl-10 pr-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
             />
           </div>
 
           {/* Address */}
-          <div className="relative">
-            <MapPin className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
+          <div className="relative sm:col-span-2">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
             <input
               type="text"
               placeholder="Address"
               value={form.address || ""}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
-              className="w-full pl-10 sm:pl-11 pr-4 py-3 border border-amber-300 rounded-xl
-          focus:ring-2 focus:ring-amber-400 outline-none"
+              className="w-full pl-10 pr-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
             />
           </div>
 
           {/* Mobile */}
           <div className="relative sm:col-span-2">
-            <Phone className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
             <input
               type="text"
               placeholder="Mobile Number"
@@ -438,8 +425,7 @@ export default function AdminRegisterPage({
                 setForm({ ...form, mobile_number: e.target.value })
               }
               required
-              className="w-full pl-10 sm:pl-11 pr-4 py-3 border border-amber-300 rounded-xl
-          focus:ring-2 focus:ring-amber-400 outline-none"
+              className="w-full pl-10 pr-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
             />
           </div>
 
@@ -448,8 +434,7 @@ export default function AdminRegisterPage({
             value={form.restaurant}
             onChange={(e) => setForm({ ...form, restaurant: e.target.value })}
             required
-            className="w-full px-4 py-3 border border-amber-300 rounded-xl
-        focus:ring-2 focus:ring-amber-400 outline-none"
+            className="w-full sm:col-span-1 px-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
           >
             <option value="">Select Restaurant</option>
             {restaurants.map((r) => (
@@ -464,8 +449,7 @@ export default function AdminRegisterPage({
             value={form.branch}
             onChange={(e) => setForm({ ...form, branch: e.target.value })}
             required
-            className="w-full px-4 py-3 border border-amber-300 rounded-xl
-        focus:ring-2 focus:ring-amber-400 outline-none"
+            className="w-full sm:col-span-1 px-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
           >
             <option value="">Select Branch</option>
             {filteredBranches.map((b) => (
@@ -475,14 +459,25 @@ export default function AdminRegisterPage({
             ))}
           </select>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            className="sm:col-span-2 w-full bg-amber-600 text-white py-3 rounded-xl
-        font-semibold shadow-lg hover:bg-amber-700 transition"
-          >
-            Register Admin
-          </button>
+          
+          <div className="sm:col-span-2 flex flex-col items-center gap-2">
+            <button
+              type="submit"
+              className="w-full bg-amber-600 text-white py-2 rounded-lg font-medium hover:bg-amber-700 transition transform active:scale-95 text-sm"
+            >
+              Register Admin
+            </button>
+
+            <p className="text-sm text-gray-600">
+              Already have an account?{" "}
+              <a
+                href="/auth/login"
+                className="text-amber-600 hover:underline font-medium"
+              >
+                Login
+              </a>
+            </p>
+          </div>
         </form>
       </div>
     </div>

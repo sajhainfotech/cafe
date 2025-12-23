@@ -362,7 +362,7 @@ export default function AdminMenuManager() {
           <div className="flex-shrink-0 ml-4">
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center justify-center gap-2 bg-yellow-500 text-black px-5 py-2 rounded-xl font-bold shadow-lg transition duration-300 cursor-pointer"
+              className="button flex items-center justify-center gap-2 bg-amber-500 text-black px-5 py-2 rounded-xl font-bold shadow-lg transition duration-300 cursor-pointer"
             >
               + Create
             </button>

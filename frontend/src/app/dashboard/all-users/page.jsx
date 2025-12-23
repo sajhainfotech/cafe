@@ -7,7 +7,7 @@ import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 import AdminRegisterPage from "@/app/auth/register/page";
 import AdminHeader from "@/components/AdminHeader";
 import ToastProvider from "@/components/ToastProvider";
-
+import "@/styles/customButtons.css"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -51,11 +51,13 @@ export default function AdminManagementPage() {
       console.log("Raw Response:", res);
       const data = await res.json();
 
-      console.log("Parsed Admin Data:", data);
+    
       
       if (!res.ok) throw new Error(data.response || "Failed to fetch admins");
 
       // Always ensure array
+      console.log("Admins:", data.data);
+
       setAdmins(data.data || []);
     } catch (err) {
       console.error("Fetch admins error:", err);
@@ -94,12 +96,15 @@ export default function AdminManagementPage() {
   };
 
   // Delete admin
-  const handleDelete = async (id) => {
-    if (!id) return toast.error("Admin ID missing!");
+  const handleDelete = async (reference_id) => {
+    if (!reference_id) {
+      console.log("Reference ID missing:", reference_id);
+      return toast.error("Admin reference_id missing!");
+    }
     if (!confirm("Are you sure you want to delete this admin?")) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/user/admins/${id}/`, {
+      const res = await fetch(`${API_URL}/api/user/admins/${reference_id}/`, {
         method: "DELETE",
         headers: { Authorization: `Token ${adminToken}` },
       });
@@ -109,7 +114,7 @@ export default function AdminManagementPage() {
       if (!res.ok) throw new Error(data.response || "Delete failed");
 
       toast.success("Admin deleted successfully!");
-      setAdmins((prev) => prev.filter((admin) => admin._id !== id));
+      setAdmins((prev) => prev.filter((admin) => admin.reference_id !== reference_id));
     } catch (err) {
       console.error("Delete Error:", err);
       toast.error(err.message);
@@ -117,9 +122,9 @@ export default function AdminManagementPage() {
   };
 
   return (
-    <div className="font-robot min-h-screen ">
+    <div className="font-robot min-h-screen font-sans">
       <AdminHeader />
-      <ToastProvider/>
+      <ToastProvider />
 
       <div className="px-4 sm:px-6 md:px-10 py-3">
         <div className="flex flex-row items-center justify-between flex-wrap gap-2">
@@ -129,9 +134,9 @@ export default function AdminManagementPage() {
 
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 bg-amber-500 font-bold text-black px-5 py-2 font-sm rounded-xl shadow-lg transition duration-300 cursor-pointer"
+            className="button flex items-center gap-2 bg-amber-500 font-bold text-black px-5 py-2 rounded-xl shadow-lg transition duration-300 cursor-pointer"
           >
-            + Register
+            Register
           </button>
         </div>
 
@@ -146,9 +151,7 @@ export default function AdminManagementPage() {
               }
             }}
           >
-            <div className="rounded-3xl w-full  max-w-3xl relative animate-fadeIn">
-             
-
+            <div className="rounded-3xl w-full max-w-3xl relative animate-fadeIn">
               <AdminRegisterPage
                 adminData={editAdmin}
                 admins={admins} 
@@ -173,53 +176,33 @@ export default function AdminManagementPage() {
           <table className="min-w-full border-collapse text-sm">
             <thead className="bg-amber-50 uppercase">
               <tr>
-                <th className="border border-gray-300 px-4 py-3 text-left">
-                  Username
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-left">
-                  Name
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-left">
-                  Email
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-left">
-                  Mobile
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-left">
-                  Address
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-left">
-                  Restaurant
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-left">
-                  Branch
-                </th>
-                <th className="border border-gray-300 px-4 py-3 text-center">
-                  Actions
-                </th>
+                <th className="border border-gray-300 px-4 py-3 text-left">Username</th>
+                <th className="border border-gray-300 px-4 py-3 text-left">Name</th>
+                <th className="border border-gray-300 px-4 py-3 text-left">Email</th>
+                <th className="border border-gray-300 px-4 py-3 text-left">Mobile</th>
+                <th className="border border-gray-300 px-4 py-3 text-left">Address</th>
+                <th className="border border-gray-300 px-4 py-3 text-left">Restaurant</th>
+                <th className="border border-gray-300 px-4 py-3 text-left">Branch</th>
+                <th className="border border-gray-300 px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {admins.length > 0 ? (
                 admins.map((admin, index) => (
                   <tr
-                    key={`${admin._id ?? index}-${admin.email}`}
-                    className="border-b hover:bg-gray-50 transition"
+                    key={`${admin.reference_id ?? index}-${admin.email}`}
+                    className="border-b hover:bg-amber-50 transition"
                   >
                     <td className="px-4 py-2 border">{admin.username}</td>
-                    <td className="px-4 py-2 border">
-                      {admin.first_name} {admin.last_name}
-                    </td>
+                    <td className="px-4 py-2 border">{admin.first_name} {admin.last_name}</td>
                     <td className="px-4 py-2 border">{admin.email}</td>
                     <td className="px-4 py-2 border">{admin.mobile_number}</td>
                     <td className="px-4 py-2 border">{admin.address}</td>
                     <td className="px-4 py-2 border">
-                      {restaurants.find((r) => r._id === admin.restaurant)
-                        ?.name || "-"}
+                      {restaurants.find((r) => r.reference_id === admin.restaurant)?.name || "-"}
                     </td>
                     <td className="px-4 py-2 border">
-                      {branches.find((b) => b._id === admin.branch)?.name ||
-                        "-"}
+                      {branches.find((b) => b.reference_id === admin.branch)?.name || "-"}
                     </td>
                     <td className="border px-4 py-2">
                       <div className="flex justify-center gap-4">
@@ -231,7 +214,7 @@ export default function AdminManagementPage() {
                           <PencilIcon className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleDelete(admin._id)}
+                          onClick={() => handleDelete(admin.reference_id)}
                           className="text-red-600 hover:bg-red-100 p-2 rounded transition"
                         >
                           <TrashIcon className="w-5 h-5" />
@@ -242,10 +225,7 @@ export default function AdminManagementPage() {
                 ))
               ) : (
                 <tr key="no-admins">
-                  <td
-                    colSpan={8}
-                    className="px-4 py-6 border text-center text-gray-500"
-                  >
+                  <td colSpan={8} className="px-4 py-6 border text-center text-gray-500">
                     No admins found.
                   </td>
                 </tr>

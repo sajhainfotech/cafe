@@ -49,3 +49,35 @@
 .custom-btn:hover:before {
   transform: translateX(15em);
 }
+
+/* Amber Button using Tailwind-inspired colors */
+.button {
+  height: 40px;
+  margin: 5px;
+  width: 120px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-family: sans-serif ;
+  border: solid #d97706 1px; /* amber-600 */
+  font-size: 16px;
+  color: #fff;
+  transition: 500ms;
+  border-radius: 5px;
+  background: linear-gradient(145deg, #f59e0b, #d97706); /* amber-500 to amber-600 */
+  box-shadow: -1px -2px 5px #fbbf24, 5px 5px 15px #f59e0b,
+    inset 5px 5px 10px #f59e0b, inset -5px -5px 10px #fcd34d; /* amber shades */
+}
+
+.button:hover {
+  box-shadow: 1px 1px 13px #d97706, -1px -1px 13px #fbbf24;
+  color: #fff;
+  transition: 500ms;
+}
+
+.button:active {
+  box-shadow: 1px 1px 13px #d97706, -1px -1px 33px #fbbf24;
+  color: #fff;
+  transition: 100ms;
+}

@@ -14,10 +14,10 @@ import {
   
   User,
   Menu,
+  LayoutDashboardIcon,
 } from "lucide-react";
 
 import { useSidebar } from "./SidebarContext";
-import { Bars3Icon } from "@heroicons/react/24/solid";
 
 export default function DesktopSidebar({ router, is_superuser, children }) {
   const { collapsed, setCollapsed, setSidebarOpen } = useSidebar();
@@ -61,28 +61,26 @@ export default function DesktopSidebar({ router, is_superuser, children }) {
 
         return (
           <button
-            key={i}
-            onClick={() => {
-              router.push(item.route);
-
-            
-              if (window.innerWidth < 992) {
-                setCollapsed(true);
-              }
-
-             
-              setSidebarOpen(false);
-            }}
-
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg w-full transition
-              ${active
-                ? "bg-blue-100 text-blue-700 font-semibold"
-                : "text-gray-800 hover:bg-gray-100"
-              }`}
-          >
-            <Icon size={20} />
-            {(!collapsed || hovered) && <span>{item.label}</span>}
-          </button>
+          key={i}
+          onClick={() => {
+            router.push(item.route);
+        
+            if (window.innerWidth < 992) {
+              setCollapsed(true);
+            }
+        
+            setSidebarOpen(false);
+          }}
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg w-full transition
+            ${active
+              ? "bg-amber-100 text-amber-700 font-semibold"
+              : "text-gray-800 hover:bg-amber-50 hover:text-amber-600"
+            }`}
+        >
+          <Icon size={20} />
+          {(!collapsed || hovered) && <span>{item.label}</span>}
+        </button>
+        
         );
       })}
 
@@ -103,7 +101,7 @@ export default function DesktopSidebar({ router, is_superuser, children }) {
         >
           <div className="flex items-center gap-3 px-4 py-3 h-16">
             <div className="p-3 rounded hover:bg-gray-100">
-              <User size={20} />
+              <LayoutDashboardIcon size={20} />
             </div>
             {(!collapsed || hovered) && (
               <h2 className="font-bold text-lg">Admin Panel</h2>

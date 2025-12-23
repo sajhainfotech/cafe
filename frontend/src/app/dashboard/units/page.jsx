@@ -119,7 +119,7 @@ export default function AdminMenuUnitPage() {
               setUnitName("");
               setShowForm(true);
             }}
-            className="flex items-center justify-center gap-2 bg-yellow-500 text-black px-5 py-2 rounded-xl font-bold shadow-lg transition duration-300 cursor-pointer"
+           className="button flex items-center justify-center gap-2 bg-amber-600 text-black px-5 py-2 rounded-xl font-bold shadow-lg transition duration-300 cursor-pointer"
           >
             + Create
           </button>
@@ -164,7 +164,7 @@ export default function AdminMenuUnitPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="custom-btn px-6 py-2"
+                className="custom-btn w-full sm:w-auto cursor-pointer"
               >
                 {loading ? "Saving..." : editId ? "Update" : "Create"}
               </button>
@@ -207,7 +207,7 @@ export default function AdminMenuUnitPage() {
                     <td className="px-4 py-2 flex justify-center gap-3">
                       <button
                         onClick={() => handleEdit(u)}
-                        className="text-amber-600 hover:bg-amber-100 p-2 rounded"
+                         className="text-amber-600 hover:bg-amber-100 p-2 rounded"
                       >
                         <PencilIcon className="w-5 h-5" />
                       </button>

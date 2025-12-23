@@ -147,7 +147,7 @@ export default function TableManager() {
           <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-amber-600">Tables Management</h1>
           <button
             onClick={() => { resetForm(); setShowForm(true); }}
-            className="flex items-center justify-center gap-2 bg-yellow-500 text-black px-5 py-2 rounded-xl font-bold shadow-lg transition duration-300 cursor-pointer"
+            className="button flex items-center justify-center gap-2 bg-amber-600 text-black px-5 py-2 rounded-xl font-bold shadow-lg transition duration-300 cursor-pointer"
           >
             + Create
           </button>
