@@ -10,13 +10,9 @@ const Main = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const adminToken = localStorage.getItem("adminToken");
-    if (!adminToken) {
-      router.replace("/auth/login");
-      return;
-    }
     setIsAuthenticated(true);
   }, []);
+
   return (
     <div>
       {!isAuthenticated ? (
