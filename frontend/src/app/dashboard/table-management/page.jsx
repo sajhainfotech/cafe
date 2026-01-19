@@ -31,7 +31,7 @@ export default function TableManager() {
   const [openQr, setOpenQr] = useState(null);
   const [deleteTable, setDeleteTable] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedTable, setSelectedTable] = useState(null);
+  const [selectedTable] = useState(null);
 
   // ---------------- Fetch Tables ----------------
   const fetchTables = async () => {

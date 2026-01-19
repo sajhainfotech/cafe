@@ -17,7 +17,7 @@ const getCookie = (name) => {
   return null;
 };
 
-// कुकी हटाउनका लागि हेल्पर
+
 const deleteCookie = (name) => {
   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 };
@@ -65,7 +65,7 @@ export default function DashboardLayout({ children }) {
   return (
     <SidebarProvider>
       <DashboardContainer isSuperUser={isSuperUser} handleLogout={handleLogout}>
-        <ToastProvider  position="top-right" reverseOrder={false} />
+        <ToastProvider />
         {children}
       </DashboardContainer>
     </SidebarProvider>

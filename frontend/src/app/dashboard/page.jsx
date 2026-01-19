@@ -127,7 +127,7 @@ useEffect(() => {
       console.error("Error parsing user info");
     }
   }
-}, []); // यहाँ [router] को सट्टा [] राख्नुहोस्
+}, []);
 
   const todayNepal = getNepalTodayString();
   const todayOrders = orders.filter(

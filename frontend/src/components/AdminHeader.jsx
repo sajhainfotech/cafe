@@ -43,46 +43,52 @@ export default function AdminHeader() {
         .catch(() => console.log("Click page to enable sound"));
     }
   };
+const fetchNotificationData = async () => {
+  const token = getCookie("adminToken");
+  if (!token) return;
 
-  const fetchNotificationData = async () => {
-    const token = getCookie("adminToken");
-    if (!token) return;
+  try {
+    const res = await fetch(`${API_URL}/api/orders-list/`, {
+      headers: { Authorization: `Token ${token}` },
+    });
+    const result = await res.json();
+    const orders = result?.data || [];
 
-    try {
-      const res = await fetch(`${API_URL}/api/orders-list/`, {
-        headers: { Authorization: `Token ${token}` },
-      });
-      const result = await res.json();
-      const orders = result?.data || [];
+    
+    const pendingOrders = orders.filter(o => o.status?.toLowerCase() === "pending");
+    setPendingCount(pendingOrders.length);
 
-      const pendingOrders = orders.filter(
-        (o) => o.status?.toLowerCase() === "pending"
-      );
-      setPendingCount(pendingOrders.length);
+    if (orders.length > 0) {
 
-      if (orders.length > 0) {
-        const latestId = orders[0].reference_id;
+      const latestOrder = orders[0]; 
+      const latestId = latestOrder.reference_id;
 
-        if (lastOrderIdRef.current === null) {
-          lastOrderIdRef.current = latestId;
-          return;
-        }
-
-        if (lastOrderIdRef.current !== latestId) {
-          console.log("New order detected!");
-          playSound();
-          lastOrderIdRef.current = latestId;
-        }
+    
+      if (lastOrderIdRef.current === null) {
+        lastOrderIdRef.current = latestId;
+        return;
       }
-    } catch (err) {
-      console.error("Header fetch error:", err);
+
+
+      if (lastOrderIdRef.current !== latestId) {
+        console.log("New order detected!", latestId);
+        playSound();
+        lastOrderIdRef.current = latestId;
+      }
     }
-  };
+  } catch (err) {
+    console.error("Fetch error:", err);
+  }
+};
 
   useEffect(() => {
     fetchNotificationData();
 
-   
+    // const interval = setInterval(() => {
+    //   fetchNotificationData();
+    // }, 5000);
+
+    // return () => clearInterval(interval);
   }, []);
 
   const handleLogout = () => {
@@ -155,3 +161,4 @@ export default function AdminHeader() {
     </div>
   );
 }
+
