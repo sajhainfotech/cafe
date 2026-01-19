@@ -355,6 +355,7 @@ export default function AdminRegisterPage({
                     </div>
                   )}
                 </div>
+                
               </div>
 
               <div className="space-y-1.5 relative" onMouseLeave={() => setOpenDropdown(null)}>

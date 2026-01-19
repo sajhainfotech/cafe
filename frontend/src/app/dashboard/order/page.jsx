@@ -263,54 +263,55 @@ useEffect(() => {
   return (
     <>
       <div className="min-h-screen font-sans p-4 sm:p-6 lg:p-4 bg-[#ddf4e2]">
-        <header className="mx-auto mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-[#1C5721]">
-              Kitchen Dashboard
-            </h1>
+     <header className="mx-auto mb-6 flex flex-wrap items-center justify-between gap-y-4 gap-x-2">
+  {/* Left Section: Dashboard & Filters */}
+  <div className="flex flex-col gap-1">
+    <h1 className="text-lg sm:text-xl font-bold text-[#1C5721] leading-tight">
+      Kitchen Dashboard
+    </h1>
 
-            {/* Filter Buttons */}
-            <div className="flex gap-2 mt-1">
-              <button
-                onClick={() => setFilter("today")}
-                className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${
-                  filter === "today"
-                    ? "bg-[#236B28] text-white shadow-md"
-                    : "bg-white text-[#236B28] border border-[#236B28]"
-                }`}
-              >
-                Today
-              </button>
-              <button
-                onClick={() => setFilter("weekly")}
-                className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${
-                  filter === "weekly"
-                    ? "bg-[#236B28] text-white shadow-md"
-                    : "bg-white text-[#236B28] border border-[#236B28]"
-                }`}
-              >
-                Last 7 Days
-              </button>
-            </div>
+    {/* Filter Buttons */}
+    <div className="flex flex-wrap gap-2 mt-1">
+      <button
+        onClick={() => setFilter("today")}
+        className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap ${
+          filter === "today"
+            ? "bg-[#236B28] text-white shadow-md"
+            : "bg-white text-[#236B28] border border-[#236B28]"
+        }`}
+      >
+        Today
+      </button>
+      <button
+        onClick={() => setFilter("weekly")}
+        className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap ${
+          filter === "weekly"
+            ? "bg-[#236B28] text-white shadow-md"
+            : "bg-white text-[#236B28] border border-[#236B28]"
+        }`}
+      >
+        Last 7 Days
+      </button>
+    </div>
 
-            <p className="text-sm text-[#236B28] mt-1">
-              Displaying{" "}
-              <span className="font-bold">{filteredOrders.length}</span> orders
-            </p>
-          </div>
+    <p className="text-[11px] sm:text-sm text-[#236B28] mt-0.5">
+      Displaying <span className="font-bold">{filteredOrders.length}</span> orders
+    </p>
+  </div>
 
-          <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 w-fit">
-            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider whitespace-nowrap">
-              {filter === "today" ? "Today's Revenue" : "7 Days Revenue"}
-            </span>
+  {/* Right Section: Revenue Card */}
+  <div className="bg-white px-3 sm:px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-2 sm:gap-3 w-fit shrink-0">
+    <span className="text-[9px] sm:text-[10px] uppercase font-bold text-gray-400 tracking-wider whitespace-nowrap">
+      {filter === "today" ? "Today's Revenue" : "7 Days Revenue"}
+    </span>
 
-            <div className="h-4 w-[1px] bg-gray-200"></div>
+    <div className="h-4 w-[1px] bg-gray-200"></div>
 
-            <span className="text-lg font-bold text-emerald-600 whitespace-nowrap">
-              Rs. {totalRevenue.toFixed(2)}
-            </span>
-          </div>
-        </header>
+    <span className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap">
+      Rs. {totalRevenue.toFixed(2)}
+    </span>
+  </div>
+</header>
 
         <div className="mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
           {filteredOrders.map((order, idx) => (

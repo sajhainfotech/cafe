@@ -103,7 +103,7 @@ export default function DesktopSidebar({ is_superuser, children }) {
             ${collapsed && !hovered ? "w-13" : "w-50"}`}
         >
           {/* Header */}
-          <div className="flex items-center gap-2 px-3 py-2 h-16">
+          <div className="flex items-center gap-2 px-2 py-2 h-16">
             <div className="p-2 rounded-md bg-[#1C5721] hover:bg-[#184A1C] transition-colors">
               <LayoutDashboardIcon size={20} className="text-[#EAF5EA]" />
             </div>

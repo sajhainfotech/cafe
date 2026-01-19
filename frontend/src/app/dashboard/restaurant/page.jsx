@@ -187,9 +187,7 @@ export default function RestaurantPage() {
             className="flex items-center gap-1 px-4 py-1.5 text-[12px] font-semibold 
       bg-[#236B28] text-white rounded-md shadow-sm hover:bg-[#1C5721] transition"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
+           
             Create
           </button>
         </div>

@@ -16,6 +16,14 @@ import {
   Users,
 } from "lucide-react";
 
+const getCookie = (name) => {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(";").shift();
+  return null;
+};
+
 export default function Profile() {
   const router = useRouter();
   const [showCalendar, setShowCalendar] = useState(false);
@@ -31,7 +39,7 @@ export default function Profile() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
+    const token = getCookie("adminToken");
     if (!token) {
       router.push("/auth/login");
       return;

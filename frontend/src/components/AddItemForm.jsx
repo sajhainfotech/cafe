@@ -29,7 +29,7 @@ export default function AdminMenuManager() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [openDropdownIdx, setOpenDropdownIdx] = useState(null);
   const [openUnitDropdownIdx, setOpenUnitDropdownIdx] = useState(null);
-   const isFetched = useRef(false); 
+  const isFetched = useRef(false);
   const [form, setForm] = useState({
     menu_date: "",
     categories: [
@@ -112,8 +112,6 @@ export default function AdminMenuManager() {
       toast.error("Failed to fetch menus");
     }
   };
-
-
 
   useEffect(() => {
    
@@ -489,7 +487,7 @@ export default function AdminMenuManager() {
 
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-[1px]">
-            <div className="bg-white w-full max-w-4xl rounded shadow-lg overflow-hidden animate-in fade-in zoom-in duration-150 border border-gray-200">
+            <div className="bg-white w-full max-w-4xl rounded shadow-lg overflow-hidden animate-in fade-in zoom-in duration-150 border border-gray-300">
               <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 bg-white">
                 <h2 className="text-[14px] font-semibold text-gray-800 tracking-tight">Menu Categorie</h2>
                 <button
@@ -512,17 +510,17 @@ export default function AdminMenuManager() {
                   />
                 </div>
                 {/* Wrapper div ma height ra overflow thapiyeko cha */}
-                <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white max-h-[400px] overflow-y-auto">
+                <div className="overflow-x-auto border border-gray-300 rounded-lg bg-white max-h-[400px] overflow-y-auto">
                   <table className="w-full border-collapse relative">
                     {/* HEADER - Sticky banauko lagi z-10 ra sticky top-0 halnu parcha */}
-                    <thead className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-[0_1px_0_0_rgba(229,231,235,1)]">
+                    <thead className="bg-white border-b border-gray-300 sticky top-0 z-10 shadow-[0_1px_0_0_rgba(229,231,235,1)]">
                       <tr className="text-[14px] text-gray-600 font-medium">
-                        <th className="px-4 py-1.5 text-left border-r border-gray-200 w-56 bg-white sticky top-0">Name</th>
-                        <th className="px-4 py-1.5 text-left border-r border-gray-200 w-24 bg-white sticky top-0">Price</th>
-                        <th className="px-4 py-1.5 text-left border-r border-gray-200 w-45 bg-white sticky top-0">Category</th>
-                        <th className="px-4 py-1.5 text-left border-r border-gray-200 w-35 bg-white sticky top-0">Unit</th>
-                        <th className="px-4 py-1.5 text-center border-r border-gray-200 w-16 bg-white sticky top-0">Img</th>
-                        <th className="px-4 py-1.5 text-center w-20 bg-white sticky top-0">Action</th>
+                        <th className="px-4 py-1 text-left border-r border-gray-300 w-56 bg-white sticky top-0">Name</th>
+                        <th className="px-4 py-1 text-left border-r border-gray-300 w-24 bg-white sticky top-0">Price</th>
+                        <th className="px-4 py-1 text-left border-r border-gray-300 w-45 bg-white sticky top-0">Category</th>
+                        <th className="px-4 py-1 text-left border-r border-gray-300 w-35 bg-white sticky top-0">Unit</th>
+                        <th className="px-4 py-1 text-center border-r border-gray-300 w-16 bg-white sticky top-0">Img</th>
+                        <th className="px-4 py-1 text-center w-20 bg-white sticky top-0">Action</th>
                       </tr>
                     </thead>
 
@@ -530,9 +528,9 @@ export default function AdminMenuManager() {
                     {/* BODY */}
                     <tbody>
                       {form.categories.map((cat, idx) => (
-                        <tr key={idx} className="border-b border-gray-200">
+                        <tr key={idx} className="border-b border-gray-300">
                           {/* Name - Height matched to 30px */}
-                          <td className="p-1.5 border-r border-gray-200">
+                          <td className="p-1.5 border-r border-gray-300">
                             <input
                               type="text"
                               value={cat.name}
@@ -544,7 +542,7 @@ export default function AdminMenuManager() {
                           </td>
 
                           {/* Price - Height matched to 30px */}
-                          <td className="p-1.5 border-r border-gray-200">
+                          <td className="p-1.5 border-r border-gray-300">
                             <input
                               type="number"
                               value={cat.price}
@@ -556,7 +554,7 @@ export default function AdminMenuManager() {
                           </td>
 
                           {/* Category Select - style height already 30px cha */}
-                          <td className="p-1.5 border-r border-gray-200">
+                          <td className="p-1.5 border-r border-gray-300">
                             <div className="relative">
                               <Select
                                 showSearch
@@ -580,7 +578,7 @@ export default function AdminMenuManager() {
                           </td>
 
                           {/* Unit Select - style height already 30px cha */}
-                          <td className="p-1.5 border-r border-gray-200">
+                          <td className="p-1.5 border-r border-gray-300">
                             <div className="relative">
                               <Select
                                 showSearch
@@ -604,7 +602,7 @@ export default function AdminMenuManager() {
                           </td>
 
                           {/* Image - Height matched to 30px */}
-                          <td className="p-1.5 border-r border-gray-200 text-center">
+                          <td className="p-1.5 border-r border-gray-300 text-center">
                             <input
                               type="file"
                               id={`upload-${idx}`}
@@ -672,7 +670,7 @@ export default function AdminMenuManager() {
                   {["S.N.", "Date", "Name", "Price", "Category", "Unit", "Image", "Action"].map((header, i) => (
                     <th
                       key={header}
-                      className="border-b border-r border-gray-200 px-2 py-1 text-left font-bold text-gray-700 last:border-r-0"
+                      className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700 last:border-r-0"
                       style={{ width: header === "SN" ? "40px" : header === "Action" ? "80px" : "auto" }}
                     >
                       {header}
@@ -682,69 +680,55 @@ export default function AdminMenuManager() {
               </thead>
 
               <tbody className="bg-white">
-                   {filteredMenus.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="text-center py-6 text-gray-400 border-b"
-                  >
-                    {search
-                      ? "Menu not match your search"
-                      : "Menu not found"}
-                  </td>
-                </tr>
-              ) : (
-                filteredMenus.map((menu, index) => (
+                {filteredMenus.map((menu, index) => (
                   <tr key={menu.reference_id} className="hover:bg-blue-50/30 transition-all">
 
-                    <td className="border-b border-r border-gray-200 px-2 py-0.5 text-gray-600 last:border-r-0">{index + 1}</td>
-                    <td className="border-b border-r border-gray-200 px-2 py-0.5 text-gray-500 last:border-r-0">{menu.menu_date}</td>
+                    <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-600 last:border-r-0">{index + 1}</td>
+                    <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 last:border-r-0">{menu.menu_date}</td>
 
-                    <td className="border-b border-r border-gray-200 px-1 py-0.5 last:border-r-0">
-                      <div className="border-gray-200 rounded px-1 py-0.5 bg-gray-50/50 text-gray-800 truncate">
+                    <td className="border-b border-r border-gray-300 px-1 py-0.5 last:border-r-0">
+                      <div className="border-gray-300 rounded px-1 py-0.5 bg-gray-50/50 text-gray-800 truncate">
                         {menu.name}
                       </div>
                     </td>
 
-                    <td className="border-b border-r border-gray-200 px-1 py-0.5 last:border-r-0">
-                      <div className=" border-gray-200 rounded px-1 py-0.5 text-center">
+                    <td className="border-b border-r border-gray-300 px-1 py-0.5 last:border-r-0">
+                      <div className=" border-gray-300 rounded px-1 py-0.5 text-center">
                         {menu.price}
                       </div>
                     </td>
 
-                    <td className="border-b border-r border-gray-200 px-2 py-0.5 last:border-r-0">
-                      <span className="text-[10px] px-1.5 py-0  border-gray-200 rounded bg-white text-gray-500">
+                    <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0">
+                      <span className="text-[10px] px-1.5 py-0  border-gray-300 rounded bg-white text-gray-500">
                         {getCategoryName(menu.item_category)}
                       </span>
                     </td>
 
-                    <td className="border-b border-r border-gray-200 px-2 py-0.5 last:border-r-0 text-gray-500">
+                    <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0 text-gray-500">
                       {getUnitName(menu.unit)}
                     </td>
 
-                    <td className="border-b border-r border-gray-200 px-2 py-0.5 last:border-r-0">
-                      <div className="w-6 h-6 rounded  border-gray-200 overflow-hidden mx-auto bg-gray-50">
+                    <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0">
+                      <div className="w-6 h-6 rounded  border-gray-300 overflow-hidden mx-auto bg-gray-50">
                         <MenuImageHover src={menu.image || menu.image_url} />
                       </div>
                     </td>
 
-                    <td className="border-b border-gray-200 px-2 py-0.5 text-right">
+                    <td className="border-b border-gray-300 px-2 py-0.5 text-right">
                       <div className="flex justify-end gap-2">
                         <button onClick={() => handleEditMenu(menu)} className="text-blue-500 hover:scale-110 transition">
                           <PencilIcon className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => { setDeleteMenu(menu); setShowDeleteModal(true); }}
-                          className="text-red-500 hover:scale-110 transition"
+                          className="text-red-400 hover:scale-110 transition"
                         >
                           <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
                   </tr>
-                  ))
-              )}
-              
+                ))}
               </tbody>
             </table>
           </div>

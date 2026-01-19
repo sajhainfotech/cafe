@@ -132,7 +132,7 @@ export default function TableManager() {
       if (!res.ok || data.response_code !== "0")
         throw new Error(data.response || "Failed to save table");
 
-      toast.success(editId ? "Table updated!" : "Table added!");
+      toast.success(editId ? "Table updated!" : "Table created!");
       resetForm();
       setShowForm(false);
       fetchTables();

@@ -1,5 +1,5 @@
 "use client";
-
+import { Select } from 'antd';
 import { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
@@ -218,298 +218,329 @@ export default function BranchPage() {
 
   /* ================= UI ================= */
   return (
-  <>
+    <>
       <div className="mx-auto min-h-screen font-sans p-4 bg-[#ddf4e2] ">
-      <ToastProvider />
+        <ToastProvider />
 
-      {/* ================= HEADER ================= */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2">
-        <h1 className="self-start text-left text-[15px] font-bold text-[#236B28]">
-          Branch
-        </h1>
+        {/* ================= HEADER ================= */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2">
+          <h1 className="self-start text-left text-[15px] font-bold text-[#236B28]">
+            Branch
+          </h1>
 
-        <div className="flex w-full md:w-auto items-center gap-2">
-          <div className="relative">
-            <svg
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#236B28]/60"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
-              />
-            </svg>
+          <div className="flex w-full md:w-auto items-center gap-2">
+            <div className="relative">
+              <svg
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#236B28]/60"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
+                />
+              </svg>
 
-            <input
-              type="text"
-              placeholder="Search Branch..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="border border-[#236B28]/30 rounded-md pl-8 pr-3 py-1 text-[12px]
+              <input
+                type="text"
+                placeholder="Search Branch..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="border border-[#236B28]/30 rounded-md pl-8 pr-3 py-1 text-[12px]
         focus:outline-none focus:ring-1 focus:ring-[#236B28]/40"
-            />
-          </div>
+              />
+            </div>
 
-          <button
-            onClick={() => {
-              setShowForm(true);
-            }}
-            className="flex items-center gap-1 px-4 py-1.5 text-[12px] font-semibold
+            <button
+              onClick={() => {
+                setShowForm(true);
+              }}
+              className="flex items-center gap-1 px-4 py-1.5 text-[12px] font-semibold
       bg-[#236B28] text-white rounded-md shadow-sm hover:bg-[#1C5721] transition"
-          >
-            Create
-          </button>
-        </div>
-      </div>
-
-      {/* DELETE CONFIRM MODAL */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-md w-[90%] max-w-sm p-4">
-            <h2 className="text-lg font-bold text-red-600 mb-3">
-              Confirm Delete
-            </h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">{deleteBranch?.name}</span>?
-            </p>
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDeleteConfirmed(deleteBranch)}
-                className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm"
-              >
-                Delete
-              </button>
-            </div>
+            >
+              Create
+            </button>
           </div>
         </div>
-      )}
 
-      {/* MODAL */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-[1px] p-4">
-          <div className="bg-white w-full max-w-[440px] rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300" >
-
-            <div className="flex justify-between items-center px-4 py-3 border-b border-gray-100">
-              <h2 className="text-[14px] font-bold text-[#236B28] tracking-tight">
-                {editId ? "Edit Branch" : "Add New Branch"}
+        {/* DELETE CONFIRM MODAL */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-lg shadow-md w-[90%] max-w-sm p-4">
+              <h2 className="text-lg font-bold text-red-600 mb-3">
+                Confirm Delete
               </h2>
-              <button
-                onClick={closeModal}
-                className="text-red-500 hover:text-red-500 transition-colors p-1 rounded hover:bg-gray-100"
-              >
-                <X size={16} strokeWidth={2.5} />
-              </button>
+              <p className="text-sm text-gray-600 mb-4">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold">{deleteBranch?.name}</span>?
+              </p>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteConfirmed(deleteBranch)}
+                  className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
+          </div>
+        )}
 
-            <div className="p-4 bg-[#ddf4e2]/20">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 bg-white p-4 rounded-md border border-gray-300 shadow-sm">
+        {/* MODAL */}
+        {showForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-[1px] p-4">
+            <div className="bg-white w-full max-w-[440px] rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300" >
 
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                      Branch Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      name="name"
-                      value={form.name}
-                      onChange={handleChange}
-                      placeholder="Enter branch name"
-                      className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
-                      required
-                    />
-                  </div>
+              <div className="flex justify-between items-center px-4 py-3 border-b border-gray-100">
+                <h2 className="text-[14px] font-bold text-[#236B28] tracking-tight">
+                  {editId ? "Edit Branch" : "Add New Branch"}
+                </h2>
+                <button
+                  onClick={closeModal}
+                  className="text-red-500 hover:text-red-500 transition-colors p-1 rounded hover:bg-gray-100"
+                >
+                  <X size={16} strokeWidth={2.5} />
+                </button>
+              </div>
 
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                      Email Address <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={form.email}
-                      onChange={handleChange}
-                      placeholder="example@mail.com"
-                      className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
-                      required
-                    />
-                  </div>
+              <div className="p-4 bg-[#ddf4e2]/20">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3 bg-white p-4 rounded-md border border-gray-300 shadow-sm">
 
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                      Address <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      name="address"
-                      value={form.address}
-                      onChange={handleChange}
-                      placeholder="Location details"
-                      className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                      Mobile Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      name="mobile_number"
-                      value={form.mobile_number}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (/^\d*$/.test(value) && value.length <= 10) {
-                          handleChange(e);
-                        }
-                      }}
-                      placeholder="98XXXXXXXX"
-                      className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                      Select Restaurant <span className="text-red-500">*</span>
-                    </label>
-
-                    <div className="relative group">
-                      <select
-                        name="restaurant_id"
-                        value={form.restaurant_id}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+                        Branch Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        name="name"
+                        value={form.name}
                         onChange={handleChange}
-                        className="w-full appearance-none bg-white border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none 
-                        focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all cursor-pointer text-gray-700"
+                        placeholder="Enter branch name"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
                         required
-                      >
-                        <option value="" disabled className="text-gray-400">
-                          Please select a restaurant
-                        </option>
-                        {restaurants.map((res) => (
-                          <option key={res.reference_id} value={res.reference_id}>
-                            {res.name}
-                          </option>
-                        ))}
-                      </select>
+                      />
+                    </div>
 
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400 group-focus-within:text-[#236B28]">
-                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/3000/svg" viewBox="0 0 20 20">
-                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                        </svg>
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+                        Email Address <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={form.email}
+                        onChange={handleChange}
+                        placeholder="example@mail.com"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+                        Address <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        name="address"
+                        value={form.address}
+                        onChange={handleChange}
+                        placeholder="Location details"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+                        Mobile Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        name="mobile_number"
+                        value={form.mobile_number}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (/^\d*$/.test(value) && value.length <= 10) {
+                            handleChange(e);
+                          }
+                        }}
+                        placeholder="98XXXXXXXX"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+                        Select Restaurant <span className="text-red-500">*</span>
+                      </label>
+
+                      <div className="relative group">
+                        <Select
+                          showSearch
+                          placeholder="Please select a restaurant"
+                          optionFilterProp="children"
+                          name="restaurant_id"
+                          value={form.restaurant_id || undefined}
+                          onChange={(value) => handleChange({ target: { name: 'restaurant_id', value } })}
+                          listHeight={220}
+                          dropdownStyle={{
+                            borderRadius: '12px',
+                            padding: '8px',
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                            border: '1px solid #e5e7eb'
+                          }}
+                          style={{
+                            width: '100%',
+                            height: '38px',
+                          }}
+                          styles={{
+                            selector: {
+                              borderRadius: '6px',
+                              borderColor: '#d9d9d9',
+                              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                              transition: 'all 0.2s',
+                            },
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = '#236B28';
+                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(35, 107, 40, 0.1)';
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = '#d9d9d9';
+                            e.currentTarget.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
+                          }}
+                        >
+                          {restaurants.map((res) => (
+                            <Select.Option
+                              key={res.reference_id}
+                              value={res.reference_id}
+                              style={{
+                                borderRadius: '8px',
+                                marginBottom: '4px',
+                                fontSize: '13px',
+                               
+                                backgroundColor: form.restaurant_id === res.reference_id ? '#eef5ee' : 'transparent',
+                                color: form.restaurant_id === res.reference_id ? '#236B28' : '#4b5563',
+                                fontWeight: form.restaurant_id === res.reference_id ? '700' : '400',
+                              }}
+                            >
+                              {res.name}
+                            </Select.Option>
+                          ))}
+                        </Select>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-6 py-1.5 bg-[#236B28] text-white rounded text-[12px] font-semibold shadow-sm transition-all hover:bg-[#1C5721] active:scale-95 disabled:opacity-50"
-                  >
-                    {loading ? "Saving..." : editId ? "Update" : "Create"}
-                  </button>
-                </div>
-              </form>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="px-6 py-1.5 bg-[#236B28] text-white rounded text-[12px] font-semibold shadow-sm transition-all hover:bg-[#1C5721] active:scale-95 disabled:opacity-50"
+                    >
+                      {loading ? "Saving..." : editId ? "Update" : "Create"}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* TABLE WRAPPER */}
-      <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden">
-        <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ maxHeight: 'calc(100vh - 150px)' }}>
-          <table className="min-w-full border-separate border-spacing-0 table-fixed text-[11px]">
+        {/* TABLE WRAPPER */}
+        <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden">
+          <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ maxHeight: 'calc(100vh - 150px)' }}>
+            <table className="min-w-full border-separate border-spacing-0 table-fixed text-[11px]">
 
-            <thead className="sticky top-0 bg-[#fafafa] z-10">
-              <tr>
-                <th className="w-[40px] border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">S.N.</th>
-                <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">Name</th>
-                <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">Email</th>
-                <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">Address</th>
-                <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">Phone</th>
-                <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">Restaurant</th>
-                <th className="w-[80px] border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700">Action</th>
-              </tr>
-            </thead>
-
-            {/* BODY */}
-            <tbody className="bg-white">
-              {filteredBranches.length === 0 ? (
+              <thead className="sticky top-0 bg-[#fafafa] z-10">
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-gray-400 border-b border-gray-300">
-                    {search ? "Branch not matching your search" : "No branches found"}
-                  </td>
+                  <th className="w-[40px] border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">S.N.</th>
+                  <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">Name</th>
+                  <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">Email</th>
+                  <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">Address</th>
+                  <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">Phone</th>
+                  <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">Restaurant</th>
+                  <th className="w-[80px] border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700">Action</th>
                 </tr>
-              ) : (
-                filteredBranches.map((b, index) => (
-                  <tr key={b.reference_id} className="hover:bg-blue-50/30 transition-all">
+              </thead>
 
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 text-center">
-                      {index + 1}
-                    </td>
-
-                    <td className="border-b border-r border-gray-300 px-1 py-0.5">
-                      <div className=" border-gray-300 px-1 py-0.5 text-gray-800 font-medium truncate">
-                        {b.name}
-                      </div>
-                    </td>
-
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 truncate">
-                      {b.email}
-                    </td>
-
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 truncate">
-                      {b.address}
-                    </td>
-
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500">
-                      {b.mobile_number}
-                    </td>
-
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5">
-                      <span className="text-[10px] px-1.5 py-0">
-                        {b.restaurant_name}
-                      </span>
-                    </td>
-
-                    <td className="border-b border-gray-300 px-2 py-0.5 text-right">
-                      <div className="flex justify-end gap-1">
-                        <button
-                          onClick={() => handleEdit(b)}
-                          className="p-1 text-blue-500 hover:scale-110 transition"
-                        >
-                          <PencilIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => confirmDelete(b)}
-                          className="p-1 text-red-500 hover:scale-110 transition"
-                        >
-                          <TrashIcon className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+              {/* BODY */}
+              <tbody className="bg-white">
+                {filteredBranches.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-gray-400 border-b border-gray-300">
+                      {search ? "Branch not matching your search" : "No branches found"}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                ) : (
+                  filteredBranches.map((b, index) => (
+                    <tr key={b.reference_id} className="hover:bg-blue-50/30 transition-all">
 
-    </div>
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 text-center">
+                        {index + 1}
+                      </td>
+
+                      <td className="border-b border-r border-gray-300 px-1 py-0.5">
+                        <div className=" border-gray-300 px-1 py-0.5 text-gray-800 font-medium truncate">
+                          {b.name}
+                        </div>
+                      </td>
+
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 truncate">
+                        {b.email}
+                      </td>
+
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 truncate">
+                        {b.address}
+                      </td>
+
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500">
+                        {b.mobile_number}
+                      </td>
+
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5">
+                        <span className="text-[10px] px-1.5 py-0">
+                          {b.restaurant_name}
+                        </span>
+                      </td>
+
+                      <td className="border-b border-gray-300 px-2 py-0.5 text-right">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            onClick={() => handleEdit(b)}
+                            className="p-1 text-blue-500 hover:scale-110 transition"
+                          >
+                            <PencilIcon className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => confirmDelete(b)}
+                            className="p-1 text-red-500 hover:scale-110 transition"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
     </>
   );
 }
