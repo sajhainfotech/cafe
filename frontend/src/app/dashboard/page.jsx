@@ -104,45 +104,45 @@ export default function AdminDashboard() {
     }
   };
 
-useEffect(() => {
-  const storedToken = getCookie("adminToken");
-  
-  if (!storedToken) {
-    router.replace("/auth/login");
-    return;
-  }
+  useEffect(() => {
+    const storedToken = getCookie("adminToken");
 
-  if (!isFetched.current) {
-    setToken(storedToken);
-    fetchOrders(storedToken);
-    isFetched.current = true;
-  }
-
-  const storedUserInfo = sessionStorage.getItem("user_info");
-  if (storedUserInfo) {
-    try {
-      const userData = JSON.parse(storedUserInfo);
-      setUsername(userData.first_name || userData.username || "Admin");
-    } catch (e) {
-      console.error("Error parsing user info");
+    if (!storedToken) {
+      router.replace("/auth/login");
+      return;
     }
-  }
-}, []); // यहाँ [router] को सट्टा [] राख्नुहोस्
+
+    if (!isFetched.current) {
+      setToken(storedToken);
+      fetchOrders(storedToken);
+      isFetched.current = true;
+    }
+
+    const storedUserInfo = sessionStorage.getItem("user_info");
+    if (storedUserInfo) {
+      try {
+        const userData = JSON.parse(storedUserInfo);
+        setUsername(userData.first_name || userData.username || "Admin");
+      } catch (e) {
+        console.error("Error parsing user info");
+      }
+    }
+  }, []); // यहाँ [router] को सट्टा [] राख्नुहोस्
 
   const todayNepal = getNepalTodayString();
   const todayOrders = orders.filter(
-    (o) => toNepalDateString(o.created_at) === todayNepal
+    (o) => toNepalDateString(o.created_at) === todayNepal,
   );
   const totalOrdersToday = todayOrders.length;
   const totalItemsSold = todayOrders.reduce(
     (sum, o) => sum + o.items.reduce((iSum, i) => iSum + i.quantity, 0),
-    0
+    0,
   );
   const todayRevenue = todayOrders
     .filter((o) => o.status !== "cancelled")
     .reduce((sum, o) => sum + o.total_price, 0);
   const pendingOrdersToday = todayOrders.filter(
-    (o) => o.status === "pending"
+    (o) => o.status === "pending",
   ).length;
 
   const getLast7DaysData = () => {
@@ -164,12 +164,12 @@ useEffect(() => {
         revenue: dayOrders.reduce(
           (sum, o) =>
             sum + (o.status !== "cancelled" ? Number(o.total_price) : 0),
-          0
+          0,
         ),
         itemsSold: dayOrders.reduce(
           (sum, o) =>
             sum + o.items.reduce((iSum, i) => iSum + Number(i.quantity), 0),
-          0
+          0,
         ),
         ordersCount: dayOrders.length,
       };

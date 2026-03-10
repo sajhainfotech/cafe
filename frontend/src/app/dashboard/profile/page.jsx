@@ -53,7 +53,7 @@ export default function Profile() {
             headers: {
               Authorization: `Token ${token}`,
             },
-          }
+          },
         );
 
         if (!res.ok) throw new Error("Failed to fetch profile");

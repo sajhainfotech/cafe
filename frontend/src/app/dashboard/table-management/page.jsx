@@ -7,10 +7,10 @@ import ToastProvider from "@/components/ToastProvider";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 import { Download, X } from "lucide-react";
 import "@/styles/customButtons.css";
+import HeaderWithSearch from "@/components/HeaderWithSearch";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const FRONTEND_URL = process.env.NEXT_PUBLIC_CLIENT_URL;
-
 
 const getCookie = (name) => {
   if (typeof document === "undefined") return null;
@@ -56,7 +56,7 @@ export default function TableManager() {
           let qrBase64 = null;
           if (qrUrl) qrBase64 = await QRCode.toDataURL(qrUrl);
           return { ...t, qr_code: qrBase64, token_number: tokenNumber };
-        })
+        }),
       );
 
       setTables(tablesWithQR);
@@ -81,7 +81,7 @@ export default function TableManager() {
   }, []);
 
   const filteredTables = tables.filter((t) =>
-    t.table_number.toString().includes(search.trim())
+    t.table_number.toString().includes(search.trim()),
   );
 
   useEffect(() => {
@@ -154,13 +154,13 @@ export default function TableManager() {
   const handleDeleteConfirmed = async () => {
     if (!deleteTable) return;
     try {
-      const token =getCookie("adminToken");
+      const token = getCookie("adminToken");
       const res = await fetch(
         `${API_URL}/api/tables/${deleteTable.reference_id}/`,
         {
           method: "DELETE",
           headers: { Authorization: `Token ${token}` },
-        }
+        },
       );
       if (!res.ok) throw new Error("Delete failed");
 
@@ -179,7 +179,7 @@ export default function TableManager() {
       <div className="mx-auto min-h-screen font-sans p-4 bg-[#ddf4e2]">
         <ToastProvider />
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2">
+        {/* <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2">
           <h1 className="self-start text-left text-[15px] font-bold text-[#236B28]">
             Table
           </h1>
@@ -234,7 +234,18 @@ export default function TableManager() {
               Create
             </button>
           </div>
-        </div>
+        </div> */}
+        <HeaderWithSearch
+          title="Table"
+          searchValue={search}
+          onSearchChange={setSearch}
+          buttonLabel="Create"
+          onButtonClick={() => {
+            resetForm();
+            setShowForm(true);
+          }}
+          placeholder="Search Table..."
+        />
 
         {showDeleteModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -253,13 +264,13 @@ export default function TableManager() {
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-sm"
+                  className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-sm cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteConfirmed}
-                  className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm"
+                  className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm cursor-pointer"
                 >
                   Delete
                 </button>
@@ -278,7 +289,7 @@ export default function TableManager() {
                 </h2>
                 <button
                   onClick={() => setShowForm(false)}
-                  className="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-gray-100"
+                  className="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-gray-100 cursor-pointer"
                 >
                   <X size={16} />
                 </button>
@@ -303,7 +314,7 @@ export default function TableManager() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className={`px-4 py-1.5 text-[12px] font-semibold text-white rounded shadow-sm transition-all
+                    className={`px-4 py-1.5 text-[12px] font-semibold text-white rounded shadow-sm transition-all cursor-pointer
               ${
                 loading
                   ? "bg-gray-400 cursor-not-allowed"
@@ -390,21 +401,21 @@ export default function TableManager() {
                       </td>
 
                       <td className="border-b border-gray-300 px-2 py-0.5 text-right">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-1.5">
                           <button
                             onClick={() => handleEdit(t)}
-                            className="p-1 text-blue-500 hover:bg-blue-50 rounded transition"
+                            className="text-blue-500 hover:scale-110 transition"
                           >
-                            <PencilIcon className="w-3.5 h-3.5" />
+                            <PencilIcon className="w-3.5 h-3.5 cursor-pointer" />
                           </button>
                           <button
                             onClick={() => {
                               setDeleteTable(t);
                               setShowDeleteModal(true);
                             }}
-                            className="p-1 text-red-500 hover:bg-red-50 rounded transition"
+                            className="text-red-500 hover:scale-110 transition"
                           >
-                            <TrashIcon className="w-3.5 h-3.5" />
+                            <TrashIcon className="w-4 h-4 cursor-pointer" />
                           </button>
                         </div>
                       </td>

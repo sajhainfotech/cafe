@@ -28,12 +28,11 @@ export default function AdminHeader() {
   const lastOrderIdRef = useRef(null);
   const audioRef = useRef(null);
 
-
- useEffect(() => {
-  const audio = new Audio("/notification.mp3");
-  audio.load(); 
-  audioRef.current = audio;
-}, []);
+  useEffect(() => {
+    const audio = new Audio("/notification.mp3");
+    audio.load();
+    audioRef.current = audio;
+  }, []);
 
   const playSound = () => {
     if (audioRef.current) {
@@ -56,7 +55,7 @@ export default function AdminHeader() {
       const orders = result?.data || [];
 
       const pendingOrders = orders.filter(
-        (o) => o.status?.toLowerCase() === "pending"
+        (o) => o.status?.toLowerCase() === "pending",
       );
       setPendingCount(pendingOrders.length);
 
@@ -81,8 +80,10 @@ export default function AdminHeader() {
 
   useEffect(() => {
     fetchNotificationData();
-
-   
+    const interval = setInterval(() => {
+      fetchNotificationData;
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = () => {
@@ -106,7 +107,7 @@ export default function AdminHeader() {
       <div className="flex items-center gap-3 md:gap-3">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1 rounded bg-[#1C5721] hover:bg-[#184A1C] transition-colors"
+          className="p-1 rounded bg-[#1C5721] hover:bg-[#184A1C] transition-colors cursor-pointer"
           title="Toggle Sidebar"
         >
           <Menu size={24} className="text-[#EAF5EA]" />
@@ -138,12 +139,12 @@ export default function AdminHeader() {
             <div className="absolute right-0 mt-3 w-32 bg-white border border-gray-200 shadow-lg rounded-lg z-50 overflow-hidden">
               <button
                 onClick={() => router.push("/dashboard/profile")}
-                className="w-full flex items-center gap-2 p-3 hover:bg-gray-100 text-sm text-gray-700"
+                className="w-full flex items-center gap-2 p-3 hover:bg-gray-100 text-sm text-gray-700 cursor-pointer"
               >
                 <User size={16} /> Profile
               </button>
               <button
-                className="w-full flex items-center gap-2 p-3 hover:bg-gray-100 text-red-600 text-sm border-t border-gray-100"
+                className="w-full flex items-center gap-2 p-3 hover:bg-gray-100 text-red-600 text-sm border-t border-gray-100 cursor-pointer"
                 onClick={handleLogout}
               >
                 <LogOut size={16} /> Logout

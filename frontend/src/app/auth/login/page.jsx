@@ -14,7 +14,6 @@ const AdminLoginPage = () => {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
- 
   const getCookie = (name) => {
     if (typeof document === "undefined") return null;
     const nameEQ = name + "=";
@@ -39,7 +38,6 @@ const AdminLoginPage = () => {
     const token = getCookie("adminToken");
 
     if (token) {
-
       router.replace("/dashboard");
       return;
     }
@@ -90,7 +88,7 @@ const AdminLoginPage = () => {
             `${API_URL}/api/user/admins/${userId}/`,
             {
               headers: { Authorization: `Token ${data.token}` },
-            }
+            },
           );
 
           if (profileRes.ok) {
@@ -103,7 +101,7 @@ const AdminLoginPage = () => {
                 first_name: src.first_name,
                 last_name: src.last_name,
                 email: src.email,
-              })
+              }),
             );
           }
         }
@@ -124,14 +122,13 @@ const AdminLoginPage = () => {
         const restData = await resRest.json();
         const branchData = await resBranch.json();
 
-
         sessionStorage.setItem(
           "restaurants",
-          JSON.stringify(restData.data || [])
+          JSON.stringify(restData.data || []),
         );
         sessionStorage.setItem(
           "branches",
-          JSON.stringify(branchData.data || [])
+          JSON.stringify(branchData.data || []),
         );
 
         setTimeout(() => router.push("/dashboard/restaurant"), 1000);
@@ -242,6 +239,7 @@ const AdminLoginPage = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter password"
                     required
+                    maxLength={30}
                     className="w-full pl-12 pr-12 py-3.5 bg-white border border-gray-200 rounded-xl focus:border-[#1C4D21] focus:ring-4 focus:ring-[#1C4D21]/5 outline-none transition-all placeholder:text-gray-300 text-gray-700 shadow-sm"
                   />
                   <button
@@ -264,7 +262,7 @@ const AdminLoginPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#1C4D21] hover:bg-[#143918] text-white py-4 rounded-xl font-bold text-[16px] transition-all duration-300 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2 shadow-xl shadow-green-900/10 mt-8"
+                className="w-full bg-[#1C4D21] hover:bg-[#143918] text-white py-4 rounded-xl font-bold text-[16px] transition-all duration-300 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2 shadow-xl shadow-green-900/10 mt-8 cursor-pointer"
               >
                 {loading ? (
                   <div className="h-5 w-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />

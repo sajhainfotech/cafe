@@ -10,7 +10,6 @@ export default function MenuManagement() {
 
   return (
     <>
-
       <AddItemForm onAddItem={handleAddItem} />
     </>
   );

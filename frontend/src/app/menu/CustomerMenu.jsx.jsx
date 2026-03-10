@@ -45,7 +45,7 @@ export default function CustomerMenu() {
       if (res.data.code === "0") {
         const menus = res.data.data?.details_data || [];
         setMenuList(
-          menus.map((m) => ({ ...m, quantity: 0, price: Number(m.price) }))
+          menus.map((m) => ({ ...m, quantity: 0, price: Number(m.price) })),
         );
       }
     } catch (err) {
@@ -69,25 +69,23 @@ export default function CustomerMenu() {
       prev.map((item, i) =>
         i === index
           ? { ...item, quantity: Math.max(0, item.quantity + change) }
-          : item
-      )
+          : item,
+      ),
     );
   };
 
   const filteredMenu = menuList.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const totalItems = menuList.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = menuList.reduce(
     (sum, item) => sum + item.price * item.quantity,
-    0
+    0,
   );
 
   const handleSubmitOrder = async () => {
     if (!totalItems) return toast.error("Your cart is empty!");
-
-  
 
     try {
       const payload = {
@@ -141,7 +139,6 @@ export default function CustomerMenu() {
     <>
       <div className="min-h-screen bg-slate-50 font-sans pb-40 ">
         <ToastProvider />
-
         <header className="sticky top-0 z-50 p-2 bg-[#236B28] text-white shadow-xl">
           <div className=" px-3 py-3 md:p-3">
             <div className="flex items-center gap-3">
@@ -198,9 +195,8 @@ export default function CustomerMenu() {
             </div>
           ) : (
             filteredMenu.map((menu, index) => {
-             
               const originalIndex = menuList.findIndex(
-                (m) => m.reference_id === menu.reference_id
+                (m) => m.reference_id === menu.reference_id,
               );
               return (
                 <div
@@ -260,7 +256,7 @@ export default function CustomerMenu() {
           <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full z-40 animate-slideUp">
             <div className="bg-[#236B28] p-2 shadow-2xl border border-white/20 backdrop-blur-lg">
               <div className="flex justify-between items-center mb-3 text-white">
-                <div >
+                <div>
                   <p className="text-white/70 text-sm">Item</p>
                   <p className="text-md  font-bold">{totalItems}</p>
                 </div>
