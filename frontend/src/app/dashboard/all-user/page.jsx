@@ -260,7 +260,7 @@ export default function AdminManagementPage() {
             <table className="min-w-full border-separate border-spacing-0 table-fixed text-[11px]">
               <thead className="sticky top-0 bg-[#fafafa] z-10">
                 <tr>
-                  <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700 w-[40px]">
+                  <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700 w-10">
                     S.N.
                   </th>
                   <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
@@ -281,7 +281,7 @@ export default function AdminManagementPage() {
                   <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
                     Branch
                   </th>
-                  <th className="border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700 w-[80px]">
+                  <th className="border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700 w-20">
                     Action
                   </th>
                 </tr>

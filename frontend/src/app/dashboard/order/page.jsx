@@ -268,7 +268,7 @@ const AdminOrdersDashboard = () => {
             <div className="flex flex-wrap gap-2 mt-1">
               <button
                 onClick={() => setFilter("today")}
-                className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap ${
+                className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap cursor-pointer ${
                   filter === "today"
                     ? "bg-[#236B28] text-white shadow-md"
                     : "bg-white text-[#236B28] border border-[#236B28]"
@@ -278,7 +278,7 @@ const AdminOrdersDashboard = () => {
               </button>
               <button
                 onClick={() => setFilter("weekly")}
-                className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap ${
+                className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap cursor-pointer ${
                   filter === "weekly"
                     ? "bg-[#236B28] text-white shadow-md"
                     : "bg-white text-[#236B28] border border-[#236B28]"
@@ -300,7 +300,7 @@ const AdminOrdersDashboard = () => {
               {filter === "today" ? "Today's Revenue" : "7 Days Revenue"}
             </span>
 
-            <div className="h-4 w-[1px] bg-gray-200"></div>
+            <div className="h-4 w-px bg-gray-200"></div>
 
             <span className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap">
               Rs. {totalRevenue.toFixed(2)}
@@ -343,7 +343,7 @@ const AdminOrdersDashboard = () => {
                 </div>
               </div>
 
-              <div className="p-1 flex-grow">
+              <div className="p-1 grow">
                 <div className="bg-gray-50 rounded p-3 mb-3">
                   <ul className="space-y-2">
                     {order.items.map((i, idx) => (
@@ -468,7 +468,7 @@ const AdminOrdersDashboard = () => {
               </span>
             </span>
 
-            <div className="hidden md:block h-4 w-[1px] bg-[#236B28]/20"></div>
+            <div className="hidden md:block h-4 w-px bg-[#236B28]/20"></div>
 
             <span className="text-[#236B28]/80 font-semibold">
               {filter === "today"
@@ -477,7 +477,7 @@ const AdminOrdersDashboard = () => {
               <span className="font-black">{filteredOrders.length}</span>
             </span>
 
-            <div className="hidden md:block h-4 w-[1px] bg-[#236B28]/20"></div>
+            <div className="hidden md:block h-4 w-px bg-[#236B28]/20"></div>
 
             <span className="text-[#236B28]/80 font-semibold">
               Total Revenue:{" "}

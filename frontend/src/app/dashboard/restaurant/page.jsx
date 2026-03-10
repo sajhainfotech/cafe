@@ -261,7 +261,7 @@ export default function RestaurantPage() {
                           setForm({ ...form, name: e.target.value })
                         }
                         placeholder="Enter restaurant name"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
                         required
                       />
                     </div>
@@ -276,7 +276,7 @@ export default function RestaurantPage() {
                           setForm({ ...form, address: e.target.value })
                         }
                         placeholder="Location details"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
                         required
                       />
                     </div>
@@ -295,7 +295,7 @@ export default function RestaurantPage() {
                           })
                         }
                         placeholder="98XXXXXXXX"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
                         required
                       />
                     </div>
@@ -324,7 +324,7 @@ export default function RestaurantPage() {
             <table className="min-w-full border-separate border-spacing-0 table-fixed text-[11px]">
               <thead className="sticky top-0 bg-[#fafafa] z-10">
                 <tr>
-                  <th className="w-[40px] border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
+                  <th className="w-10 border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
                     S.N.
                   </th>
                   <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
@@ -336,7 +336,7 @@ export default function RestaurantPage() {
                   <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
                     Phone
                   </th>
-                  <th className="w-[80px] border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700">
+                  <th className="w-20 border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700">
                     Action
                   </th>
                 </tr>

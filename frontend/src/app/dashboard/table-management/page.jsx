@@ -305,7 +305,7 @@ export default function TableManager() {
                     value={tableName}
                     onChange={(e) => setTableName(e.target.value)}
                     placeholder="e.g. T-01"
-                    className="w-full px-3 py-1.5 text-[12px] border border-gray-300 rounded focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 outline-none transition-all placeholder:text-gray-400"
+                    className="w-full px-3 py-1.5 text-[12px] border border-gray-300 rounded focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 outline-none transition-all placeholder:text-gray-400"
                     required
                   />
                 </div>
@@ -347,7 +347,7 @@ export default function TableManager() {
                   <th className="w-[100px] border-b border-r border-gray-300 px-4 py-1 text-left font-bold text-gray-700">
                     QR Code
                   </th>
-                  <th className="w-[80px] border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700">
+                  <th className="w-20 border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700">
                     Action
                   </th>
                 </tr>
