@@ -394,7 +394,7 @@ export default function AdminRegisterPage({
                     </div>
 
                     {openDropdown === "res" && (
-                      <div className="absolute bottom-full z-[100] w-full mb-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-bottom">
+                      <div className="absolute bottom-full z-100 w-full mb-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-bottom">
                         <div className="bg-[#f1f3f5] px-4 py-2.5 border-b border-gray-200">
                           <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
                             Select Restaurant
@@ -475,7 +475,7 @@ export default function AdminRegisterPage({
                     </div>
 
                     {openDropdown === "br" && (
-                      <div className="absolute bottom-full z-[100] w-full mb-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-bottom">
+                      <div className="absolute bottom-full z-100 w-full mb-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-bottom">
                         <div className="bg-[#f1f3f5] px-4 py-2.5 border-b border-gray-200">
                           <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
                             Select Branch

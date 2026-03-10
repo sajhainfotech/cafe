@@ -188,7 +188,7 @@ export default function AdminDashboard() {
           <div className="flex flex-col">
             <h1
               className="text-2xl font-extrabold
-      bg-gradient-to-r from-[#236B28] to-[#1F7A34]
+      bg-linear-to-r from-[#236B28] to-[#1F7A34]
       bg-clip-text text-transparent"
             >
               {getGreeting()},{username}
@@ -245,7 +245,7 @@ export default function AdminDashboard() {
           ].map((stat) => (
             <div
               key={stat.title}
-              className={`relative bg-gradient-to-br
+              className={`relative bg-linear-to-br
               from-[#F1F8F2] via-white to-[#EAF5EA]
               px-5 py-4 rounded-xl
              border border-[#D5E8D8]

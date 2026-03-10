@@ -142,7 +142,7 @@ export default function CustomerMenu() {
         <header className="sticky top-0 z-50 p-2 bg-[#236B28] text-white shadow-xl">
           <div className=" px-3 py-3 md:p-3">
             <div className="flex items-center gap-3">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <h1 className="text-md font-black leading-none uppercase tracking-tighter">
                   Eat & Repeat
                 </h1>
@@ -170,7 +170,7 @@ export default function CustomerMenu() {
                 )}
               </div>
 
-              <div className="flex-shrink-0 relative pl-2 ">
+              <div className="shrink-0 relative pl-2 ">
                 <ShoppingCart className="w-5 h-5" />
                 {totalItems > 0 && (
                   <span className="absolute -top-2 -right-1 bg-orange-500 text-white text-[9px] w-3.5 h-3.5 flex items-center justify-center rounded-full font-bold shadow-lg animate-bounce">
@@ -203,7 +203,7 @@ export default function CustomerMenu() {
                   key={index}
                   className="flex bg-white rounded-2xl p-2 shadow-sm border border-slate-100 items-center"
                 >
-                  <div className="relative w-16 h-16 overflow-hidden rounded-xl flex-shrink-0">
+                  <div className="relative w-16 h-16 overflow-hidden rounded-xl shrink-0">
                     <img
                       src={menu.image || "https://via.placeholder.com/150"}
                       className="w-full h-full object-cover cursor-pointer"
@@ -279,13 +279,13 @@ export default function CustomerMenu() {
 
         {previewImage && (
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
             onClick={() => setPreviewImage(null)}
           >
             <div className="relative max-w-lg w-full">
               <img
                 src={previewImage}
-                className="w-full h-auto rounded-[2rem] shadow-2xl"
+                className="w-full h-auto rounded-4xl shadow-2xl"
                 alt="Preview"
               />
             </div>

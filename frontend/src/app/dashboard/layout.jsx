@@ -28,10 +28,10 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     // added for menu
-    const publicRoutes = ["/menu"];
-    if (publicRoutes.some((route) => pathname.startsWith(route))) {
-      return;
-    }
+    // const publicRoutes = ["/menu"];
+    // if (publicRoutes.some((route) => pathname.startsWith(route))) {
+    //   return;
+    // }
     // added for menu
     const superUserFlag = getCookie("is_superuser") === "true";
     const token = getCookie("adminToken");
