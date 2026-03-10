@@ -7,8 +7,7 @@ import "@/styles/customButtons.css";
 import ToastProvider from "@/components/ToastProvider";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 import { X } from "lucide-react";
-
-
+import HeaderWithSearch from "@/components/HeaderWithSearch";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -61,7 +60,7 @@ export default function AdminMenuUnitPage() {
   }, []);
   const filteredUnits = useMemo(() => {
     return units.filter((u) =>
-      u.name.toLowerCase().includes(search.toLowerCase())
+      u.name.toLowerCase().includes(search.toLowerCase()),
     );
   }, [units, search]);
 
@@ -117,7 +116,7 @@ export default function AdminMenuUnitPage() {
         {
           method: "DELETE",
           headers: { Authorization: `Token ${token}` },
-        }
+        },
       );
 
       if (!res.ok) throw new Error("Delete failed");
@@ -142,7 +141,8 @@ export default function AdminMenuUnitPage() {
     <>
       <div className="mx-auto min-h-screen  font-sans p-4 bg-[#ddf4e2]">
         <ToastProvider />
-        <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2">
+
+        {/* <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2">
           <h1 className="self-start text-left text-[15px] font-bold text-[#236B28]">
             Unit
           </h1>
@@ -181,7 +181,18 @@ export default function AdminMenuUnitPage() {
               Create
             </button>
           </div>
-        </div>
+        </div> */}
+
+        <HeaderWithSearch
+          title="Unit"
+          searchValue={search}
+          onSearchChange={setSearch}
+          onButtonClick={() => {
+            setShowForm(true);
+          }}
+          buttonLabel="Create"
+          placeholder="Search Unit..."
+        />
 
         {showDeleteModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -197,13 +208,13 @@ export default function AdminMenuUnitPage() {
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-sm"
+                  className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-sm cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteConfirmed}
-                  className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm"
+                  className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm cursor-pointer"
                 >
                   Delete
                 </button>
@@ -222,7 +233,7 @@ export default function AdminMenuUnitPage() {
                 </h2>
                 <button
                   onClick={() => setShowForm(false)}
-                  className="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-gray-100"
+                  className="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-gray-100 cursor-pointer"
                 >
                   <X size={16} />
                 </button>
@@ -247,7 +258,7 @@ export default function AdminMenuUnitPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className={`px-4 py-1.5 text-[12px] font-semibold text-white rounded shadow-sm transition-all
+                    className={`px-4 py-1.5 text-[12px] font-semibold text-white rounded shadow-sm transition-all cursor-pointer
               ${
                 loading
                   ? "bg-gray-400 cursor-not-allowed"
@@ -280,8 +291,8 @@ export default function AdminMenuUnitPage() {
                           header === "SN"
                             ? "50px"
                             : header === "Action"
-                            ? "90px"
-                            : "auto",
+                              ? "90px"
+                              : "auto",
                       }}
                     >
                       {header}
@@ -317,10 +328,10 @@ export default function AdminMenuUnitPage() {
                       </td>
 
                       <td className="border-b border-gray-300 px-2 py-0.5 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1.5">
                           <button
                             onClick={() => handleEdit(u)}
-                            className="text-blue-500 hover:scale-110 transition"
+                            className="text-blue-500 hover:scale-110 transition cursor-pointer"
                             title="Edit"
                           >
                             <PencilIcon className="w-3.5 h-3.5" />
@@ -331,10 +342,10 @@ export default function AdminMenuUnitPage() {
                               setDeleteUnit(u);
                               setShowDeleteModal(true);
                             }}
-                            className="text-red-500 hover:scale-110 transition"
+                            className="text-red-500 hover:scale-110 transition cursor-pointer"
                             title="Delete"
                           >
-                            <TrashIcon className="w-3.5 h-3.5" />
+                            <TrashIcon className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

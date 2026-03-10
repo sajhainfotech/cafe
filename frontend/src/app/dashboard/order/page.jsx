@@ -74,7 +74,6 @@ const getStatusIndicator = (status) => {
 
 const statusOptions = ["Pending", "Preparing", "Ready", "Served"];
 
-
 const getCookie = (name) => {
   if (typeof document === "undefined") return null;
   const value = `; ${document.cookie}`;
@@ -82,7 +81,6 @@ const getCookie = (name) => {
   if (parts.length === 2) return parts.pop().split(";").shift();
   return null;
 };
-
 
 const AdminOrdersDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -94,7 +92,7 @@ const AdminOrdersDashboard = () => {
   const audioRef = useRef(null);
   const lastOrderIdRef = useRef(null);
   const [filter, setFilter] = useState("today");
- 
+
   const isMounted = useRef(false);
 
   const playNotificationSound = () => {
@@ -102,7 +100,7 @@ const AdminOrdersDashboard = () => {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch((err) => {
         console.warn(
-          "Autoplay blocked: Please click anywhere on the page first."
+          "Autoplay blocked: Please click anywhere on the page first.",
         );
       });
     }
@@ -181,13 +179,13 @@ const AdminOrdersDashboard = () => {
       if (!res.ok) throw new Error("Status update failed");
 
       toast.success(
-        newStatus === "Cancelled" ? "Order Cancelled" : "Status Updated"
+        newStatus === "Cancelled" ? "Order Cancelled" : "Status Updated",
       );
 
       setOrders((prev) =>
         prev.map((o) =>
-          o.order_id === order_id ? { ...o, status: newStatus } : o
-        )
+          o.order_id === order_id ? { ...o, status: newStatus } : o,
+        ),
       );
       setOpenDropdown(null);
     } catch (err) {
@@ -210,12 +208,10 @@ const AdminOrdersDashboard = () => {
     w.print();
   };
 
-useEffect(() => {
-   
-    const t = getCookie("adminToken"); 
-    
+  useEffect(() => {
+    const t = getCookie("adminToken");
+
     if (!t) {
-      
       return;
     }
 
@@ -225,18 +221,16 @@ useEffect(() => {
       fetchOrders(t);
       isMounted.current = true;
     } else {
-      
       fetchOrders(t);
     }
-    
+
     const interval = setInterval(() => fetchOrders(t), 5000);
     return () => clearInterval(interval);
-
   }, [filter]);
 
   const todayNepal = getNepalDateString(new Date());
   const todayOrders = orders.filter(
-    (o) => getNepalDateString(o.created_at) === todayNepal
+    (o) => getNepalDateString(o.created_at) === todayNepal,
   );
 
   const todayTotal = todayOrders
@@ -263,55 +257,56 @@ useEffect(() => {
   return (
     <>
       <div className="min-h-screen font-sans p-4 sm:p-6 lg:p-4 bg-[#ddf4e2]">
-     <header className="mx-auto mb-6 flex flex-wrap items-center justify-between gap-y-4 gap-x-2">
-  {/* Left Section: Dashboard & Filters */}
-  <div className="flex flex-col gap-1">
-    <h1 className="text-lg sm:text-xl font-bold text-[#1C5721] leading-tight">
-      Kitchen Dashboard
-    </h1>
+        <header className="mx-auto mb-6 flex flex-wrap items-center justify-between gap-y-4 gap-x-2">
+          {/* Left Section: Dashboard & Filters */}
+          <div className="flex flex-col gap-1">
+            <h1 className="text-lg sm:text-xl font-bold text-[#1C5721] leading-tight">
+              Kitchen Dashboard
+            </h1>
 
-    {/* Filter Buttons */}
-    <div className="flex flex-wrap gap-2 mt-1">
-      <button
-        onClick={() => setFilter("today")}
-        className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap ${
-          filter === "today"
-            ? "bg-[#236B28] text-white shadow-md"
-            : "bg-white text-[#236B28] border border-[#236B28]"
-        }`}
-      >
-        Today
-      </button>
-      <button
-        onClick={() => setFilter("weekly")}
-        className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap ${
-          filter === "weekly"
-            ? "bg-[#236B28] text-white shadow-md"
-            : "bg-white text-[#236B28] border border-[#236B28]"
-        }`}
-      >
-        Last 7 Days
-      </button>
-    </div>
+            {/* Filter Buttons */}
+            <div className="flex flex-wrap gap-2 mt-1">
+              <button
+                onClick={() => setFilter("today")}
+                className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap ${
+                  filter === "today"
+                    ? "bg-[#236B28] text-white shadow-md"
+                    : "bg-white text-[#236B28] border border-[#236B28]"
+                }`}
+              >
+                Today
+              </button>
+              <button
+                onClick={() => setFilter("weekly")}
+                className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap ${
+                  filter === "weekly"
+                    ? "bg-[#236B28] text-white shadow-md"
+                    : "bg-white text-[#236B28] border border-[#236B28]"
+                }`}
+              >
+                Last 7 Days
+              </button>
+            </div>
 
-    <p className="text-[11px] sm:text-sm text-[#236B28] mt-0.5">
-      Displaying <span className="font-bold">{filteredOrders.length}</span> orders
-    </p>
-  </div>
+            <p className="text-[11px] sm:text-sm text-[#236B28] mt-0.5">
+              Displaying{" "}
+              <span className="font-bold">{filteredOrders.length}</span> orders
+            </p>
+          </div>
 
-  {/* Right Section: Revenue Card */}
-  <div className="bg-white px-3 sm:px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-2 sm:gap-3 w-fit shrink-0">
-    <span className="text-[9px] sm:text-[10px] uppercase font-bold text-gray-400 tracking-wider whitespace-nowrap">
-      {filter === "today" ? "Today's Revenue" : "7 Days Revenue"}
-    </span>
+          {/* Right Section: Revenue Card */}
+          <div className="bg-white px-3 sm:px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-2 sm:gap-3 w-fit shrink-0">
+            <span className="text-[9px] sm:text-[10px] uppercase font-bold text-gray-400 tracking-wider whitespace-nowrap">
+              {filter === "today" ? "Today's Revenue" : "7 Days Revenue"}
+            </span>
 
-    <div className="h-4 w-[1px] bg-gray-200"></div>
+            <div className="h-4 w-[1px] bg-gray-200"></div>
 
-    <span className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap">
-      Rs. {totalRevenue.toFixed(2)}
-    </span>
-  </div>
-</header>
+            <span className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap">
+              Rs. {totalRevenue.toFixed(2)}
+            </span>
+          </div>
+        </header>
 
         <div className="mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
           {filteredOrders.map((order, idx) => (
@@ -322,12 +317,12 @@ useEffect(() => {
               order.status === "Cancelled"
                 ? "bg-red-100 border-red-300 text-red-700"
                 : order.status === "Served"
-                ? "bg-green-100 border-green-300 text-green-700"
-                : order.status === "Ready"
-                ? "bg-indigo-100 border-indigo-300 text-indigo-700"
-                : order.status === "Preparing"
-                ? "bg-blue-100 border-blue-300 text-blue-700"
-                : "bg-amber-100 border-amber-300 text-amber-700"
+                  ? "bg-green-100 border-green-300 text-green-700"
+                  : order.status === "Ready"
+                    ? "bg-indigo-100 border-indigo-300 text-indigo-700"
+                    : order.status === "Preparing"
+                      ? "bg-blue-100 border-blue-300 text-blue-700"
+                      : "bg-amber-100 border-amber-300 text-amber-700"
             }`}
             >
               <div className="p-3 border-b border-gray-100">
@@ -408,7 +403,7 @@ useEffect(() => {
                       </button>
 
                       {["Pending", "Preparing", "Ready"].includes(
-                        order.status
+                        order.status,
                       ) && (
                         <div className="relative">
                           <button
@@ -416,7 +411,7 @@ useEffect(() => {
                             title="Change Status"
                             onClick={() =>
                               setOpenDropdown((prev) =>
-                                prev === order.order_id ? null : order.order_id
+                                prev === order.order_id ? null : order.order_id,
                               )
                             }
                           >
@@ -467,7 +462,7 @@ useEffect(() => {
               <span className="font-black">
                 {
                   orders.filter(
-                    (o) => getNepalDateString(o.created_at) === todayNepal
+                    (o) => getNepalDateString(o.created_at) === todayNepal,
                   ).length
                 }
               </span>

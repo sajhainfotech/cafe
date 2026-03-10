@@ -8,7 +8,6 @@ import DesktopSidebar from "./DesktopSidebar";
 import AdminHeader from "@/components/AdminHeader";
 import ToastProvider from "@/components/ToastProvider";
 
-
 const getCookie = (name) => {
   if (typeof document === "undefined") return null;
   const value = `; ${document.cookie}`;
@@ -26,9 +25,14 @@ export default function DashboardLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isSuperUser, setIsSuperUser] = useState(false);
-  
 
   useEffect(() => {
+    // added for menu
+    const publicRoutes = ["/menu"];
+    if (publicRoutes.some((route) => pathname.startsWith(route))) {
+      return;
+    }
+    // added for menu
     const superUserFlag = getCookie("is_superuser") === "true";
     const token = getCookie("adminToken");
 
@@ -57,7 +61,7 @@ export default function DashboardLayout({ children }) {
   }, [pathname, router]);
 
   const handleLogout = () => {
-   deleteCookie("adminToken");
+    deleteCookie("adminToken");
     deleteCookie("is_superuser");
     router.push("/auth/login");
   };
@@ -65,7 +69,7 @@ export default function DashboardLayout({ children }) {
   return (
     <SidebarProvider>
       <DashboardContainer isSuperUser={isSuperUser} handleLogout={handleLogout}>
-        <ToastProvider  position="top-right" reverseOrder={false} />
+        <ToastProvider position="top-right" reverseOrder={false} />
         {children}
       </DashboardContainer>
     </SidebarProvider>
@@ -89,9 +93,7 @@ function DashboardContainer({ children, isSuperUser, handleLogout }) {
         />
 
         {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

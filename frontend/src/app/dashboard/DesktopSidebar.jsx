@@ -21,7 +21,6 @@ export default function DesktopSidebar({ is_superuser, children }) {
   const pathname = usePathname();
   const router = useRouter();
 
-
   const isSuperUser = is_superuser === true || is_superuser === "true";
 
   const [hovered, setHovered] = useState(false);
@@ -39,7 +38,6 @@ export default function DesktopSidebar({ is_superuser, children }) {
     { label: "User", route: "/dashboard/all-user", icon: User },
   ];
 
-  
   const menuItemsStaff = [
     { label: "Dashboard", route: "/dashboard", icon: GaugeCircle },
     { label: "Order", route: "/dashboard/order", icon: ShoppingCart },
@@ -67,7 +65,7 @@ export default function DesktopSidebar({ is_superuser, children }) {
               }
               setSidebarOpen(false);
             }}
-            className={`flex items-center gap-1 px-2 py-1 rounded border-b border-[#1C5721] w-full transition-colors
+            className={`flex items-center gap-1 px-2 py-1 rounded border-b border-[#1C5721] w-full transition-colors cursor-pointer
       ${
         active
           ? "bg-white text-[#236B28] font-semibold"
@@ -110,7 +108,6 @@ export default function DesktopSidebar({ is_superuser, children }) {
 
             {(!collapsed || hovered) && (
               <h2 className="font-semibold text-sm tracking-wide text-[#EAF5EA]">
-               
                 {isSuperUser ? "Super Admin" : "Staff Panel"}
               </h2>
             )}
@@ -144,8 +141,7 @@ export default function DesktopSidebar({ is_superuser, children }) {
               <div className="flex items-center gap-2">
                 <LayoutDashboardIcon size={18} className="text-[#EAF5EA]" />
                 <h2 className="font-semibold text-sm text-[#EAF5EA]">
-                   
-                   {isSuperUser ? "Super Admin" : "Staff Panel"}
+                  {isSuperUser ? "Super Admin" : "Staff Panel"}
                 </h2>
               </div>
 
@@ -163,7 +159,6 @@ export default function DesktopSidebar({ is_superuser, children }) {
           </aside>
         </div>
 
-     
         <main className="flex-1 lg:mt-0">{children}</main>
       </div>
     </>
