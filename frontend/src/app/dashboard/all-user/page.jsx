@@ -139,8 +139,8 @@ export default function AdminManagementPage() {
       <div className="mx-auto min-h-screen font-sans p-4 bg-[#ddf4e2] ">
         <ToastProvider />
 
-        {/* <div className="px-2 sm:px-3 md:px-0 ">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2">
+        <div className="px-2 sm:px-3 md:px-0 ">
+          {/* <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2">
             <h1 className="self-start text-left text-[15px] font-bold text-[#236B28]">
               All User
             </h1>
@@ -179,7 +179,18 @@ export default function AdminManagementPage() {
                 Create
               </button>
             </div>
-          </div>
+          </div> */}
+
+          <HeaderWithSearch
+            title="All User"
+            searchValue={search}
+            onSearchChange={setSearch}
+            onButtonClick={() => {
+              setShowForm(true);
+            }}
+            buttonLabel="Create"
+            placeholder="Search User..."
+          />
 
           {showDeleteModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -196,13 +207,13 @@ export default function AdminManagementPage() {
                 <div className="flex justify-end gap-2">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-sm"
+                    className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-sm cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDeleteConfirmed}
-                    className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm"
+                    className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm cursor-pointer"
                   >
                     Delete
                   </button>
@@ -239,18 +250,7 @@ export default function AdminManagementPage() {
               </div>
             </div>
           )}
-        </div> */}
-
-        <HeaderWithSearch
-          title="All User"
-          searchValue={search}
-          onSearchChange={setSearch}
-          onButtonClick={() => {
-            setShowForm(true);
-          }}
-          buttonLabel="Create"
-          placeholder="Search User..."
-        />
+        </div>
 
         <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden flex flex-col">
           <div
@@ -390,10 +390,10 @@ export default function AdminManagementPage() {
                         </td>
 
                         <td className="border-b border-gray-300 px-2 py-0.5 text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-1.5">
                             <button
                               onClick={() => openEditModal(admin)}
-                              className="text-blue-500 hover:scale-110 transition p-1"
+                              className="text-blue-500 hover:scale-110 transition cursor-pointer"
                             >
                               <PencilIcon className="w-3.5 h-3.5" />
                             </button>
@@ -402,9 +402,9 @@ export default function AdminManagementPage() {
                                 setDeleteAdmin(admin);
                                 setShowDeleteModal(true);
                               }}
-                              className="text-red-500 hover:scale-110 transition p-1"
+                              className="text-red-500 hover:scale-110 transition cursor-pointer"
                             >
-                              <TrashIcon className="w-3.5 h-3.5" />
+                              <TrashIcon className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
