@@ -6,7 +6,7 @@ const SidebarContext = createContext();
 
 const getInitialCollapsed = () => {
   if (typeof window === "undefined") return true;
-  return window.innerWidth < 1024; 
+  return window.innerWidth < 1024;
 };
 
 export const SidebarProvider = ({ children }) => {
