@@ -335,7 +335,7 @@ export default function BranchPage() {
                         value={form.name}
                         onChange={handleChange}
                         placeholder="Enter branch name"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
                         required
                       />
                     </div>
@@ -350,7 +350,7 @@ export default function BranchPage() {
                         value={form.email}
                         onChange={handleChange}
                         placeholder="example@mail.com"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
                         required
                       />
                     </div>
@@ -364,7 +364,7 @@ export default function BranchPage() {
                         value={form.address}
                         onChange={handleChange}
                         placeholder="Location details"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
                         required
                       />
                     </div>
@@ -383,7 +383,7 @@ export default function BranchPage() {
                           }
                         }}
                         placeholder="98XXXXXXXX"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
                         required
                       />
                     </div>
@@ -491,7 +491,7 @@ export default function BranchPage() {
             <table className="min-w-full border-separate border-spacing-0 table-fixed text-[11px]">
               <thead className="sticky top-0 bg-[#fafafa] z-10">
                 <tr>
-                  <th className="w-[40px] border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
+                  <th className="w-10 border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
                     S.N.
                   </th>
                   <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
@@ -509,7 +509,7 @@ export default function BranchPage() {
                   <th className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
                     Restaurant
                   </th>
-                  <th className="w-[80px] border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700">
+                  <th className="w-20 border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700">
                     Action
                   </th>
                 </tr>
@@ -557,7 +557,7 @@ export default function BranchPage() {
                       </td>
 
                       <td className="border-b border-r border-gray-300 px-2 py-0.5">
-                        <span className="text-[10px] px-1.5 py-0">
+                        <span className="text-[12px] px-1.5 py-0">
                           {b.restaurant_name}
                         </span>
                       </td>

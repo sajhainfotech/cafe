@@ -108,7 +108,7 @@ export default function AdminHeader() {
   }, []);
 
   return (
-    <div className="flex justify-between font-sans items-center lg:mb-0 p-4 md:p-3 border-b border-[#1C5721] bg-[#236B28] shadow-sm">
+    <div className="flex justify-between font-sans items-center lg:mb-0 p-4 md:p-3 border-b border-[#1C5721] primary-bg-color shadow-sm">
       <ToastProvider />
       <div className="flex items-center gap-3 md:gap-3">
         <button

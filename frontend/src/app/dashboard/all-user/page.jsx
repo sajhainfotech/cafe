@@ -380,7 +380,7 @@ export default function AdminManagementPage() {
                         </td>
 
                         <td className="border-b border-r border-gray-300 px-2 py-0.5">
-                          <span className="text-[10px] px-1.5 py-0   bg-white text-gray-800 truncate block">
+                          <span className="text-[12px] px-1.5 py-0   bg-white text-gray-800 truncate block">
                             {admin.restaurant_name || "-"}
                           </span>
                         </td>
