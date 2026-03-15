@@ -752,7 +752,7 @@ export default function AdminMenuManager() {
                   ].map((header, i) => (
                     <th
                       key={header}
-                      className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700 last:border-r-0"
+                      className="border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700 last:border-r-0 "
                       style={{
                         width:
                           header === "SN"

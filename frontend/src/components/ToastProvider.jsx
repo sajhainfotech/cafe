@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Toaster } from "react-hot-toast";
 
@@ -15,8 +15,8 @@ const ToastProvider = () => {
           padding: "6px 12px", // smaller padding = shorter height
           borderRadius: "8px",
           fontSize: "14px",
-          lineHeight: "1.2",   // makes text more compact
-          minHeight: "auto",   // remove default minHeight
+          lineHeight: "1.2", // makes text more compact
+          minHeight: "auto", // remove default minHeight
         },
 
         // Success Toast - Green

@@ -79,7 +79,6 @@ const AdminLoginPage = () => {
       setCookie("is_superuser", data.is_superuser ? "true" : "false");
 
       const displayName = data.first_name || username;
-      toast.success(`Welcome back, ${displayName}!`);
 
       try {
         const userId = data.user_id || data.userId || data.user || null;
@@ -131,15 +130,21 @@ const AdminLoginPage = () => {
           JSON.stringify(branchData.data || []),
         );
 
-        setTimeout(() => router.push("/dashboard/restaurant"), 1000);
+        setTimeout(() => router.replace("/dashboard/restaurant"), 1000);
       } else {
-        setTimeout(() => router.push("/dashboard"), 1000);
+        router.replace("/dashboard");
+        setTimeout(() => router.replace("/dashboard"), 1000);
       }
+
+      setTimeout(() => {
+        toast.success(`Welcome back, ${displayName}!`);
+      }, 1000);
     } catch (err) {
       console.error(err);
       toast.error("Connection Error!");
     } finally {
       setTimeout(() => setLoading(false), 1000);
+      // setLoading(false);
     }
   };
 
