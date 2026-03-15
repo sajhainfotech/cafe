@@ -96,7 +96,7 @@ export default function DesktopSidebar({ is_superuser, children }) {
         <aside
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
-          className={`hidden lg:flex flex-col bg-[#236B28] text-[#EAF5EA]
+          className={`hidden lg:flex flex-col primary-bg-color text-[#EAF5EA]
             shadow-md border-r border-[#1C5721] transition-all duration-300
             ${collapsed && !hovered ? "w-13" : "w-50"}`}
         >
@@ -132,7 +132,7 @@ export default function DesktopSidebar({ is_superuser, children }) {
           )}
 
           <aside
-            className={`absolute left-0 top-0 h-full w-45 bg-[#236B28] text-[#EAF5EA]
+            className={`absolute left-0 top-0 h-full w-45 primary-bg-color text-[#EAF5EA]
       shadow-md transform transition-transform duration-300
       ${collapsed ? "-translate-x-full" : "translate-x-0"}`}
           >

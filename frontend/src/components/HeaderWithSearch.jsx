@@ -13,7 +13,7 @@ export default function HeaderWithSearch({
 }) {
   return (
     <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2">
-      <h1 className="self-start text-left text-[15px] font-bold text-[#236B28]">
+      <h1 className="self-start text-left text-[15px] font-bold primary-color">
         {title}
       </h1>
 
@@ -38,15 +38,15 @@ export default function HeaderWithSearch({
             placeholder={placeholder}
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="border border-[#236B28]/30 rounded-md pl-8 pr-3 py-1 text-[12px]
+            className="border-2 border-[#236B28]/30 rounded-md pl-8 pr-3 py-1 text-[12px]
         focus:outline-none focus:ring-1 focus:ring-[#236B28]/40"
           />
         </div>
 
         <button
           onClick={onButtonClick}
-          className="flex items-center gap-1 px-4 py-1.5 text-[12px] font-semibold
-      bg-[#236B28] text-white rounded-md shadow-sm hover:bg-[#1C5721] transition cursor-pointer"
+          className="flex items-center gap-1  font-semibold
+       rounded-md shadow-sm transition submit-button"
         >
           <Plus size={15} />
           {buttonLabel}

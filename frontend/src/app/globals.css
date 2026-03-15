@@ -34,7 +34,19 @@ table tbody tr td {
 }
 
 .secondary-bg-color {
-  color: var(--secondary-color);
+  background-color: var(--secondary-color);
+}
+
+.submit-button {
+  background-color: var(--button-color);
+  cursor: pointer;
+  color: white;
+  font-size: 12px;
+  padding: 6px 16px;
+}
+
+.submit-button:hover {
+  background-color: var(--button-hover-color);
 }
 
 @keyframes fadeIn {

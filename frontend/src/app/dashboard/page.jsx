@@ -180,7 +180,7 @@ export default function AdminDashboard() {
 
   return (
     <>
-      <div className="min-h-screen font-sans antialiased text-slate-900 p-4 bg-[#ddf4e2]">
+      <div className="min-h-screen font-sans antialiased text-slate-900 p-4 secondary-bg-color">
         <div
           className="max-w-8xl mx-auto mb-3 flex justify-between items-center rounded 
    from-[#EAF5EA] via-[#DFF0E0] to-[#CFE8D2]"
