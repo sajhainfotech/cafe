@@ -1,9 +1,51 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/*-------- UI colors ----------*/
+:root {
+  --primary-color: #236b28;
+  --secondary-color: #ddf4e2;
+  --button-color: #236b28;
+  --button-hover-color: #1c5721;
+}
+
+table thead tr th {
+  font-size: 13px;
+}
+
+table tbody tr td {
+  font-size: 12px;
+}
+
+.table-info {
+  font-size: 12px;
+}
+
+.primary-color {
+  color: var(--primary-color);
+}
+
+.primary-bg-color {
+  background-color: var(--primary-color);
+}
+
+.secondary-color {
+  color: var(--secondary-color);
+}
+
+.secondary-bg-color {
+  color: var(--secondary-color);
+}
+
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fadeIn {
@@ -130,9 +172,6 @@
   }
 }
 
-
-
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -160,6 +199,3 @@
 .animate-zoomIn {
   animation: zoomIn 0.25s ease-out forwards;
 }
-
-
-

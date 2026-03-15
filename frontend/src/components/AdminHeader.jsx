@@ -4,6 +4,8 @@ import { Bell, User, Menu, LogOut } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useSidebar } from "../app/dashboard/SidebarContext";
 import { useRouter } from "next/navigation";
+import ToastProvider from "./ToastProvider";
+import toast from "react-hot-toast";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -89,7 +91,10 @@ export default function AdminHeader() {
   const handleLogout = () => {
     deleteCookie("adminToken");
     deleteCookie("is_superuser");
-    router.push("/auth/login");
+    router.replace("/auth/login");
+    setTimeout(() => {
+      toast.success("You have been logged out");
+    }, 1000);
   };
 
   useEffect(() => {
@@ -104,6 +109,7 @@ export default function AdminHeader() {
 
   return (
     <div className="flex justify-between font-sans items-center lg:mb-0 p-4 md:p-3 border-b border-[#1C5721] bg-[#236B28] shadow-sm">
+      <ToastProvider />
       <div className="flex items-center gap-3 md:gap-3">
         <button
           onClick={() => setCollapsed(!collapsed)}
