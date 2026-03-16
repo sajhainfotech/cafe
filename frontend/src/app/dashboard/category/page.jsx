@@ -318,7 +318,7 @@ export default function AdminCategoryManager() {
                       key={cat.reference_id}
                       className="hover:bg-blue-50/30 transition-all"
                     >
-                      <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-600 last:border-r-0">
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0">
                         {index + 1}
                       </td>
 
@@ -329,7 +329,7 @@ export default function AdminCategoryManager() {
                       </td>
 
                       <td className="border-b border-r border-gray-300 px-1 py-0.5 last:border-r-0">
-                        <div className=" px-1 py-0.5 bg-white text-gray-500 text-[10px] max-h-8 overflow-y-auto custom-scrollbar">
+                        <div className=" px-1 py-0.5 bg-white  text-[12px] max-h-8 overflow-y-auto custom-scrollbar">
                           {cat.description || "-"}
                         </div>
                       </td>

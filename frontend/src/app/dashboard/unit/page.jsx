@@ -249,7 +249,7 @@ export default function AdminMenuUnitPage() {
                     value={unitName}
                     onChange={(e) => setUnitName(e.target.value)}
                     placeholder="e.g. Kg, Plate, Piece"
-                    className="w-full px-3 py-1.5 text-[12px] border border-gray-300 rounded focus:border-[#236B28] focus:ring-[2px] focus:ring-[#236B28]/10 outline-none transition-all placeholder:text-gray-400"
+                    className="w-full px-3 py-1.5 text-[12px] border border-gray-300 rounded focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 outline-none transition-all placeholder:text-gray-400"
                     required
                   />
                 </div>
@@ -317,7 +317,7 @@ export default function AdminMenuUnitPage() {
                       key={u.reference_id}
                       className="hover:bg-blue-50/30 transition-all"
                     >
-                      <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-600 last:border-r-0">
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0">
                         {index + 1}
                       </td>
 

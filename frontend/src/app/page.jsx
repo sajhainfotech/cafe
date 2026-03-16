@@ -1,3 +1,4 @@
+/*
 "use client";
 import React, { useEffect, useState } from "react";
 
@@ -27,6 +28,22 @@ const Main = () => {
       ) : (
         <CustomerMenuPage />
       )}
+    </div>
+  );
+};
+
+export default Main;
+
+*/
+
+"use client";
+import React from "react";
+import CustomerMenuPage from "./menu/page";
+
+const Main = () => {
+  return (
+    <div>
+      <CustomerMenuPage />
     </div>
   );
 };
