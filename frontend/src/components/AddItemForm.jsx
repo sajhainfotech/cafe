@@ -774,32 +774,32 @@ export default function AdminMenuManager() {
                     key={menu.reference_id}
                     className="hover:bg-blue-50/30 transition-all"
                   >
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-600 last:border-r-0">
+                    <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0">
                       {index + 1}
                     </td>
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 last:border-r-0">
+                    <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0">
                       {menu.menu_date}
                     </td>
 
-                    <td className="border-b border-r border-gray-300 px-1 py-0.5 last:border-r-0">
-                      <div className="border-gray-300 rounded px-1 py-0.5 bg-gray-50/50 text-gray-800 truncate">
-                        {menu.name}
-                      </div>
+                    <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0 capitalize">
+                      {menu.name}
+                      <span className="border-gray-300 rounded px-1 py-0.5 bg-gray-50/50 text-gray-800 truncate"></span>
                     </td>
 
                     <td className="border-b border-r border-gray-300 px-1 py-0.5 last:border-r-0">
-                      <div className=" border-gray-300 rounded px-1 py-0.5 text-center">
+                      <div className=" border-gray-300 rounded px-1 py-0.5">
                         {menu.price}
                       </div>
                     </td>
 
                     <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0">
-                      <span className="text-[10px] px-1.5 py-0  border-gray-300 rounded bg-white text-gray-500">
-                        {getCategoryName(menu.item_category)}
+                      {getCategoryName(menu.item_category)}
+                      <span className="text-[12px] px-1.5 py-0  border-gray-300 rounded bg-white text-gray-500">
+                        {" "}
                       </span>
                     </td>
 
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0 text-gray-500">
+                    <td className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0">
                       {getUnitName(menu.unit)}
                     </td>
 

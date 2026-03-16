@@ -303,7 +303,7 @@ export default function TableManager() {
                     key={t.reference_id}
                     className="hover:bg-blue-50/30 transition-all"
                   >
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 text-center">
+                    <td className="border-b border-r border-gray-300 px-2 py-0.5">
                       {index + 1}
                     </td>
                     <td className="border-b border-r border-gray-300 px-2 py-0.5">

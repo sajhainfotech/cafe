@@ -357,35 +357,35 @@ export default function AdminManagementPage() {
                         key={admin.reference_id || index}
                         className="hover:bg-blue-50/30 transition-all"
                       >
-                        <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-600">
+                        <td className="border-b border-r border-gray-300 px-2 py-0.5 ">
                           {index + 1}
                         </td>
 
                         <td className="border-b border-r border-gray-300 px-1 py-0.5">
-                          <div className="  px-1 py-0.5 text-gray-800 truncate">
+                          <div className="px-1 py-0.5  truncate">
                             {admin.username}
                           </div>
                         </td>
 
-                        <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-700">
+                        <td className="border-b border-r border-gray-300 px-2 py-0.5 ">
                           {admin.first_name} {admin.last_name}
                         </td>
 
-                        <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 truncate">
+                        <td className="border-b border-r border-gray-300 px-2 py-0.5 truncate">
                           {admin.email}
                         </td>
 
-                        <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500">
+                        <td className="border-b border-r border-gray-300 px-2 py-0.5">
                           {admin.mobile_number}
                         </td>
 
                         <td className="border-b border-r border-gray-300 px-2 py-0.5">
-                          <span className="text-[12px] px-1.5 py-0   bg-white text-gray-800 truncate block">
+                          <span className="text-[12px] py-0 bg-white truncate block">
                             {admin.restaurant_name || "-"}
                           </span>
                         </td>
 
-                        <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500 italic">
+                        <td className="border-b border-r border-gray-300 px-2 py-0.5 ">
                           {admin.branch_name || "-"}
                         </td>
 

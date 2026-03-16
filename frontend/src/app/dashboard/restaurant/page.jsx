@@ -361,7 +361,7 @@ export default function RestaurantPage() {
                       key={r.reference_id}
                       className="hover:bg-blue-50/30 transition-all"
                     >
-                      <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-600 text-center">
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5  ">
                         {index + 1}
                       </td>
 
@@ -371,11 +371,11 @@ export default function RestaurantPage() {
                         </div>
                       </td>
 
-                      <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500">
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5">
                         {r.address}
                       </td>
 
-                      <td className="border-b border-r border-gray-300 px-2 py-0.5 text-gray-500">
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5 ">
                         {r.mobile_number}
                       </td>
 
