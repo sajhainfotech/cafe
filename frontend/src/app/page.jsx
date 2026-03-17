@@ -1,4 +1,3 @@
-/*
 "use client";
 import React, { useEffect, useState } from "react";
 
@@ -34,8 +33,7 @@ const Main = () => {
 
 export default Main;
 
-*/
-
+/*
 "use client";
 import React from "react";
 import CustomerMenuPage from "./menu/page";
@@ -49,3 +47,4 @@ const Main = () => {
 };
 
 export default Main;
+*/

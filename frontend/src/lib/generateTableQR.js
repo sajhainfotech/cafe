@@ -1,4 +1,5 @@
 // utils/generateTableQR.js
+
 import QRCode from "qrcode";
 
 export async function generateTableQR(token) {
