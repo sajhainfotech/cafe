@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import ToastProvider from "@/components/ToastProvider";
 import "@/styles/customButtons.css";
 import HeaderWithSearch from "@/components/HeaderWithSearch";
+import DeleteModal from "@/components/DeleteModal";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -223,49 +224,6 @@ export default function BranchPage() {
         <ToastProvider />
 
         {/* ================= HEADER ================= */}
-        {/* <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2">
-          <h1 className="self-start text-left text-[15px] font-bold text-[#236B28]">
-            Branch
-          </h1>
-
-          <div className="flex w-full md:w-auto items-center gap-2">
-            <div className="relative">
-              <svg
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#236B28]/60"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
-                />
-              </svg>
-
-              <input
-                type="text"
-                placeholder="Search Branch..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="border border-[#236B28]/30 rounded-md pl-8 pr-3 py-1 text-[12px]
-        focus:outline-none focus:ring-1 focus:ring-[#236B28]/40"
-              />
-            </div>
-
-            <button
-              onClick={() => {
-                setShowForm(true);
-              }}
-              className="flex items-center gap-1 px-4 py-1.5 text-[12px] font-semibold
-      bg-[#236B28] text-white rounded-md shadow-sm hover:bg-[#1C5721] transition"
-            >
-              Create
-            </button>
-          </div>
-        </div> */}
-
         <HeaderWithSearch
           title="Branch"
           searchValue={search}
@@ -279,32 +237,15 @@ export default function BranchPage() {
 
         {/* DELETE CONFIRM MODAL */}
         {showDeleteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white rounded-lg shadow-md w-[90%] max-w-sm p-4">
-              <h2 className="text-lg font-bold text-red-600 mb-3">
-                Confirm Delete
-              </h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Are you sure you want to delete{" "}
-                <span className="font-semibold">{deleteBranch?.name}</span>?
-              </p>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-sm cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleDeleteConfirmed(deleteBranch)}
-                  className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm cursor-pointer"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
+          <DeleteModal
+            branch={deleteBranch?.name}
+            setShowDeleteModal={() => {
+              setShowDeleteModal(false);
+            }}
+            handleDeleteConfirmed={() => {
+              handleDeleteConfirmed(deleteBranch);
+            }}
+          />
         )}
 
         {/* MODAL */}
@@ -524,8 +465,8 @@ export default function BranchPage() {
                       className="text-center py-8 text-gray-400 border-b border-gray-300"
                     >
                       {search
-                        ? "Branch not matching your search"
-                        : "No branches found"}
+                        ? "No branch matches your search"
+                        : "No branch found"}
                     </td>
                   </tr>
                 ) : (
@@ -539,7 +480,7 @@ export default function BranchPage() {
                       </td>
 
                       <td className="border-b border-r border-gray-300 px-1 py-0.5">
-                        <div className=" border-gray-300 px-1 py-0.5 text-gray-800 font-medium truncate">
+                        <div className=" border-gray-300 px-1 py-0.5 text-gray-800 font-medium truncate capitalize">
                           {b.name}
                         </div>
                       </td>
@@ -548,7 +489,7 @@ export default function BranchPage() {
                         {b.email}
                       </td>
 
-                      <td className="border-b border-r border-gray-300 px-2 py-0.5 truncate">
+                      <td className="border-b border-r border-gray-300 px-2 py-0.5 truncate capitalize">
                         {b.address}
                       </td>
 
@@ -557,7 +498,7 @@ export default function BranchPage() {
                       </td>
 
                       <td className="border-b border-r border-gray-300 px-2 py-0.5">
-                        <span className="text-[12px] px-1.5 py-0">
+                        <span className="text-[12px] px-1.5 py-0 capitalize">
                           {b.restaurant_name}
                         </span>
                       </td>
