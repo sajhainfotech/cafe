@@ -9,6 +9,8 @@ import { Download, X } from "lucide-react";
 import "@/styles/customButtons.css";
 import HeaderWithSearch from "@/components/HeaderWithSearch";
 import { generateTableQR } from "@/lib/generateTableQR.js";
+import DeleteModal from "@/components/DeleteModal";
+import CustomTable from "@/components/CustomTable";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -32,6 +34,67 @@ export default function TableManager() {
   const [deleteTable, setDeleteTable] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
+
+  const tableColumns = [
+    {
+      header: "S.N.",
+      width: "50px",
+      render: (_, index) => index + 1,
+    },
+    {
+      header: "Table Name",
+      render: (row) => (
+        <div className="px-2 py-0.5 text-gray-800 font-medium">
+          T {row.table_number}
+        </div>
+      ),
+    },
+    {
+      header: "QR Code",
+      width: "100px",
+      render: (row) => (
+        <div className="flex items-center">
+          {row.qr_code ? (
+            <img
+              src={row.qr_code}
+              alt="QR"
+              className="w-6 h-6 cursor-pointer hover:scale-110 transition-transform"
+              onClick={() => {
+                setSelectedTable(row);
+                setOpenQr(row.qr_code);
+              }}
+            />
+          ) : (
+            <span className="text-[10px] text-gray-400 italic">No QR</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: "Action",
+      width: "80px",
+      render: (row) => (
+        <div className="flex justify-end gap-1.5">
+          <button
+            onClick={() => handleEdit(row)}
+            className="text-blue-500 hover:scale-110 transition cursor-pointer"
+          >
+            <PencilIcon className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => {
+              setDeleteTable(row);
+              setShowDeleteModal(true);
+            }}
+            className="text-red-500 hover:scale-110 transition cursor-pointer"
+          >
+            <TrashIcon className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   // ---------------- Fetch Tables ----------------
   const fetchTables = async () => {
@@ -183,32 +246,11 @@ export default function TableManager() {
 
       {/* Delete Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-md w-[90%] max-w-sm p-4">
-            <h2 className="text-lg font-bold text-red-600 mb-3">
-              Confirm Delete
-            </h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Are you sure you want to delete table{" "}
-              <span className="font-semibold">{deleteTable?.table_number}</span>
-              ?
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-sm cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteConfirmed}
-                className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 text-sm cursor-pointer"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <DeleteModal
+          branch={deleteTable?.table_number}
+          setShowDeleteModal={() => setShowDeleteModal(false)}
+          handleDeleteConfirmed={handleDeleteConfirmed}
+        />
       )}
 
       {/* Form Modal */}
@@ -262,102 +304,12 @@ export default function TableManager() {
       )}
 
       {/* Table List */}
-      <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden flex flex-col">
-        <div
-          className="flex-1 overflow-y-auto scrollbar-hide"
-          style={{ maxHeight: "calc(100vh - 150px)" }}
-        >
-          <table className="min-w-full border-separate border-spacing-0 table-fixed text-[11px]">
-            <thead className="sticky top-0 bg-[#fafafa] z-10">
-              <tr>
-                <th className="w-[50px] border-b border-r border-gray-300 px-2 py-1 text-left font-bold text-gray-700">
-                  S.N.
-                </th>
-                <th className="border-b border-r border-gray-300 px-4 py-1 text-left font-bold text-gray-700">
-                  Table Name
-                </th>
-                <th className="w-[100px] border-b border-r border-gray-300 px-4 py-1 text-left font-bold text-gray-700">
-                  QR Code
-                </th>
-                <th className="w-20 border-b border-gray-300 px-2 py-1 text-right font-bold text-gray-700">
-                  Action
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="bg-white">
-              {filteredTables.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="text-center py-8 text-gray-400 border-b border-gray-300"
-                  >
-                    {searchQuery
-                      ? "No tables match your search"
-                      : "No tables found"}
-                  </td>
-                </tr>
-              ) : (
-                filteredTables.map((t, index) => (
-                  <tr
-                    key={t.reference_id}
-                    className="hover:bg-blue-50/30 transition-all"
-                  >
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5">
-                      {index + 1}
-                    </td>
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5">
-                      <div className="border-gray-300 rounded px-2 py-0.5 text-gray-800 font-medium">
-                        T {t.table_number}
-                      </div>
-                    </td>
-                    <td className="border-b border-r border-gray-300 px-2 py-0.5">
-                      <div className="flex items-center justify-start h-full">
-                        {t.qr_code ? (
-                          <div className="p-0.5">
-                            <img
-                              src={t.qr_code}
-                              alt="QR"
-                              className="w-6 h-6 cursor-pointer hover:scale-110 transition-transform"
-                              onClick={() => {
-                                setSelectedTable(t);
-                                setOpenQr(t.qr_code);
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-[10px] text-gray-400 italic">
-                            No QR
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="border-b border-gray-300 px-2 py-0.5 text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <button
-                          onClick={() => handleEdit(t)}
-                          className="text-blue-500 hover:scale-110 transition"
-                        >
-                          <PencilIcon className="w-3.5 h-3.5 cursor-pointer" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setDeleteTable(t);
-                            setShowDeleteModal(true);
-                          }}
-                          className="text-red-500 hover:scale-110 transition"
-                        >
-                          <TrashIcon className="w-4 h-4 cursor-pointer" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <CustomTable
+        data={filteredTables}
+        columns={tableColumns}
+        emptyMessage="No table found"
+        searchQuery={searchQuery}
+      />
 
       {/* QR Modal */}
       {openQr && (
