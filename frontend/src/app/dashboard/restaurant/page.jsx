@@ -9,6 +9,7 @@ import ToastProvider from "@/components/ToastProvider";
 import "@/styles/customButtons.css";
 import HeaderWithSearch from "@/components/HeaderWithSearch";
 import DeleteModal from "@/components/DeleteModal";
+import CustomTable from "@/components/CustomTable";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -145,6 +146,51 @@ export default function RestaurantPage() {
     setForm({ name: "", address: "", mobile_number: "" });
   };
 
+  const restaurentColumns = [
+    {
+      header: "S.N.",
+      width: "40px",
+      render: (_, index) => index + 1,
+    },
+
+    {
+      header: "Name",
+      render: (row) => row.name,
+    },
+    {
+      header: "Address",
+      render: (row) => row.address,
+    },
+    {
+      header: "Phone",
+      render: (row) => row.mobile_number,
+    },
+
+    {
+      header: "Action",
+      width: "80px",
+      render: (row) => (
+        <div className="flex justify-end gap-1.5">
+          <button
+            onClick={() => handleEdit(row)}
+            className=" text-blue-500 hover:scale-110 transition cursor-pointer"
+          >
+            <PencilIcon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => {
+              setDeleteRestaurant(row);
+              setShowDeleteModal(true);
+            }}
+            className=" text-red-500 hover:scale-110 transition cursor-pointer"
+          >
+            <TrashIcon className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <>
       <div className="mx-auto min-h-screen font-sans p-4 bg-[#ddf4e2] ">
@@ -256,7 +302,7 @@ export default function RestaurantPage() {
           </div>
         )}
 
-        <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden flex flex-col">
+        {/* <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden flex flex-col">
           <div
             className="flex-1 overflow-y-auto scrollbar-hide"
             style={{ maxHeight: "calc(100vh - 150px)" }}
@@ -282,7 +328,6 @@ export default function RestaurantPage() {
                 </tr>
               </thead>
 
-              {/* BODY */}
               <tbody className="bg-white">
                 {filteredRestaurants.length === 0 ? (
                   <tr>
@@ -344,7 +389,14 @@ export default function RestaurantPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </div> */}
+
+        <CustomTable
+          data={filteredRestaurants}
+          columns={restaurentColumns}
+          emptyMessage="No restaurant found"
+          searchQuery={search}
+        />
       </div>
     </>
   );

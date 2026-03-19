@@ -9,6 +9,7 @@ import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 import { X } from "lucide-react";
 import HeaderWithSearch from "@/components/HeaderWithSearch";
 import DeleteModal from "@/components/DeleteModal";
+import CustomTable from "@/components/CustomTable";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -31,6 +32,45 @@ export default function AdminCategoryManager() {
   const [search, setSearch] = useState("");
   const [deleteCategory, setDeleteCategory] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const categoryColumns = [
+    {
+      header: "S.N.",
+      width: "40px",
+      render: (_, index) => index + 1,
+    },
+    {
+      header: "Name",
+      render: (row) => row.name,
+    },
+    {
+      header: "Description",
+      render: (row) => row.description,
+    },
+    {
+      header: "Action",
+      width: "80px",
+      render: (row) => (
+        <div className="flex justify-end gap-1.5">
+          <button
+            onClick={() => handleEdit(row)}
+            className="text-blue-500 hover:scale-110 transition cursor-pointer"
+          >
+            <PencilIcon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => {
+              setDeleteCategory(row);
+              setShowDeleteModal(true);
+            }}
+            className="text-red-500 hover:scale-110 transition cursor-pointer"
+          >
+            <TrashIcon className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   const fetchCategories = async () => {
     try {
@@ -214,7 +254,7 @@ export default function AdminCategoryManager() {
           </div>
         )}
 
-        <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden flex flex-col">
+        {/* <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden flex flex-col">
           <div
             className="flex-1 overflow-y-auto scrollbar-hide"
             style={{ maxHeight: "calc(100vh - 150px)" }}
@@ -300,7 +340,14 @@ export default function AdminCategoryManager() {
               </tbody>
             </table>
           </div>
-        </div>
+        </div> */}
+
+        <CustomTable
+          data={filteredCategories}
+          columns={categoryColumns}
+          emptyMessage="No category found"
+          searchQuery={search}
+        />
       </div>
     </>
   );

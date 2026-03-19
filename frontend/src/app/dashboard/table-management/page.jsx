@@ -44,7 +44,7 @@ export default function TableManager() {
     {
       header: "Table Name",
       render: (row) => (
-        <div className="px-2 py-0.5 text-gray-800 font-medium">
+        <div className="py-0.5 text-gray-800 font-medium">
           T {row.table_number}
         </div>
       ),

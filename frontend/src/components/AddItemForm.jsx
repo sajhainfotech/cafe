@@ -10,7 +10,6 @@ import "../styles/customButtons.css";
 import MenuImageHover from "./ImageHover";
 import HeaderWithSearch from "./HeaderWithSearch";
 import DeleteModal from "./DeleteModal";
-import TableModal from "./CustomTable";
 import CustomTable from "./CustomTable";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
