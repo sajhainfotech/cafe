@@ -41,7 +41,7 @@ export default function AdminMenuUnitPage() {
     {
       header: "Name",
       render: (row) => (
-        <div className="px-2 py-0.5 text-gray-800 font-medium">{row.name}</div>
+        <div className="py-0.5 text-gray-800 font-medium">{row.name}</div>
       ),
     },
     {
@@ -52,16 +52,18 @@ export default function AdminMenuUnitPage() {
           <button
             onClick={() => handleEdit(row)}
             className="text-blue-500 hover:scale-110 transition cursor-pointer"
+            title="Edit"
           >
             <PencilIcon className="w-3.5 h-3.5" />
           </button>
 
           <button
             onClick={() => {
-              setDeleteTable(row);
+              setDeleteUnit(row);
               setShowDeleteModal(true);
             }}
             className="text-red-500 hover:scale-110 transition cursor-pointer"
+            title="Delete"
           >
             <TrashIcon className="w-4 h-4" />
           </button>
@@ -337,7 +339,7 @@ export default function AdminMenuUnitPage() {
         <CustomTable
           data={filteredUnits}
           columns={unitColumns}
-          emptyMessage="No Unit found"
+          emptyMessage="No unit found"
           searchQuery={search}
         />
       </div>

@@ -395,7 +395,7 @@ const AdminOrdersDashboard = () => {
                   {order.status !== "Cancelled" && (
                     <div className="flex gap-2 relative">
                       <button
-                        className="p-1.5 rounded-lg bg-green-50 text-[#236B28] hover:bg-[#236B28] hover:text-white transition-all shadow-sm"
+                        className="p-1.5 rounded-lg bg-green-50 text-[#236B28] hover:bg-[#236B28] hover:text-white transition-all shadow-sm cursor-pointer"
                         onClick={() => printBill(order)}
                         title="Print Bill"
                       >
@@ -407,7 +407,7 @@ const AdminOrdersDashboard = () => {
                       ) && (
                         <div className="relative">
                           <button
-                            className="p-1.5 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-500 hover:text-white transition-all shadow-sm"
+                            className="p-1.5 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-500 hover:text-white transition-all shadow-sm cursor-pointer"
                             title="Change Status"
                             onClick={() =>
                               setOpenDropdown((prev) =>

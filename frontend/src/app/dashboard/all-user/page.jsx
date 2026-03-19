@@ -10,6 +10,7 @@ import ToastProvider from "@/components/ToastProvider";
 import "@/styles/customButtons.css";
 import HeaderWithSearch from "@/components/HeaderWithSearch";
 import DeleteModal from "@/components/DeleteModal";
+import CustomTable from "@/components/CustomTable";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -135,6 +136,61 @@ export default function AdminManagementPage() {
     }
   };
 
+  const userColumns = [
+    {
+      header: "S.N.",
+      width: "40px",
+      render: (_, index) => index + 1,
+    },
+    {
+      header: "Username",
+      render: (row) => row.username,
+    },
+    {
+      header: "Name",
+      render: (row) => `${row.first_name} ${row.last_name}`,
+    },
+    {
+      header: "Email",
+      render: (row) => row.email,
+    },
+    {
+      header: "Phone",
+      render: (row) => row.mobile_number,
+    },
+    {
+      header: "Restaurent",
+      render: (row) => row.restaurant_name,
+    },
+    {
+      header: "Branch",
+      render: (row) => row.branch_name,
+    },
+
+    {
+      header: "Action",
+      width: "80px",
+      render: (row) => (
+        <div className="flex justify-end gap-1.5">
+          <button
+            onClick={() => openEditModal(row)}
+            className="text-blue-500 hover:scale-110 transition cursor-pointer"
+          >
+            <PencilIcon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => {
+              setDeleteAdmin(row);
+              setShowDeleteModal(true);
+            }}
+            className="text-red-500 hover:scale-110 transition cursor-pointer"
+          >
+            <TrashIcon className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
   return (
     <>
       <div className="mx-auto min-h-screen font-sans p-4 bg-[#ddf4e2] ">
@@ -191,7 +247,7 @@ export default function AdminManagementPage() {
             </div>
           )}
         </div>
-
+        {/* 
         <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden flex flex-col">
           <div
             className="flex-1 overflow-y-auto scrollbar-hide"
@@ -363,7 +419,13 @@ export default function AdminManagementPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </div> */}
+        <CustomTable
+          data={admins}
+          columns={userColumns}
+          emptyMessage="No user found"
+          searchQuery={search}
+        />
       </div>
     </>
   );

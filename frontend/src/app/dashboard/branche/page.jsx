@@ -10,6 +10,7 @@ import ToastProvider from "@/components/ToastProvider";
 import "@/styles/customButtons.css";
 import HeaderWithSearch from "@/components/HeaderWithSearch";
 import DeleteModal from "@/components/DeleteModal";
+import CustomTable from "@/components/CustomTable";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -216,6 +217,56 @@ export default function BranchPage() {
       setDeleteBranch(null);
     }
   };
+
+  const branchColumns = [
+    {
+      header: "S.N.",
+      width: "40px",
+      render: (_, index) => index + 1,
+    },
+
+    {
+      header: "Name",
+      render: (row) => row.name,
+    },
+    {
+      header: "Email",
+      render: (row) => row.email,
+    },
+    {
+      header: "Address",
+      render: (row) => row.address,
+    },
+    {
+      header: "Phone",
+      render: (row) => row.mobile_number,
+    },
+    {
+      header: "Restaurent",
+      render: (row) => row.restaurant_name,
+    },
+
+    {
+      header: "Action",
+      width: "80px",
+      render: (row) => (
+        <div className="flex justify-end gap-1.5">
+          <button
+            onClick={() => handleEdit(row)}
+            className=" text-blue-500 hover:scale-110 transition cursor-pointer"
+          >
+            <PencilIcon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => confirmDelete(row)}
+            className=" text-red-500 hover:scale-110 transition cursor-pointer"
+          >
+            <TrashIcon className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   /* ================= UI ================= */
   return (
@@ -424,7 +475,7 @@ export default function BranchPage() {
         )}
 
         {/* TABLE WRAPPER */}
-        <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden">
+        {/* <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden">
           <div
             className="flex-1 overflow-y-auto scrollbar-hide"
             style={{ maxHeight: "calc(100vh - 150px)" }}
@@ -456,7 +507,6 @@ export default function BranchPage() {
                 </tr>
               </thead>
 
-              {/* BODY */}
               <tbody className="bg-white">
                 {filteredBranches.length === 0 ? (
                   <tr>
@@ -525,7 +575,14 @@ export default function BranchPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </div> */}
+
+        <CustomTable
+          data={filteredBranches}
+          columns={branchColumns}
+          emptyMessage="No branch found"
+          searchQuery={search}
+        />
       </div>
     </>
   );
