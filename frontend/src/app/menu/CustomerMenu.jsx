@@ -56,6 +56,7 @@ export default function CustomerMenu() {
   };
 
   useEffect(() => {
+    console.log("tableToken", tableToken);
     if (tableToken) {
       fetchTableInfo(tableToken);
       fetchMenus(tableToken);
