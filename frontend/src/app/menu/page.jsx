@@ -20,8 +20,6 @@
 
 import CustomerMenu from "./CustomerMenu.jsx";
 
-export const revalidate = 0; // disables ISR, forces fresh render
-
 export default function Page() {
   return <CustomerMenu />;
 }
