@@ -35,31 +35,23 @@
 
 "use client";
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function Main() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-
-    // ✅ If QR token exists → go to menu (customer flow)
-    const tableToken = searchParams.get("token");
-    if (tableToken) {
-      router.replace(`/menu?token=${tableToken}`);
-      return;
-    }
+    const adminToken = localStorage.getItem("adminToken");
 
     // ✅ Admin flow
-    if (token) {
+    if (adminToken) {
       router.replace("/dashboard");
     } else {
       router.replace("/auth/login");
     }
-  }, [router, searchParams]);
+  }, [router]);
 
-  return null;
+  return null; // nothing to render
 }
 
 /*
