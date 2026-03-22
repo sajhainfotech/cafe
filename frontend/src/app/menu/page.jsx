@@ -1,22 +1,22 @@
-"use client";
-
+import { Suspense } from "react";
 import CustomerMenu from "./CustomerMenu.jsx";
 
 export default function Page() {
-  return <CustomerMenu />;
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center"></div>
+      }
+    >
+      <CustomerMenu />
+    </Suspense>
+  );
 }
 
-// import { Suspense } from "react";
+// "use client";
+
 // import CustomerMenu from "./CustomerMenu.jsx";
 
 // export default function Page() {
-//   return (
-//     <Suspense
-//       fallback={
-//         <div className="min-h-screen flex items-center justify-center"></div>
-//       }
-//     >
-//       <CustomerMenu />
-//     </Suspense>
-//   );
+//   return <CustomerMenu />;
 // }
