@@ -193,17 +193,135 @@ const AdminOrdersDashboard = () => {
     }
   };
 
+  // const printBill = (order) => {
+  //   const w = window.open("", "", "width=400,height=600");
+  //   w.document.write(`<h2>Restaurant Bill</h2>`);
+  //   w.document.write(`<p>${order.tableName}</p>`);
+  //   w.document.write(`<p>${formatNepalTime(order.created_at)}</p><hr/>`);
+
+  //   order.items.forEach((i) => {
+  //     w.document.write(`<p>${i.quantity}x ${i.name} - Rs.${i.total_price}</p>`);
+  //   });
+
+  //   w.document.write(`<hr/><b>Total: Rs.${order.total_price}</b>`);
+  //   w.document.close();
+  //   w.print();
+  // };
+
   const printBill = (order) => {
     const w = window.open("", "", "width=400,height=600");
-    w.document.write(`<h2>Restaurant Bill</h2>`);
-    w.document.write(`<p>${order.tableName}</p>`);
-    w.document.write(`<p>${formatNepalTime(order.created_at)}</p><hr/>`);
 
-    order.items.forEach((i) => {
-      w.document.write(`<p>${i.quantity}x ${i.name} - Rs.${i.total_price}</p>`);
-    });
+    w.document.write(`
+    <html>
+      <head>
+        <title>Bill</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            color: #333;
+          }
 
-    w.document.write(`<hr/><b>Total: Rs.${order.total_price}</b>`);
+          .header {
+            text-align: center;
+            border-bottom: 1px dashed #999;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+          }
+
+          .header h2 {
+            margin: 0;
+            font-size: 20px;
+          }
+
+          .info {
+            font-size: 12px;
+            margin-bottom: 10px;
+          }
+
+          .table {
+            width: 100%;
+            font-size: 13px;
+          }
+
+          .item {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+          }
+
+          .item-name {
+            flex: 1;
+          }
+
+          .qty {
+            width: 40px;
+          }
+
+          .price {
+            width: 80px;
+            text-align: right;
+          }
+
+          .total {
+            border-top: 1px dashed #999;
+            margin-top: 15px;
+            padding-top: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+          }
+
+          .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 11px;
+            color: #777;
+          }
+        </style>
+      </head>
+
+      <body>
+
+        <div class="header">
+          <h2>🍽 Restaurant Bill</h2>
+        </div>
+
+        <div class="info">
+          <p><b>Table:</b> ${order.tableName}</p>
+          <p><b>Date:</b> ${formatNepalTime(order.created_at)}</p>
+        </div>
+
+        <div>
+          ${order.items
+            .map(
+              (i) => `
+              <div class="item">
+                <div class="item-name">
+                  ${i.name} <small>(${i.unit_name})</small>
+                </div>
+                <div class="qty">${i.quantity}x</div>
+                <div class="price">Rs.${i.total_price}</div>
+              </div>
+            `,
+            )
+            .join("")}
+        </div>
+
+        <div class="total">
+          <span>Total</span>
+          <span>Rs.${order.total_price}</span>
+        </div>
+
+        <div class="footer">
+          Thank you for dining with us 🙏
+        </div>
+
+      </body>
+    </html>
+  `);
+
     w.document.close();
     w.print();
   };

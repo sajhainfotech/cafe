@@ -83,7 +83,7 @@ export default function AdminHeader() {
   useEffect(() => {
     fetchNotificationData();
     const interval = setInterval(() => {
-      fetchNotificationData;
+      fetchNotificationData();
     }, 5000);
     return () => clearInterval(interval);
   }, []);
