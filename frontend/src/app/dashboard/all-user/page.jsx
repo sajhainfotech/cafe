@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
 
@@ -105,6 +105,23 @@ export default function AdminManagementPage() {
       toast.error("Failed to fetch branches");
     }
   };
+
+  // Filter User
+  const filteredUser = useMemo(() => {
+    const query = search.toLowerCase();
+    return admins.filter((b) => {
+      return (
+        b.username?.toLowerCase().includes(query) ||
+        b.first_name?.toLowerCase().includes(query) ||
+        b.last_name?.toLowerCase().includes(query) ||
+        `${b.first_name} ${b.last_name}`.toLowerCase().includes(query) ||
+        b.email?.toLowerCase().includes(query) ||
+        b.mobile_number?.toLowerCase().includes(query) ||
+        b.restaurant_name?.toLowerCase().includes(query) ||
+        b.branch_name?.toLowerCase().includes(query)
+      );
+    });
+  }, [admins, search]);
 
   // Delete admin
   const handleDeleteConfirmed = async () => {
@@ -248,7 +265,7 @@ export default function AdminManagementPage() {
           )}
         </div>
         <CustomTable
-          data={admins}
+          data={filteredUser}
           columns={userColumns}
           emptyMessage="No user found"
           searchQuery={search}

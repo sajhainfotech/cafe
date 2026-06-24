@@ -13,6 +13,7 @@ import {
   Menu,
   LayoutDashboardIcon,
   GaugeCircle,
+  SquareMenu,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 
@@ -34,17 +35,17 @@ export default function DesktopSidebar({ is_superuser, children }) {
 
   const menuItemsSuperUser = [
     { label: "Restaurant", route: "/dashboard/restaurant", icon: Store },
-    { label: "Branche", route: "/dashboard/branche", icon: Building2 },
+    { label: "Branch", route: "/dashboard/branche", icon: Building2 },
     { label: "User", route: "/dashboard/all-user", icon: User },
   ];
 
   const menuItemsStaff = [
     { label: "Dashboard", route: "/dashboard", icon: GaugeCircle },
     { label: "Order", route: "/dashboard/order", icon: ShoppingCart },
-    { label: "Menu", route: "/dashboard/menu", icon: Menu },
+    { label: "Menu", route: "/dashboard/menu", icon: SquareMenu },
     { label: "Table", route: "/dashboard/table-management", icon: Table },
     { label: "Unit", route: "/dashboard/unit", icon: Box },
-    { label: "Categorie", route: "/dashboard/category", icon: Tag },
+    { label: "Category", route: "/dashboard/category", icon: Tag },
   ];
 
   const menuItems = isSuperUser ? menuItemsSuperUser : menuItemsStaff;
@@ -65,7 +66,7 @@ export default function DesktopSidebar({ is_superuser, children }) {
               }
               setSidebarOpen(false);
             }}
-            className={`flex items-center gap-1 px-2 py-1 rounded border-b border-[#1C5721] w-full transition-colors cursor-pointer
+            className={`flex items-center gap-2 px-2 py-1 rounded border-b border-[#1C5721] w-full transition-colors cursor-pointer
       ${
         active
           ? "bg-white text-[#236B28] font-semibold"

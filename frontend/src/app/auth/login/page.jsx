@@ -62,9 +62,10 @@ const AdminLoginPage = () => {
       });
 
       const data = await res.json();
+      console.log("data", data);
 
       if (!res.ok) {
-        toast.error(data.detail || "Invalid credentials!");
+        toast.error(data.response || "Invalid credentials!");
         setLoading(false);
         return;
       }
