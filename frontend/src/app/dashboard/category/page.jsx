@@ -177,7 +177,7 @@ export default function AdminCategoryManager() {
         <ToastProvider />
 
         <HeaderWithSearch
-          title="Categorie"
+          title="Category"
           searchValue={search}
           onSearchChange={setSearch}
           buttonLabel="Create"

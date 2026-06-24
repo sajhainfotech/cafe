@@ -48,7 +48,7 @@ export default function CustomTable({
                   {columns.map((col, i) => (
                     <td
                       key={i}
-                      className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0"
+                      className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0 capitalize"
                     >
                       {col.render ? col.render(row, index) : row[col.accessor]}
                     </td>

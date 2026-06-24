@@ -158,15 +158,14 @@ export default function AdminMenuManager() {
         headers: { Authorization: `Token ${token}` },
       });
       const data = await res.json();
-      console.log("Menus API Data:", data);
       if (data.data && data.data.length > 0) {
-        console.log("Sample menu item_category:", data.data[0].item_category);
-        console.log(
-          "Sample menu item_category type:",
-          typeof data.data[0].item_category,
-        );
-        console.log("Sample menu unit:", data.data[0].unit);
-        console.log("Sample menu unit type:", typeof data.data[0].unit);
+        // console.log("Sample menu item_category:", data.data[0].item_category);
+        // console.log(
+        //   "Sample menu item_category type:",
+        //   typeof data.data[0].item_category,
+        // );
+        // console.log("Sample menu unit:", data.data[0].unit);
+        // console.log("Sample menu unit type:", typeof data.data[0].unit);
       }
       setMenus(data.data || []);
     } catch (err) {
@@ -324,46 +323,81 @@ export default function AdminMenuManager() {
     e.preventDefault();
     setLoading(true);
 
+    const errors = [];
+
+    if (!form.menu_date) {
+      errors.push("Date is required");
+    }
+
+    if (!form.categories || form.categories.length === 0) {
+      errors.push("At least one item is required");
+    }
+
+    form.categories.forEach((cat, index) => {
+      if (!cat.name || cat.name.trim() === "") {
+        errors.push("Name is required");
+      }
+
+      if (cat.price === "" || cat.price === null || cat.price === undefined) {
+        errors.push("Price is required");
+      } else if (isNaN(cat.price)) {
+        errors.push("Price must be a number");
+      } else if (Number(cat.price) <= 0) {
+        errors.push("Price must be greater than 0");
+      }
+
+      if (!cat.item_category || cat.item_category.trim() === "") {
+        errors.push("Category is required");
+      }
+
+      if (!cat.unit || cat.unit.trim() === "") {
+        errors.push("Unit is required");
+      }
+
+      if (!cat.imageFile) {
+        errors.push("Image is required");
+      }
+    });
+
+    if (errors.length > 0) {
+      errors.forEach((err) => {
+        toast.error(err, { position: "top-right" });
+      });
+
+      setLoading(false);
+      return;
+    }
+
     try {
       const token = getCookie("adminToken");
       if (!token) throw new Error("Login again!");
 
-      const formData = new FormData();
+      const payload = new FormData();
+
+      payload.append("menu_date", form.menu_date);
 
       if (editingMenuId) {
         const cat = form.categories[0];
 
-        formData.append("menu_date", form.menu_date);
-        formData.append("name", cat.name);
-        formData.append("price", cat.price);
-        formData.append("item_category", cat.item_category);
-        formData.append("unit", cat.unit);
+        payload.append("name", cat.name);
+        payload.append("price", cat.price);
+        payload.append("item_category", cat.item_category);
+        payload.append("unit", cat.unit);
 
         if (cat.imageFile) {
-          formData.append("image", cat.imageFile);
+          payload.append("image", cat.imageFile);
         }
       } else {
-        formData.append("menu_date", form.menu_date);
-
         form.categories.forEach((cat, index) => {
-          const categoryJSON = {
-            name: cat.name,
-            price: cat.price,
-            item_category: cat.item_category,
-            unit: cat.unit,
-          };
-          formData.append(`items[${index}][name]`, cat.name);
-          formData.append(`items[${index}][price]`, cat.price);
-          formData.append(`items[${index}][item_category]`, cat.item_category);
-          formData.append(`items[${index}][unit]`, cat.unit);
+          payload.append(`items[${index}][name]`, cat.name);
+          payload.append(`items[${index}][price]`, cat.price);
+          payload.append(`items[${index}][item_category]`, cat.item_category);
+          payload.append(`items[${index}][unit]`, cat.unit);
 
           if (cat.imageFile) {
-            formData.append(`items[${index}][image]`, cat.imageFile);
+            payload.append(`items[${index}][image]`, cat.imageFile);
           }
         });
-        for (let pair of formData.entries()) {
-          console.log(pair[0], pair[1]);
-        }
       }
 
       const url = editingMenuId
@@ -377,10 +411,15 @@ export default function AdminMenuManager() {
         headers: {
           Authorization: `Token ${token}`,
         },
-        body: formData,
+        body: payload,
       });
 
-      const resData = await res.json();
+      let resData;
+      try {
+        resData = await res.json();
+      } catch {
+        throw new Error("Invalid server response");
+      }
 
       if (!res.ok || resData.response_code !== "0") {
         throw new Error(resData.message || "Save failed");
@@ -391,7 +430,13 @@ export default function AdminMenuManager() {
       setForm({
         menu_date: "",
         categories: [
-          { name: "", price: "", item_category: "", unit: "", imageFile: null },
+          {
+            name: "",
+            price: "",
+            item_category: "",
+            unit: "",
+            imageFile: null,
+          },
         ],
       });
 
@@ -406,6 +451,7 @@ export default function AdminMenuManager() {
     setLoading(false);
   };
 
+  // Handle Edit
   const handleEditMenu = (menu) => {
     setEditingMenuId(menu.reference_id);
 
@@ -546,7 +592,6 @@ export default function AdminMenuManager() {
                       </tr>
                     </thead>
 
-                    {/* BODY */}
                     {/* BODY */}
                     <tbody>
                       {form.categories.map((cat, idx) => (
