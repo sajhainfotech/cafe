@@ -95,15 +95,12 @@ const AdminOrdersDashboard = () => {
   const previousOrderIds = useRef(new Set());
   const isFirstLoad = useRef(true);
   const audioInitialized = useRef(false);
-  const [restaurant, setRestaurant] = useState([]);
-  const [branch, setBranch] = useState([]);
-
-  const restaurentData = sessionStorage.getItem("restaurant_name");
-  const branchData = sessionStorage.getItem("branch_name");
+  const [restaurant, setRestaurant] = useState("");
+  const [branch, setBranch] = useState("");
 
   useEffect(() => {
-    setBranch(branchData);
-    setRestaurant(restaurentData);
+    setRestaurant(sessionStorage.getItem("restaurant_name") || "");
+    setBranch(sessionStorage.getItem("branch_name") || "");
   }, []);
 
   useEffect(() => {
