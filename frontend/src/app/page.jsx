@@ -1,38 +1,3 @@
-// "use client";
-// import React, { useEffect, useState } from "react";
-
-// import CustomerMenuPage from "./menu/page";
-// import { useRouter } from "next/navigation";
-// import { Commet } from "react-loading-indicators";
-
-// const Main = () => {
-//   const router = useRouter();
-//   const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-//   useEffect(() => {
-//     const adminToken = localStorage.getItem("adminToken");
-//     if (!adminToken) {
-//       router.replace("/auth/login");
-//       return;
-//     }
-//     setIsAuthenticated(true);
-//   }, []);
-//   return (
-//     <div>
-//       {!isAuthenticated ? (
-//         <div className="h-full w-full flex items-center justify-center">
-//           {" "}
-//           <Commet color="#fef3c6" size="medium" text="" textColor="" />
-//         </div>
-//       ) : (
-//         <CustomerMenuPage />
-//       )}
-//     </div>
-//   );
-// };
-
-// export default Main;
-
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -43,7 +8,6 @@ export default function Main() {
   useEffect(() => {
     const adminToken = localStorage.getItem("adminToken");
 
-    // ✅ Admin flow
     if (adminToken) {
       router.replace("/dashboard");
     } else {
@@ -51,21 +15,5 @@ export default function Main() {
     }
   }, [router]);
 
-  return null; // nothing to render
+  return null;
 }
-
-/*
-"use client";
-import React from "react";
-import CustomerMenuPage from "./menu/page";
-
-const Main = () => {
-  return (
-    <div>
-      <CustomerMenuPage />
-    </div>
-  );
-};
-
-export default Main;
-*/

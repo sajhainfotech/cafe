@@ -1,5 +1,3 @@
-// DashboardLayout.js
-
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
@@ -27,7 +25,6 @@ export default function DashboardLayout({ children }) {
   const [isSuperUser, setIsSuperUser] = useState(false);
 
   useEffect(() => {
-    // ✅ Only protect dashboard routes
     if (!pathname.startsWith("/dashboard")) return;
 
     const token = getCookie("adminToken");

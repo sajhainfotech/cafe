@@ -78,7 +78,6 @@ export default function Profile() {
   }, []);
 
   return (
-    // Background changed to #ddf4e2
     <div className="min-h-screen bg-[#ddf4e2] font-sans">
       <div className="px-4 sm:px-6 md:px-8 lg:px-10 py-6 max-w-7xl mx-auto">
         <div className="relative mb-8">
@@ -124,7 +123,6 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {[
             { title: "Restaurant", val: profile.restaurant_name, Icon: Store },
@@ -161,7 +159,6 @@ export default function Profile() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Info Sections */}
           {[
             {
               title: "Personal Information",
@@ -254,7 +251,6 @@ export default function Profile() {
           ))}
         </div>
 
-        {/* Floating Calendar */}
         <div
           className="fixed bottom-6 right-6 z-50"
           onMouseEnter={() => setShowCalendar(true)}

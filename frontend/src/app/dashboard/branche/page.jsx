@@ -11,6 +11,7 @@ import "@/styles/customButtons.css";
 import HeaderWithSearch from "@/components/HeaderWithSearch";
 import DeleteModal from "@/components/DeleteModal";
 import CustomTable from "@/components/CustomTable";
+import CustomPagination from "@/components/CustomPagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -74,7 +75,6 @@ function RestaurantDropdown({ restaurants, value, onChange }) {
   );
 }
 
-/* ================= MAIN PAGE ================= */
 export default function BranchPage() {
   const [branches, setBranches] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
@@ -93,35 +93,62 @@ export default function BranchPage() {
     email: "",
   });
 
+  const [validationErrors, setValidationErrors] = useState({
+    name: "",
+    address: "",
+    mobile_number: "",
+    restaurant_id: "",
+    email: "",
+  });
+
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
   const confirmDelete = (b) => {
     setDeleteBranch(b);
     setShowDeleteModal(true);
   };
-  /* ================= FETCH ================= */
+
   const fetchRestaurants = async () => {
     const token = getCookie("adminToken");
+
     const res = await fetch(`${API_URL}/api/restaurants/`, {
-      headers: { Authorization: `Token ${token}` },
+      headers: {
+        Authorization: `Token ${token}`,
+      },
     });
+
     const data = await res.json();
-    setRestaurants(data.data || []);
-    return data.data || [];
+
+    const restaurantList = data.data?.results || [];
+
+    setRestaurants(restaurantList);
+
+    return restaurantList;
   };
 
   const fetchBranches = async (restaurantList) => {
     const token = getCookie("adminToken");
+
     const res = await fetch(`${API_URL}/api/branches/`, {
-      headers: { Authorization: `Token ${token}` },
+      headers: {
+        Authorization: `Token ${token}`,
+      },
     });
+
     const data = await res.json();
 
-    const mapped = (data.data || []).map((b) => {
-      const r = restaurantList.find(
-        (x) => x.reference_id === b.restaurant_reference_id,
+    setTotalCount(data?.data?.count);
+
+    const mapped = (data.data?.results || []).map((b) => {
+      const restaurant = restaurantList.find(
+        (r) => r.reference_id === b.restaurant_reference_id,
       );
+
       return {
         ...b,
-        restaurant_name: r?.name || "-",
+        restaurant_name: restaurant?.name || "-",
       };
     });
 
@@ -130,11 +157,12 @@ export default function BranchPage() {
 
   useEffect(() => {
     const load = async () => {
-      const list = await fetchRestaurants();
-      fetchBranches(list);
+      const restaurantList = await fetchRestaurants();
+      await fetchBranches(restaurantList);
     };
+
     load();
-  }, []);
+  }, [page, rowsPerPage]);
 
   const filteredBranches = useMemo(() => {
     return branches.filter((b) =>
@@ -142,8 +170,14 @@ export default function BranchPage() {
     );
   }, [branches, search]);
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+
+    if (validationErrors[name]) {
+      setValidationErrors({ ...validationErrors, [name]: "" });
+    }
+  };
 
   const closeModal = () => {
     setShowForm(false);
@@ -153,11 +187,121 @@ export default function BranchPage() {
       address: "",
       mobile_number: "",
       restaurant_id: "",
+      email: "",
     });
+    setValidationErrors({
+      name: "",
+      address: "",
+      mobile_number: "",
+      restaurant_id: "",
+      email: "",
+    });
+  };
+
+  const validateForm = () => {
+    const errors = {
+      name: "",
+      address: "",
+      mobile_number: "",
+      restaurant_id: "",
+      email: "",
+    };
+    let hasError = false;
+
+    if (!form.name || form.name.trim() === "") {
+      errors.name = "Branch name is required";
+      hasError = true;
+    } else if (form.name.length < 2) {
+      errors.name = "Name must be at least 2 characters";
+      hasError = true;
+    } else if (form.name.length > 100) {
+      errors.name = "Name must be less than 100 characters";
+      hasError = true;
+    } else {
+      const duplicate = branches.some(
+        (b) =>
+          b.name.toLowerCase() === form.name.trim().toLowerCase() &&
+          b.reference_id !== editId,
+      );
+      if (duplicate) {
+        errors.name = "Branch name already exists";
+        hasError = true;
+      }
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!form.email || form.email.trim() === "") {
+      errors.email = "Email is required";
+      hasError = true;
+    } else if (!emailRegex.test(form.email)) {
+      errors.email = "Please enter a valid email address";
+      hasError = true;
+    } else {
+      const duplicate = branches.some(
+        (b) =>
+          b.email.toLowerCase() === form.email.trim().toLowerCase() &&
+          b.reference_id !== editId,
+      );
+      if (duplicate) {
+        errors.email = "Email already exists";
+        hasError = true;
+      }
+    }
+
+    if (!form.address || form.address.trim() === "") {
+      errors.address = "Address is required";
+      hasError = true;
+    } else if (form.address.length < 5) {
+      errors.address = "Address must be at least 5 characters";
+      hasError = true;
+    } else if (form.address.length > 200) {
+      errors.address = "Address must be less than 200 characters";
+      hasError = true;
+    }
+
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!form.mobile_number || form.mobile_number.trim() === "") {
+      errors.mobile_number = "Mobile number is required";
+      hasError = true;
+    } else if (!phoneRegex.test(form.mobile_number)) {
+      errors.mobile_number = "Please enter a valid 10-digit mobile number";
+      hasError = true;
+    } else {
+      const duplicate = branches.some(
+        (b) =>
+          b.mobile_number === form.mobile_number.trim() &&
+          b.reference_id !== editId,
+      );
+      if (duplicate) {
+        errors.mobile_number = "Mobile number already exists";
+        hasError = true;
+      }
+    }
+
+    if (!form.restaurant_id || form.restaurant_id === "") {
+      errors.restaurant_id = "Please select a restaurant";
+      hasError = true;
+    }
+
+    setValidationErrors(errors);
+    return !hasError;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const isValid = validateForm();
+    if (!isValid) {
+      const errorElement = document.querySelector(
+        ".border-red-500, [status='error']",
+      );
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        errorElement.focus();
+      }
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -167,20 +311,29 @@ export default function BranchPage() {
         : `${API_URL}/api/branches/`;
       const method = editId ? "PATCH" : "POST";
 
+      const payload = {
+        name: form.name.trim(),
+        address: form.address.trim(),
+        mobile_number: form.mobile_number.trim(),
+        restaurant_id: form.restaurant_id,
+        email: form.email.trim(),
+      };
+
       const res = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Token ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error("Save failed");
 
       toast.success(editId ? "Updated!" : "Created!");
       closeModal();
-      fetchBranches(restaurants);
+      const restaurantList = await fetchRestaurants();
+      await fetchBranches(restaurantList);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -195,6 +348,14 @@ export default function BranchPage() {
       address: b.address,
       mobile_number: b.mobile_number,
       restaurant_id: b.restaurant_reference_id,
+      email: b.email || "",
+    });
+    setValidationErrors({
+      name: "",
+      address: "",
+      mobile_number: "",
+      restaurant_id: "",
+      email: "",
     });
     setShowForm(true);
   };
@@ -209,7 +370,8 @@ export default function BranchPage() {
       if (!res.ok) throw new Error("Delete failed");
 
       toast.success("Deleted!");
-      fetchBranches(restaurants);
+      const restaurantList = await fetchRestaurants();
+      await fetchBranches(restaurantList);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -222,16 +384,15 @@ export default function BranchPage() {
     {
       header: "S.N.",
       width: "40px",
-      render: (_, index) => index + 1,
+      render: (_, index) => (page - 1) * rowsPerPage + index + 1,
     },
-
     {
       header: "Name",
       render: (row) => row.name,
     },
     {
       header: "Email",
-      render: (row) => row.email,
+      render: (row) => row.email || "-",
     },
     {
       header: "Address",
@@ -242,10 +403,9 @@ export default function BranchPage() {
       render: (row) => row.mobile_number,
     },
     {
-      header: "Restaurent",
+      header: "Restaurant",
       render: (row) => row.restaurant_name,
     },
-
     {
       header: "Action",
       width: "80px",
@@ -268,25 +428,23 @@ export default function BranchPage() {
     },
   ];
 
-  /* ================= UI ================= */
   return (
     <>
       <div className="mx-auto min-h-screen font-sans p-4 bg-[#ddf4e2] ">
         <ToastProvider />
 
-        {/* ================= HEADER ================= */}
         <HeaderWithSearch
           title="Branch"
           searchValue={search}
           onSearchChange={setSearch}
           onButtonClick={() => {
+            closeModal();
             setShowForm(true);
           }}
           buttonLabel="Create"
           placeholder="Search Branch..."
         />
 
-        {/* DELETE CONFIRM MODAL */}
         {showDeleteModal && (
           <DeleteModal
             branch={deleteBranch?.name}
@@ -299,7 +457,6 @@ export default function BranchPage() {
           />
         )}
 
-        {/* MODAL */}
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-[1px] p-4">
             <div className="bg-white w-full max-w-[440px] rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300">
@@ -316,7 +473,7 @@ export default function BranchPage() {
               </div>
 
               <div className="p-4 bg-[#ddf4e2]/20">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                   <div className="grid grid-cols-1 gap-3 bg-white p-4 rounded-md border border-gray-300 shadow-sm">
                     <div className="space-y-1">
                       <label className="block text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
@@ -327,9 +484,19 @@ export default function BranchPage() {
                         value={form.name}
                         onChange={handleChange}
                         placeholder="Enter branch name"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className={`w-full border px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400 ${
+                          validationErrors.name
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }`}
                         required
+                        autoFocus
                       />
+                      {validationErrors.name && (
+                        <p className="text-red-500 text-[10px] mt-0.5">
+                          {validationErrors.name}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1">
@@ -342,9 +509,18 @@ export default function BranchPage() {
                         value={form.email}
                         onChange={handleChange}
                         placeholder="example@mail.com"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className={`w-full border px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400 ${
+                          validationErrors.email
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }`}
                         required
                       />
+                      {validationErrors.email && (
+                        <p className="text-red-500 text-[10px] mt-0.5">
+                          {validationErrors.email}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1">
@@ -356,9 +532,18 @@ export default function BranchPage() {
                         value={form.address}
                         onChange={handleChange}
                         placeholder="Location details"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className={`w-full border px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400 ${
+                          validationErrors.address
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }`}
                         required
                       />
+                      {validationErrors.address && (
+                        <p className="text-red-500 text-[10px] mt-0.5">
+                          {validationErrors.address}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1">
@@ -375,9 +560,29 @@ export default function BranchPage() {
                           }
                         }}
                         placeholder="98XXXXXXXX"
-                        className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400"
+                        className={`w-full border px-3 py-1.5 rounded text-[12px] outline-none focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 transition-all placeholder:text-gray-400 ${
+                          validationErrors.mobile_number
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }`}
                         required
                       />
+                      {validationErrors.mobile_number && (
+                        <p className="text-red-500 text-[10px] mt-0.5">
+                          {validationErrors.mobile_number}
+                        </p>
+                      )}
+                      {form.mobile_number && form.mobile_number.length > 0 && (
+                        <p
+                          className={`text-[10px] mt-0.5 ${
+                            form.mobile_number.length === 10
+                              ? "text-green-500"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {form.mobile_number.length}/10 digits
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1">
@@ -393,11 +598,15 @@ export default function BranchPage() {
                           optionFilterProp="children"
                           name="restaurant_id"
                           value={form.restaurant_id || undefined}
-                          onChange={(value) =>
-                            handleChange({
-                              target: { name: "restaurant_id", value },
-                            })
-                          }
+                          onChange={(value) => {
+                            setForm({ ...form, restaurant_id: value });
+                            if (validationErrors.restaurant_id) {
+                              setValidationErrors({
+                                ...validationErrors,
+                                restaurant_id: "",
+                              });
+                            }
+                          }}
                           listHeight={220}
                           dropdownStyle={{
                             borderRadius: "12px",
@@ -409,10 +618,13 @@ export default function BranchPage() {
                             width: "100%",
                             height: "38px",
                           }}
+                          status={validationErrors.restaurant_id ? "error" : ""}
                           styles={{
                             selector: {
                               borderRadius: "6px",
-                              borderColor: "#d9d9d9",
+                              borderColor: validationErrors.restaurant_id
+                                ? "#ef4444"
+                                : "#d9d9d9",
                               boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
                               transition: "all 0.2s",
                             },
@@ -423,7 +635,10 @@ export default function BranchPage() {
                               "0 0 0 3px rgba(35, 107, 40, 0.1)";
                           }}
                           onBlur={(e) => {
-                            e.currentTarget.style.borderColor = "#d9d9d9";
+                            e.currentTarget.style.borderColor =
+                              validationErrors.restaurant_id
+                                ? "#ef4444"
+                                : "#d9d9d9";
                             e.currentTarget.style.boxShadow =
                               "0 1px 2px 0 rgba(0, 0, 0, 0.05)";
                           }}
@@ -436,7 +651,6 @@ export default function BranchPage() {
                                 borderRadius: "8px",
                                 marginBottom: "4px",
                                 fontSize: "13px",
-
                                 backgroundColor:
                                   form.restaurant_id === res.reference_id
                                     ? "#eef5ee"
@@ -456,10 +670,22 @@ export default function BranchPage() {
                           ))}
                         </Select>
                       </div>
+                      {validationErrors.restaurant_id && (
+                        <p className="text-red-500 text-[10px] mt-0.5">
+                          {validationErrors.restaurant_id}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="px-4 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
                     <button
                       type="submit"
                       disabled={loading}
@@ -474,12 +700,18 @@ export default function BranchPage() {
           </div>
         )}
 
-        {/* TABLE WRAPPER */}
         <CustomTable
           data={filteredBranches}
           columns={branchColumns}
           emptyMessage="No branch found"
           searchQuery={search}
+        />
+        <CustomPagination
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          totalCount={totalCount}
         />
       </div>
     </>
