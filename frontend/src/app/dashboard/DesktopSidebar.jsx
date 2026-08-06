@@ -93,7 +93,6 @@ export default function DesktopSidebar({ is_superuser, children }) {
   return (
     <>
       <div className="flex min-h-screen">
-        {/* Desktop Sidebar */}
         <aside
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
@@ -101,7 +100,6 @@ export default function DesktopSidebar({ is_superuser, children }) {
             shadow-md border-r border-[#1C5721] transition-all duration-300
             ${collapsed && !hovered ? "w-13" : "w-50"}`}
         >
-          {/* Header */}
           <div className="flex items-center gap-2 px-2 py-2 h-16">
             <div className="p-2 rounded-md bg-[#1C5721] hover:bg-[#184A1C] transition-colors">
               <LayoutDashboardIcon size={20} className="text-[#EAF5EA]" />
@@ -119,7 +117,6 @@ export default function DesktopSidebar({ is_superuser, children }) {
           </nav>
         </aside>
 
-        {/* Mobile Sidebar */}
         <div
           className={`fixed inset-0 z-40 lg:hidden transition-all ${
             collapsed ? "pointer-events-none" : ""
@@ -137,7 +134,6 @@ export default function DesktopSidebar({ is_superuser, children }) {
       shadow-md transform transition-transform duration-300
       ${collapsed ? "-translate-x-full" : "translate-x-0"}`}
           >
-            {/* Mobile Header */}
             <div className="flex items-center justify-between gap-2 px-3 py-2 h-14 border-b border-[#1C5721]">
               <div className="flex items-center gap-2">
                 <LayoutDashboardIcon size={18} className="text-[#EAF5EA]" />

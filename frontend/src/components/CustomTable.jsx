@@ -13,7 +13,6 @@ export default function CustomTable({
         style={{ maxHeight: "calc(100vh - 150px)" }}
       >
         <table className="min-w-full border-separate border-spacing-0 table-fixed text-[11px]">
-          {/* HEADER */}
           <thead className="sticky top-0 bg-[#fafafa] z-10">
             <tr>
               {columns.map((col, i) => (
@@ -28,7 +27,6 @@ export default function CustomTable({
             </tr>
           </thead>
 
-          {/* BODY */}
           <tbody className="bg-white">
             {data.length === 0 ? (
               <tr>
@@ -48,7 +46,7 @@ export default function CustomTable({
                   {columns.map((col, i) => (
                     <td
                       key={i}
-                      className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0 capitalize"
+                      className="border-b border-r border-gray-300 px-2 py-0.5 last:border-r-0"
                     >
                       {col.render ? col.render(row, index) : row[col.accessor]}
                     </td>

@@ -12,11 +12,3 @@ export default function Page() {
     </Suspense>
   );
 }
-
-// "use client";
-
-// import CustomerMenu from "./CustomerMenu.jsx";
-
-// export default function Page() {
-//   return <CustomerMenu />;
-// }

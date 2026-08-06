@@ -7,19 +7,17 @@ const ToastProvider = () => {
     <Toaster
       position="top-right"
       toastOptions={{
-        // Default Amber Theme (smaller height)
         style: {
           background: "#FEF3C7",
           color: "#92400E",
           border: "1px solid #FCD34D",
-          padding: "6px 12px", // smaller padding = shorter height
+          padding: "6px 12px",
           borderRadius: "8px",
           fontSize: "14px",
-          lineHeight: "1.2", // makes text more compact
-          minHeight: "auto", // remove default minHeight
+          lineHeight: "1.2",
+          minHeight: "auto",
         },
 
-        // Success Toast - Green
         success: {
           style: {
             background: "#ECFDF5",
@@ -31,7 +29,6 @@ const ToastProvider = () => {
           },
         },
 
-        // Error Toast - Red
         error: {
           style: {
             background: "#FEF2F2",

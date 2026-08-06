@@ -10,6 +10,7 @@ import { X } from "lucide-react";
 import HeaderWithSearch from "@/components/HeaderWithSearch";
 import DeleteModal from "@/components/DeleteModal";
 import CustomTable from "@/components/CustomTable";
+import CustomPagination from "@/components/CustomPagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -32,11 +33,17 @@ export default function AdminMenuUnitPage() {
   const [deleteUnit, setDeleteUnit] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  const [validationError, setValidationError] = useState("");
+
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
   const unitColumns = [
     {
       header: "S.N.",
-      width: "50px",
-      render: (_, index) => index + 1,
+      width: "40px",
+      render: (_, index) => (page - 1) * rowsPerPage + index + 1,
     },
     {
       header: "Name",
@@ -77,38 +84,80 @@ export default function AdminMenuUnitPage() {
       const token = getCookie("adminToken");
       if (!token) return;
 
-      const res = await fetch(`${API_URL}/api/units/`, {
-        headers: { Authorization: `Token ${token}` },
-      });
+      const res = await fetch(
+        `${API_URL}/api/units/?page=${page}&page_size=${rowsPerPage}`,
+        {
+          headers: { Authorization: `Token ${token}` },
+        },
+      );
       const data = await res.json();
-      setUnits(data.data || []);
+      setUnits(data.data?.results || []);
+      setTotalCount(data?.data?.count || 0);
     } catch (err) {
       toast.error("Failed to fetch units");
     }
   };
 
-  const isFetched = useRef(false);
   useEffect(() => {
-    if (!isFetched.current) {
-      const loadInitialData = async () => {
-        const token = getCookie("adminToken");
-        if (token) {
-          await Promise.all([fetchUnits()]);
-        }
-      };
-      loadInitialData();
-      isFetched.current = true;
-    }
-  }, []);
+    const loadUnits = async () => {
+      const token = getCookie("adminToken");
+      if (token) {
+        await fetchUnits();
+      }
+    };
+
+    loadUnits();
+  }, [page, rowsPerPage]);
+
   const filteredUnits = useMemo(() => {
     return units.filter((u) =>
       u.name.toLowerCase().includes(search.toLowerCase()),
     );
   }, [units, search]);
 
+  const validateForm = () => {
+    if (!unitName || unitName.trim() === "") {
+      setValidationError("Unit name is required");
+      return false;
+    }
+
+    if (!editId) {
+      const duplicate = units.some(
+        (u) => u.name.toLowerCase() === unitName.trim().toLowerCase(),
+      );
+      if (duplicate) {
+        setValidationError("Unit name already exists");
+        return false;
+      }
+    } else {
+      const duplicate = units.some(
+        (u) =>
+          u.name.toLowerCase() === unitName.trim().toLowerCase() &&
+          u.reference_id !== editId,
+      );
+      if (duplicate) {
+        setValidationError("Unit name already exists");
+        return false;
+      }
+    }
+
+    setValidationError("");
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!unitName.trim()) return toast.error("Unit name required");
+
+    const isValid = validateForm();
+    if (!isValid) {
+      const errorElement = document.querySelector(".border-red-500");
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        errorElement.focus();
+      }
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -145,6 +194,7 @@ export default function AdminMenuUnitPage() {
   const handleEdit = (unit) => {
     setEditId(unit.reference_id);
     setUnitName(unit.name);
+    setValidationError("");
     setShowForm(true);
   };
 
@@ -177,6 +227,7 @@ export default function AdminMenuUnitPage() {
     setShowForm(false);
     setEditId(null);
     setUnitName("");
+    setValidationError("");
   };
 
   return (
@@ -188,6 +239,7 @@ export default function AdminMenuUnitPage() {
           searchValue={search}
           onSearchChange={setSearch}
           onButtonClick={() => {
+            closeModal();
             setShowForm(true);
           }}
           buttonLabel="Create"
@@ -202,7 +254,6 @@ export default function AdminMenuUnitPage() {
           />
         )}
 
-        {/* FORM MODAL */}
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[1px]">
             <div className="bg-white w-full max-w-[320px] rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300">
@@ -211,14 +262,18 @@ export default function AdminMenuUnitPage() {
                   {editId ? "Edit Unit" : "Add New Unit"}
                 </h2>
                 <button
-                  onClick={() => setShowForm(false)}
+                  onClick={closeModal}
                   className="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-gray-100 cursor-pointer"
                 >
                   <X size={16} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-4 space-y-4">
+              <form
+                onSubmit={handleSubmit}
+                className="p-4 space-y-4"
+                noValidate
+              >
                 <div className="space-y-1.5">
                   <label className="block text-[12px] font-semibold text-gray-600">
                     Unit Name <span className="text-red-500">*</span>
@@ -226,14 +281,34 @@ export default function AdminMenuUnitPage() {
                   <input
                     type="text"
                     value={unitName}
-                    onChange={(e) => setUnitName(e.target.value)}
+                    onChange={(e) => {
+                      setUnitName(e.target.value);
+                      if (validationError) {
+                        setValidationError("");
+                      }
+                    }}
                     placeholder="e.g. Kg, Plate, Piece"
-                    className="w-full px-3 py-1.5 text-[12px] border border-gray-300 rounded focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 outline-none transition-all placeholder:text-gray-400"
+                    className={`w-full px-3 py-1.5 text-[12px] border rounded focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 outline-none transition-all placeholder:text-gray-400 ${
+                      validationError ? "border-red-500" : "border-gray-300"
+                    }`}
                     required
+                    autoFocus
                   />
+                  {validationError && (
+                    <p className="text-red-500 text-[10px] mt-0.5">
+                      {validationError}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
                   <button
                     type="submit"
                     disabled={loading}
@@ -252,12 +327,19 @@ export default function AdminMenuUnitPage() {
           </div>
         )}
 
-        {/* UNIT TABLE */}
         <CustomTable
           data={filteredUnits}
           columns={unitColumns}
           emptyMessage="No unit found"
           searchQuery={search}
+        />
+
+        <CustomPagination
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          totalCount={totalCount}
         />
       </div>
     </>

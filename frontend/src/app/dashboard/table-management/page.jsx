@@ -11,6 +11,7 @@ import HeaderWithSearch from "@/components/HeaderWithSearch";
 import { generateTableQR } from "@/lib/generateTableQR.js";
 import DeleteModal from "@/components/DeleteModal";
 import CustomTable from "@/components/CustomTable";
+import CustomPagination from "@/components/CustomPagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -35,11 +36,17 @@ export default function TableManager() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
 
+  const [validationError, setValidationError] = useState("");
+
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
   const tableColumns = [
     {
       header: "S.N.",
-      width: "50px",
-      render: (_, index) => index + 1,
+      width: "40px",
+      render: (_, index) => (page - 1) * rowsPerPage + index + 1,
     },
     {
       header: "Table Name",
@@ -96,21 +103,23 @@ export default function TableManager() {
     },
   ];
 
-  // ---------------- Fetch Tables ----------------
   const fetchTables = async () => {
     try {
       const token = getCookie("adminToken");
       if (!token) return toast.error("Login first!");
 
-      const res = await fetch(`${API_URL}/api/tables/`, {
-        headers: { Authorization: `Token ${token}` },
-      });
+      const res = await fetch(
+        `${API_URL}/api/tables/?page=${page}&page_size=${rowsPerPage}`,
+        {
+          headers: { Authorization: `Token ${token}` },
+        },
+      );
       const data = await res.json();
       if (!res.ok || data.response_code !== "0")
         throw new Error(data.response || "Failed to fetch tables");
 
       const tablesWithQR = await Promise.all(
-        (data.data || []).map(async (t) => {
+        (data.data?.results || []).map(async (t) => {
           const tokenNumber =
             t.token || new URL(t.qr_code_url || "").searchParams.get("token");
           const qrBase64 = await generateTableQR(tokenNumber);
@@ -119,25 +128,19 @@ export default function TableManager() {
       );
 
       setTables(tablesWithQR);
+      setTotalCount(data?.data?.count || 0);
     } catch (err) {
       toast.error(err.message || "Failed to load tables");
       console.error(err);
     }
   };
 
-  const isFetched = useRef(false);
   useEffect(() => {
-    if (!isFetched.current) {
-      const loadInitialData = async () => {
-        const token = getCookie("adminToken");
-        if (token) {
-          await Promise.all([fetchTables()]);
-        }
-      };
-      loadInitialData();
-      isFetched.current = true;
+    const token = getCookie("adminToken");
+    if (token) {
+      fetchTables();
     }
-  }, []);
+  }, [page, rowsPerPage]);
 
   const filteredTables = tables.filter((t) =>
     t.table_number.toString().includes(search.trim()),
@@ -147,15 +150,45 @@ export default function TableManager() {
     setSearchQuery(search);
   }, [search]);
 
-  // ---------------- Form ----------------
   const resetForm = () => {
     setTableName("");
     setEditId(null);
+    setValidationError("");
+  };
+
+  const validateForm = () => {
+    if (!tableName || tableName.trim() === "") {
+      setValidationError("Table number is required");
+      return false;
+    }
+
+    if (!editId) {
+      const duplicate = tables.some(
+        (t) => t.table_number.toString() === tableName.trim(),
+      );
+      if (duplicate) {
+        setValidationError("Table number already exists");
+        return false;
+      }
+    }
+
+    setValidationError("");
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!tableName) return toast.error("Table number required");
+
+    const isValid = validateForm();
+    if (!isValid) {
+      const errorElement = document.querySelector(".border-red-500");
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        errorElement.focus();
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const token = getCookie("adminToken");
@@ -168,7 +201,7 @@ export default function TableManager() {
       const qr = tableToken ? await generateTableQR(tableToken) : "";
 
       const formData = new FormData();
-      formData.append("table_number", tableName);
+      formData.append("table_number", tableName.trim());
       formData.append("qr_code", qr);
       formData.append("token", tableToken);
       if (editId) formData.append("table_id", editId);
@@ -202,6 +235,7 @@ export default function TableManager() {
   const handleEdit = (t) => {
     setEditId(t.reference_id);
     setTableName(t.table_number);
+    setValidationError("");
     setShowForm(true);
   };
 
@@ -244,7 +278,6 @@ export default function TableManager() {
         placeholder="Search Table..."
       />
 
-      {/* Delete Modal */}
       {showDeleteModal && (
         <DeleteModal
           branch={deleteTable?.table_number}
@@ -253,7 +286,6 @@ export default function TableManager() {
         />
       )}
 
-      {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[1px]">
           <div className="bg-white w-full max-w-[320px] rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300">
@@ -262,14 +294,17 @@ export default function TableManager() {
                 {editId ? "Edit Table" : "Add New Table"}
               </h2>
               <button
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
                 className="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-gray-100 cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-4 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 space-y-4" noValidate>
               <div className="space-y-1.5">
                 <label className="block text-[12px] font-semibold text-gray-600">
                   Table Number <span className="text-red-500">*</span>
@@ -277,14 +312,37 @@ export default function TableManager() {
                 <input
                   type="text"
                   value={tableName}
-                  onChange={(e) => setTableName(e.target.value)}
-                  placeholder="e.g. T-01"
-                  className="w-full px-3 py-1.5 text-[12px] border border-gray-300 rounded focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 outline-none transition-all placeholder:text-gray-400"
+                  onChange={(e) => {
+                    setTableName(e.target.value);
+                    if (validationError) {
+                      setValidationError("");
+                    }
+                  }}
+                  placeholder="e.g. 1"
+                  className={`w-full px-3 py-1.5 text-[12px] border rounded focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 outline-none transition-all placeholder:text-gray-400 ${
+                    validationError ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
+                  autoFocus
                 />
+                {validationError && (
+                  <p className="text-red-500 text-[10px] mt-0.5">
+                    {validationError}
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    resetForm();
+                  }}
+                  className="px-4 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   disabled={loading}
@@ -303,7 +361,6 @@ export default function TableManager() {
         </div>
       )}
 
-      {/* Table List */}
       <CustomTable
         data={filteredTables}
         columns={tableColumns}
@@ -311,7 +368,14 @@ export default function TableManager() {
         searchQuery={searchQuery}
       />
 
-      {/* QR Modal */}
+      <CustomPagination
+        page={page}
+        setPage={setPage}
+        rowsPerPage={rowsPerPage}
+        setRowsPerPage={setRowsPerPage}
+        totalCount={totalCount}
+      />
+
       {openQr && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"

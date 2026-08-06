@@ -10,6 +10,7 @@ import { X } from "lucide-react";
 import HeaderWithSearch from "@/components/HeaderWithSearch";
 import DeleteModal from "@/components/DeleteModal";
 import CustomTable from "@/components/CustomTable";
+import CustomPagination from "@/components/CustomPagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -33,11 +34,20 @@ export default function AdminCategoryManager() {
   const [deleteCategory, setDeleteCategory] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  const [validationErrors, setValidationErrors] = useState({
+    name: "",
+    description: "",
+  });
+
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
   const categoryColumns = [
     {
       header: "S.N.",
       width: "40px",
-      render: (_, index) => index + 1,
+      render: (_, index) => (page - 1) * rowsPerPage + index + 1,
     },
     {
       header: "Name",
@@ -45,7 +55,7 @@ export default function AdminCategoryManager() {
     },
     {
       header: "Description",
-      render: (row) => row.description,
+      render: (row) => row.description || "-",
     },
     {
       header: "Action",
@@ -81,6 +91,7 @@ export default function AdminCategoryManager() {
       });
       const data = await res.json();
       setCategories(data.data || []);
+      setTotalCount(data.data?.length || 0);
     } catch (err) {
       console.error(err);
       toast.error("Failed to fetch categories");
@@ -97,14 +108,59 @@ export default function AdminCategoryManager() {
     );
   }, [categories, search]);
 
+  const validateForm = () => {
+    const errors = {
+      name: "",
+      description: "",
+    };
+    let hasError = false;
+
+    if (!categoryName || categoryName.trim() === "") {
+      errors.name = "Category name is required";
+      hasError = true;
+    } else {
+      const duplicate = categories.some(
+        (cat) =>
+          cat.name.toLowerCase() === categoryName.trim().toLowerCase() &&
+          cat.reference_id !== editId,
+      );
+      if (duplicate) {
+        errors.name = "Category name already exists";
+        hasError = true;
+      }
+    }
+
+    if (description && description.length > 500) {
+      errors.description = "Description must be less than 500 characters";
+      hasError = true;
+    }
+
+    setValidationErrors(errors);
+    return !hasError;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const isValid = validateForm();
+    if (!isValid) {
+      const errorElement = document.querySelector(".border-red-500");
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        errorElement.focus();
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const token = getCookie("adminToken");
       if (!token) throw new Error("Login again!");
 
-      const payload = { name: categoryName, description };
+      const payload = {
+        name: categoryName.trim(),
+        description: description.trim() || "",
+      };
       const url = editId
         ? `${API_URL}/api/item-categories/${editId}/`
         : `${API_URL}/api/item-categories/`;
@@ -135,6 +191,7 @@ export default function AdminCategoryManager() {
     setEditId(cat.reference_id);
     setCategoryName(cat.name);
     setDescription(cat.description || "");
+    setValidationErrors({ name: "", description: "" });
     setShowForm(true);
   };
 
@@ -143,6 +200,7 @@ export default function AdminCategoryManager() {
     setEditId(null);
     setCategoryName("");
     setDescription("");
+    setValidationErrors({ name: "", description: "" });
   };
 
   const handleDeleteConfirmed = async () => {
@@ -183,6 +241,7 @@ export default function AdminCategoryManager() {
           buttonLabel="Create"
           placeholder="Search Category..."
           onButtonClick={() => {
+            closeModal();
             setShowForm(true);
           }}
         />
@@ -212,7 +271,11 @@ export default function AdminCategoryManager() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-4 space-y-3">
+              <form
+                onSubmit={handleSubmit}
+                className="p-4 space-y-3"
+                noValidate
+              >
                 <div className="space-y-1">
                   <label className="block text-[12px] font-medium text-gray-600">
                     Name <span className="text-red-500">*</span>
@@ -220,11 +283,26 @@ export default function AdminCategoryManager() {
                   <input
                     type="text"
                     value={categoryName}
-                    onChange={(e) => setCategoryName(e.target.value)}
+                    onChange={(e) => {
+                      setCategoryName(e.target.value);
+                      if (validationErrors.name) {
+                        setValidationErrors({ ...validationErrors, name: "" });
+                      }
+                    }}
                     placeholder="e.g. Beverages"
-                    className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] focus:border-[#236B28] focus:ring-1 focus:ring-[#236B28]/20 outline-none transition-all placeholder:text-gray-400"
+                    className={`w-full border px-3 py-1.5 rounded text-[12px] focus:border-[#236B28] focus:ring-1 focus:ring-[#236B28]/20 outline-none transition-all placeholder:text-gray-400 ${
+                      validationErrors.name
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
                     required
+                    autoFocus
                   />
+                  {validationErrors.name && (
+                    <p className="text-red-500 text-[10px] mt-0.5">
+                      {validationErrors.name}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -233,14 +311,49 @@ export default function AdminCategoryManager() {
                   </label>
                   <textarea
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => {
+                      setDescription(e.target.value);
+                      if (validationErrors.description) {
+                        setValidationErrors({
+                          ...validationErrors,
+                          description: "",
+                        });
+                      }
+                    }}
                     placeholder="Brief description..."
                     rows={3}
-                    className="w-full border border-gray-300 px-3 py-1.5 rounded text-[12px] focus:border-[#236B28] focus:ring-1 focus:ring-[#236B28]/20 outline-none transition-all placeholder:text-gray-400 resize-none"
+                    className={`w-full border px-3 py-1.5 rounded text-[12px] focus:border-[#236B28] focus:ring-1 focus:ring-[#236B28]/20 outline-none transition-all placeholder:text-gray-400 resize-none ${
+                      validationErrors.description
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
                   />
+                  {validationErrors.description && (
+                    <p className="text-red-500 text-[10px] mt-0.5">
+                      {validationErrors.description}
+                    </p>
+                  )}
+                  {description && description.length > 0 && (
+                    <p
+                      className={`text-[10px] mt-0.5 ${
+                        description.length > 450
+                          ? "text-orange-500"
+                          : "text-gray-400"
+                      }`}
+                    >
+                      {description.length}/500 characters
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2 border-t border-gray-50 mt-4">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
                   <button
                     type="submit"
                     disabled={loading}
@@ -259,6 +372,14 @@ export default function AdminCategoryManager() {
           columns={categoryColumns}
           emptyMessage="No category found"
           searchQuery={search}
+        />
+
+        <CustomPagination
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          totalCount={totalCount}
         />
       </div>
     </>

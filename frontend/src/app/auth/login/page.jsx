@@ -12,6 +12,11 @@ const AdminLoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [validationErrors, setValidationErrors] = useState({
+    username: "",
+    password: "",
+  });
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const getCookie = (name) => {
@@ -41,12 +46,64 @@ const AdminLoginPage = () => {
       router.replace("/dashboard");
       return;
     }
-
-    localStorage.clear();
+    sessionStorage.clear();
   }, [router]);
+
+  const validateForm = () => {
+    const errors = {
+      username: "",
+      password: "",
+    };
+    let hasError = false;
+
+    if (!username || username.trim() === "") {
+      errors.username = "Username is required";
+      hasError = true;
+    } else if (username.length < 3) {
+      errors.username = "Username must be at least 3 characters";
+      hasError = true;
+    } else if (username.length > 50) {
+      errors.username = "Username must be less than 50 characters";
+      hasError = true;
+    }
+
+    if (!password || password.trim() === "") {
+      errors.password = "Password is required";
+      hasError = true;
+    } else if (password.length < 3) {
+      errors.password = "Password must be at least 3 characters";
+      hasError = true;
+    } else if (password.length > 30) {
+      errors.password = "Password must be less than 30 characters";
+      hasError = true;
+    }
+
+    setValidationErrors(errors);
+    return !hasError;
+  };
+
+  const handleFieldChange = (field, value) => {
+    if (field === "username") setUsername(value);
+    if (field === "password") setPassword(value);
+
+    if (validationErrors[field]) {
+      setValidationErrors({ ...validationErrors, [field]: "" });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const isValid = validateForm();
+    if (!isValid) {
+      const errorElement = document.querySelector(".border-red-500");
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        errorElement.focus();
+      }
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -62,7 +119,6 @@ const AdminLoginPage = () => {
       });
 
       const data = await res.json();
-      console.log("data", data);
 
       if (!res.ok) {
         toast.error(data.response || "Invalid credentials!");
@@ -81,6 +137,26 @@ const AdminLoginPage = () => {
 
       const displayName = data.first_name || username;
 
+      const userInfo = {
+        user_id: data.user_id || "",
+        first_name: data.first_name || username,
+        last_name: data.last_name || "",
+        email: data.email || "",
+        is_staff: data.is_staff || false,
+        is_superuser: data.is_superuser || false,
+        restaurant_name: data.restaurant_name || "",
+        branch_name: data.branch_name || "",
+      };
+
+      sessionStorage.setItem("user_info", JSON.stringify(userInfo));
+
+      if (data.restaurant_name) {
+        sessionStorage.setItem("restaurant_name", data.restaurant_name);
+      }
+      if (data.branch_name) {
+        sessionStorage.setItem("branch_name", data.branch_name);
+      }
+
       try {
         const userId = data.user_id || data.userId || data.user || null;
         if (userId) {
@@ -95,13 +171,20 @@ const AdminLoginPage = () => {
             const profileData = await profileRes.json();
             const src = profileData.data || {};
 
+            const updatedUserInfo = {
+              ...userInfo,
+              first_name: src.first_name || userInfo.first_name,
+              last_name: src.last_name || "",
+              email: src.email || userInfo.email,
+              mobile_number: src.mobile_number || "",
+              address: src.address || "",
+              restaurant_name: data.restaurant_name || userInfo.restaurant_name,
+              branch_name: data.branch_name || userInfo.branch_name,
+            };
+
             sessionStorage.setItem(
               "user_info",
-              JSON.stringify({
-                first_name: src.first_name,
-                last_name: src.last_name,
-                email: src.email,
-              }),
+              JSON.stringify(updatedUserInfo),
             );
           }
         }
@@ -110,29 +193,56 @@ const AdminLoginPage = () => {
       }
 
       if (data.is_superuser) {
-        const [resRest, resBranch] = await Promise.all([
-          fetch(`${API_URL}/api/restaurants/`, {
-            headers: { Authorization: `Token ${data.token}` },
-          }),
-          fetch(`${API_URL}/api/branches/`, {
-            headers: { Authorization: `Token ${data.token}` },
-          }),
-        ]);
+        try {
+          const [resRest, resBranch] = await Promise.all([
+            fetch(`${API_URL}/api/restaurants/`, {
+              headers: { Authorization: `Token ${data.token}` },
+            }),
+            fetch(`${API_URL}/api/branches/`, {
+              headers: { Authorization: `Token ${data.token}` },
+            }),
+          ]);
 
-        const restData = await resRest.json();
-        const branchData = await resBranch.json();
+          const restData = await resRest.json();
+          const branchData = await resBranch.json();
 
-        sessionStorage.setItem(
-          "restaurants",
-          JSON.stringify(restData.data || []),
-        );
-        sessionStorage.setItem(
-          "branches",
-          JSON.stringify(branchData.data || []),
-        );
+          sessionStorage.setItem(
+            "restaurants",
+            JSON.stringify(restData.data || []),
+          );
+          sessionStorage.setItem(
+            "branches",
+            JSON.stringify(branchData.data || []),
+          );
+        } catch (err) {
+          console.warn("Error fetching restaurant/branch data:", err);
+        }
 
         setTimeout(() => router.replace("/dashboard/restaurant"), 1000);
       } else {
+        const restaurantObj = {
+          results: [
+            {
+              reference_id: data.restaurant_id,
+              name: data.restaurant_name,
+              address: data.restaurant_address || "",
+            },
+          ],
+        };
+        const branchObj = {
+          results: [
+            {
+              reference_id: data.branch_id,
+              name: data.branch_name,
+              address: data.branch_address || "",
+              restaurant_reference_id: data.restaurant_id,
+            },
+          ],
+        };
+
+        sessionStorage.setItem("restaurants", JSON.stringify(restaurantObj));
+        sessionStorage.setItem("branches", JSON.stringify(branchObj));
+
         router.replace("/dashboard");
         setTimeout(() => router.replace("/dashboard"), 1000);
       }
@@ -141,11 +251,9 @@ const AdminLoginPage = () => {
         toast.success(`Welcome back, ${displayName}!`);
       }, 1000);
     } catch (err) {
-      console.error(err);
       toast.error("Connection Error!");
     } finally {
       setTimeout(() => setLoading(false), 1000);
-      // setLoading(false);
     }
   };
 
@@ -202,14 +310,14 @@ const AdminLoginPage = () => {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
               <div className="flex items-center gap-1 mb-4 text-black">
                 <ShieldCheck size={25} className="text-green-400" />
                 <span className="text-sm font-bold tracking-widest uppercase">
                   Admin Access
                 </span>
               </div>
-              {/* Username */}
+
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700 block">
                   Username <span className="text-red-400">*</span>
@@ -221,15 +329,25 @@ const AdminLoginPage = () => {
                   <input
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) =>
+                      handleFieldChange("username", e.target.value)
+                    }
                     placeholder="Enter your username"
-                    required
-                    className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl focus:border-[#1C4D21] focus:ring-4 focus:ring-[#1C4D21]/5 outline-none transition-all placeholder:text-gray-300 text-gray-700 shadow-sm"
+                    className={`w-full pl-12 pr-4 py-3.5 bg-white border rounded-xl focus:border-[#1C4D21] focus:ring-4 focus:ring-[#1C4D21]/5 outline-none transition-all placeholder:text-gray-300 text-gray-700 shadow-sm ${
+                      validationErrors.username
+                        ? "border-red-500 ring-4 ring-red-500/5"
+                        : "border-gray-200"
+                    }`}
+                    autoFocus
                   />
                 </div>
+                {validationErrors.username && (
+                  <p className="text-red-500 text-[11px] mt-1 font-medium">
+                    {validationErrors.username}
+                  </p>
+                )}
               </div>
 
-              {/* Password */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700 block">
                   Password <span className="text-red-400">*</span>
@@ -242,11 +360,16 @@ const AdminLoginPage = () => {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) =>
+                      handleFieldChange("password", e.target.value)
+                    }
                     placeholder="Enter password"
-                    required
                     maxLength={30}
-                    className="w-full pl-12 pr-12 py-3.5 bg-white border border-gray-200 rounded-xl focus:border-[#1C4D21] focus:ring-4 focus:ring-[#1C4D21]/5 outline-none transition-all placeholder:text-gray-300 text-gray-700 shadow-sm"
+                    className={`w-full pl-12 pr-12 py-3.5 bg-white border rounded-xl focus:border-[#1C4D21] focus:ring-4 focus:ring-[#1C4D21]/5 outline-none transition-all placeholder:text-gray-300 text-gray-700 shadow-sm ${
+                      validationErrors.password
+                        ? "border-red-500 ring-4 ring-red-500/5"
+                        : "border-gray-200"
+                    }`}
                   />
                   <button
                     type="button"
@@ -256,6 +379,11 @@ const AdminLoginPage = () => {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {validationErrors.password && (
+                  <p className="text-red-500 text-[11px] mt-1 font-medium">
+                    {validationErrors.password}
+                  </p>
+                )}
 
                 <div className="flex justify-end">
                   <span className="text-xs text-[#1C4D21] font-semibold cursor-pointer hover:underline transition-all">
@@ -264,7 +392,6 @@ const AdminLoginPage = () => {
                 </div>
               </div>
 
-              {/* Login Button */}
               <button
                 type="submit"
                 disabled={loading}

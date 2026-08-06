@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { Printer, CheckCircle } from "lucide-react";
-
 import toast from "react-hot-toast";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -48,6 +47,8 @@ const normalizeStatus = (status) => {
       return "Served";
     case "cancelled":
       return "Cancelled";
+    case "paid":
+      return "Paid";
     default:
       return status;
   }
@@ -66,7 +67,7 @@ const getStatusIndicator = (status) => {
   return (
     <span
       className={`w-2 h-2 rounded-full inline-block mr-1 ${
-        colors[status] || "bg-gray-200"
+        colors[status] || "bg-gray-400"
       }`}
     ></span>
   );
@@ -86,23 +87,85 @@ const AdminOrdersDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [token, setToken] = useState("");
   const [openDropdown, setOpenDropdown] = useState(null);
-  const dropdownRef = useRef(null);
-  const prevOrdersCount = useRef(0);
-
-  const audioRef = useRef(null);
-  const lastOrderIdRef = useRef(null);
   const [filter, setFilter] = useState("today");
+  const [newStatus, setNewStatus] = useState("pending");
 
-  const isMounted = useRef(false);
+  const dropdownRef = useRef(null);
+  const audioRef = useRef(null);
+  const previousOrderIds = useRef(new Set());
+  const isFirstLoad = useRef(true);
+  const audioInitialized = useRef(false);
+  const [restaurant, setRestaurant] = useState([]);
+  const [branch, setBranch] = useState([]);
 
-  const playNotificationSound = () => {
-    if (audioRef.current) {
+  const restaurentData = sessionStorage.getItem("restaurant_name");
+  const branchData = sessionStorage.getItem("branch_name");
+
+  useEffect(() => {
+    setBranch(branchData);
+    setRestaurant(restaurentData);
+  }, []);
+
+  useEffect(() => {
+    const initAudio = async () => {
+      if (audioRef.current && !audioInitialized.current) {
+        try {
+          audioRef.current.load();
+          await audioRef.current.play();
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          audioInitialized.current = true;
+        } catch (err) {
+          audioInitialized.current = true;
+        }
+      }
+      document.removeEventListener("click", initAudio);
+      document.removeEventListener("touchstart", initAudio);
+    };
+
+    document.addEventListener("click", initAudio);
+    document.addEventListener("touchstart", initAudio);
+
+    return () => {
+      document.removeEventListener("click", initAudio);
+      document.removeEventListener("touchstart", initAudio);
+    };
+  }, []);
+
+  const playNotificationSound = async () => {
+    if (!audioRef.current) {
+      console.warn("❌ Audio element not available");
+      return false;
+    }
+
+    try {
       audioRef.current.currentTime = 0;
-      audioRef.current.play().catch((err) => {
-        console.warn(
-          "Autoplay blocked: Please click anywhere on the page first.",
-        );
-      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        await playPromise;
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("❌ Audio playback error:", err.message);
+      if (err.name === "NotAllowedError") {
+        toast.error("🔊 Click here to enable sound", {
+          duration: 5000,
+          onClick: async () => {
+            try {
+              await audioRef.current.play();
+              audioRef.current.pause();
+              audioRef.current.currentTime = 0;
+              audioInitialized.current = true;
+              toast.success("🔊 Sound enabled!");
+            } catch (e) {
+              console.error("Manual play failed:", e);
+            }
+          },
+        });
+      }
+      return false;
     }
   };
 
@@ -116,245 +179,421 @@ const AdminOrdersDashboard = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const fetchOrders = async (authToken) => {
+  const fetchOrders = async (authToken, showNewOrderNotification = true) => {
     try {
-      const res = await fetch(`${API_URL}/api/orders-list/`, {
-        headers: { Authorization: `Token ${authToken}` },
-      });
+      const res = await fetch(
+        `${API_URL}api/orders-list/?status=${newStatus}`,
+        {
+          headers: {
+            Authorization: `Token ${authToken}`,
+            Accept: "application/json",
+          },
+        },
+      );
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch orders: ${res.status}`);
+      }
+
       const result = await res.json();
       const ordersData = result?.data || [];
 
-      if (ordersData.length > 0) {
-        const latestOrder = ordersData[0];
-        const latestId = latestOrder.reference_id;
+      const currentOrderIds = new Set(
+        ordersData
+          .filter((order) => order.table_reference_id)
+          .map((order) => order.table_reference_id),
+      );
 
-        if (lastOrderIdRef.current && lastOrderIdRef.current !== latestId) {
-          playNotificationSound();
-          toast.success("New Order Received!", { icon: "🔔" });
+      let hasNewOrder = false;
+      let newOrderData = null;
+
+      if (
+        showNewOrderNotification &&
+        !isFirstLoad.current &&
+        currentOrderIds.size > 0
+      ) {
+        for (const id of currentOrderIds) {
+          if (!previousOrderIds.current.has(id)) {
+            console.log("🆕 NEW order detected for table:", id);
+            hasNewOrder = true;
+            newOrderData = ordersData.find(
+              (order) => order.table_reference_id === id,
+            );
+            break;
+          }
         }
-
-        lastOrderIdRef.current = latestId;
       }
 
-      prevOrdersCount.current = ordersData.length;
+      previousOrderIds.current = currentOrderIds;
 
-      const normalized = ordersData.map((o) => ({
-        order_id: o.reference_id,
-        table_id: o.table_id,
-        tableName: o.table_number ? `Table ${o.table_number}` : "Table",
-        items: Array.isArray(o.items)
-          ? o.items.map((i) => ({
-              name: i.menu_name,
-              quantity: Number(i.quantity),
-              unit_name: i.unit_name || "-",
-              total_price: Number(i.total_price),
-            }))
-          : [],
-        total_price: Number(o.total_amount),
-        status: normalizeStatus(o.status),
-        created_at: o.order_time,
-      }));
+      if (isFirstLoad.current) {
+        isFirstLoad.current = false;
+        console.log("📋 First load complete");
+      }
+
+      if (hasNewOrder && newOrderData) {
+        console.log("🔊 Playing notification sound...");
+        const soundPlayed = await playNotificationSound();
+        const tableDisplay = newOrderData.table_number
+          ? `Table ${newOrderData.table_number}`
+          : "Takeout / Unassigned";
+
+        toast.success(`🆕 New Order at ${tableDisplay}!`, {
+          icon: "🔔",
+          id: "new-order-notification",
+          duration: 5000,
+        });
+
+        if (!soundPlayed) {
+          console.warn("⚠️ Sound didn't play, but toast shown");
+        }
+      }
+
+      const normalized = Array.isArray(ordersData)
+        ? ordersData.map((o) => ({
+            table_reference_id: o.table_reference_id,
+            table_number: o.table_number,
+            tableName: o.table_number
+              ? `Table ${o.table_number}`
+              : "Takeout / Unassigned",
+            items: Array.isArray(o.items)
+              ? o.items.map((i) => ({
+                  name: i.menu_name,
+                  quantity: Number(i.total_quantity),
+                  unit_name: "-",
+                  total_price: Number(i.total_price),
+                }))
+              : [],
+            total_price: Number(o.grand_total),
+            status: normalizeStatus(o.status), // uses the updated function
+            created_at: o.order_time || new Date().toISOString(),
+          }))
+        : [];
 
       setOrders(normalized);
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error("❌ Fetch error:", err);
       setOrders([]);
     }
   };
 
-  const handleStatusChange = async (order_id, newStatus) => {
-    const order = orders.find((o) => o.order_id === order_id);
-    if (!order || order.status === "Served") return;
-
+  const handleStatusChange = async (tableReferenceId, selectedStatus) => {
     try {
-      const res = await fetch(`${API_URL}/api/orders/status/${order_id}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${API_URL}api/orders/${tableReferenceId}/`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Token ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            status: backendStatus(selectedStatus),
+          }),
         },
-        body: JSON.stringify({ status: backendStatus(newStatus) }),
-      });
+      );
 
-      if (!res.ok) throw new Error("Status update failed");
+      const responseText = await response.text();
+      let result = null;
+
+      try {
+        result = JSON.parse(responseText);
+      } catch (error) {
+        console.error("JSON parse error:", error);
+      }
+
+      if (!response.ok) {
+        const errorMessage =
+          result?.message ||
+          result?.error ||
+          result?.detail ||
+          `Request failed with status ${response.status}`;
+        throw new Error(errorMessage);
+      }
 
       toast.success(
-        newStatus === "Cancelled" ? "Order Cancelled" : "Status Updated",
+        selectedStatus === "Cancelled"
+          ? "Order cancelled successfully."
+          : "Order status updated successfully.",
+        {
+          id: "order-status-update",
+        },
       );
 
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.order_id === order_id ? { ...o, status: newStatus } : o,
-        ),
-      );
       setOpenDropdown(null);
-    } catch (err) {
-      toast.error(err.message || "Something went wrong");
+      await fetchOrders(token, false);
+    } catch (error) {
+      console.error("❌ PATCH Error:", error);
+      toast.error(error.message || "Unable to update order status.", {
+        id: "order-status-error",
+      });
     }
   };
 
-  // const printBill = (order) => {
-  //   const w = window.open("", "", "width=400,height=600");
-  //   w.document.write(`<h2>Restaurant Bill</h2>`);
-  //   w.document.write(`<p>${order.tableName}</p>`);
-  //   w.document.write(`<p>${formatNepalTime(order.created_at)}</p><hr/>`);
+  const printBillContent = (order) => {
+    const w = window.open("", "", "width=360,height=600");
 
-  //   order.items.forEach((i) => {
-  //     w.document.write(`<p>${i.quantity}x ${i.name} - Rs.${i.total_price}</p>`);
-  //   });
+    const formatMoney = (amount) => Math.round(Number(amount));
 
-  //   w.document.write(`<hr/><b>Total: Rs.${order.total_price}</b>`);
-  //   w.document.close();
-  //   w.print();
-  // };
-
-  const printBill = (order) => {
-    const w = window.open("", "", "width=400,height=600");
+    const getNepalTimeString = () => {
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Kathmandu",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(now);
+      const date = {};
+      parts.forEach(({ type, value }) => {
+        date[type] = value;
+      });
+      return `${date.day}.${date.month}.${date.year}/${date.hour}:${date.minute}:${date.second}`;
+    };
 
     w.document.write(`
-    <html>
-      <head>
-        <title>Bill</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            color: #333;
-          }
+  <html>
+    <head>
+      <title>Bill</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Courier New', monospace;
+          background: #f4f4f4;
+          display: flex;
+          justify-content: center;
+          padding: 12px 6px;
+        }
+        .receipt {
+          max-width: 280px;
+          width: 100%;
+          background: white;
+          padding: 10px 10px 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+          border-radius: 2px;
+        }
+        .store-name {
+          font-size: 14px;
+          font-weight: 700;
+          text-align: center;
+          letter-spacing: 0.5px;
+          color: #1e293b;
+          padding-bottom: 2px;
+          border-bottom: 1px dashed #aaa;
+          margin-bottom: 4px;
+        }
+        .store-name span { color: #0f7b3a; }
+        .tagline {
+          text-align: center;
+          font-size: 7px;
+          text-transform: uppercase;
+          color: #888;
+          letter-spacing: 0.5px;
+          margin-top: -1px;
+          margin-bottom: 6px;
+        }
+        .meta {
+          display: flex;
+          justify-content: space-between;
+          font-size: 8px;
+          padding: 2px 0;
+          border-bottom: 1px dotted #ccc;
+          margin-bottom: 4px;
+        }
+        .meta .label { color: #666; }
+        .meta .value { font-weight: 600; color: #222; }
+        .items-head {
+          display: flex;
+          justify-content: space-between;
+          font-size: 7px;
+          text-transform: uppercase;
+          color: #999;
+          letter-spacing: 0.3px;
+          padding: 2px 0;
+          border-bottom: 1px solid #eee;
+        }
+        .items-head .head-item { flex: 1; }
+        .items-head .head-qty { width: 28px; text-align: center; }
+        .items-head .head-price { width: 60px; text-align: right; }
+        .item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 2px 0;
+          font-size: 9px;
+          border-bottom: 1px dotted #f0f0f0;
+        }
+        .item:last-of-type { border-bottom: none; }
+        .item-name {
+          flex: 1;
+          font-weight: 500;
+          color: #222;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .item-name small {
+          font-weight: 400;
+          color: #999;
+          font-size: 7px;
+          margin-left: 2px;
+        }
+        .item-qty { width: 28px; text-align: center; font-weight: 600; color: #333; }
+        .item-price { width: 60px; text-align: right; font-weight: 600; color: #1e293b; }
+        .divider { border: none; border-top: 1px dashed #ccc; margin: 4px 0; }
+        .total {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 4px 0 0;
+          border-top: 2px solid #222;
+          margin-top: 2px;
+        }
+        .total-label {
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #222;
+        }
+        .total-amount { font-size: 12px; font-weight: 700; color: #222; }
+        .footer {
+          text-align: center;
+          font-size: 8px;
+          color: #666;
+          padding-top: 8px;
+          border-top: 1px dashed #ccc;
+          margin-top: 6px;
+          line-height: 1.4;
+        }
+        .footer .thanks { font-size: 10px; font-weight: 600; color: #1e293b; }
+        .footer .sub { font-size: 7px; color: #999; }
+        @media print {
+          body { background: white; padding: 0; }
+          .receipt { box-shadow: none; border-radius: 0; padding: 8px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="receipt">
+        <div class="store-name">✦ <span>${restaurant}</div>
+        <div class="tagline">${branch}</div>
 
-          .header {
-            text-align: center;
-            border-bottom: 1px dashed #999;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-          }
-
-          .header h2 {
-            margin: 0;
-            font-size: 20px;
-          }
-
-          .info {
-            font-size: 12px;
-            margin-bottom: 10px;
-          }
-
-          .table {
-            width: 100%;
-            font-size: 13px;
-          }
-
-          .item {
-            display: flex;
-            justify-content: space-between;
-            margin: 6px 0;
-          }
-
-          .item-name {
-            flex: 1;
-          }
-
-          .qty {
-            width: 40px;
-          }
-
-          .price {
-            width: 80px;
-            text-align: right;
-          }
-
-          .total {
-            border-top: 1px dashed #999;
-            margin-top: 15px;
-            padding-top: 10px;
-            font-size: 16px;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-          }
-
-          .footer {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 11px;
-            color: #777;
-          }
-        </style>
-      </head>
-
-      <body>
-
-        <div class="header">
-          <h2>🍽 Restaurant Bill</h2>
+        <div class="meta">
+          <span class="label">Table</span>
+          <span class="value">${order.tableName}</span>
+        </div>
+        <div class="meta" style="border-bottom: none; padding-top: 0;">
+          <span class="label">Date</span>
+          <span class="value">${getNepalTimeString()}</span>
         </div>
 
-        <div class="info">
-          <p><b>Table:</b> ${order.tableName}</p>
-          <p><b>Date:</b> ${formatNepalTime(order.created_at)}</p>
+        <div class="items-head">
+          <span class="head-item">Item</span>
+          <span class="head-qty">Qty</span>
+          <span class="head-price">Price</span>
         </div>
 
-        <div>
-          ${order.items
-            .map(
-              (i) => `
-              <div class="item">
-                <div class="item-name">
-                  ${i.name} <small>(${i.unit_name})</small>
-                </div>
-                <div class="qty">${i.quantity}x</div>
-                <div class="price">Rs.${i.total_price}</div>
-              </div>
-            `,
-            )
-            .join("")}
-        </div>
+        ${order.items
+          .map(
+            (i) => `
+          <div class="item">
+            <div class="item-name">${i.name} <small>${i.unit_name}</small></div>
+            <div class="item-qty">${i.quantity}</div>
+            <div class="item-price">Rs.${formatMoney(i.total_price)}</div>
+          </div>
+        `,
+          )
+          .join("")}
+
+        <hr class="divider" />
 
         <div class="total">
-          <span>Total</span>
-          <span>Rs.${order.total_price}</span>
+          <span class="total-label">TOTAL</span>
+          <span class="total-amount">Rs. ${formatMoney(order.total_price)}</span>
         </div>
 
         <div class="footer">
-          Thank you for dining with us 🙏
+          <div class="thanks">Thank you!</div>
+          <div class="sub">We hope to see you again</div>
         </div>
-
-      </body>
-    </html>
+      </div>
+    </body>
+  </html>
   `);
 
     w.document.close();
     w.print();
   };
 
+  const printBill = async (order) => {
+    if (!token) {
+      toast.error("Authentication token missing.");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}api/table/${order.table_reference_id}/bill-print/`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Token ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message ||
+            errorData.detail ||
+            `Request failed with status ${response.status}`,
+        );
+      }
+
+      const result = await response.json();
+
+      toast.success("Bill printed and orders marked as paid.");
+
+      printBillContent(order);
+
+      await fetchOrders(token, false);
+    } catch (error) {
+      toast.error(error.message || "Unable to print bill.");
+    }
+  };
+
   useEffect(() => {
     const t = getCookie("adminToken");
-
     if (!t) {
+      console.warn("No admin token found");
       return;
     }
 
     setToken(t);
+    previousOrderIds.current = new Set();
+    isFirstLoad.current = true;
 
-    if (!isMounted.current) {
-      fetchOrders(t);
-      isMounted.current = true;
-    } else {
-      fetchOrders(t);
-    }
+    fetchOrders(t, false);
 
-    const interval = setInterval(() => fetchOrders(t), 5000);
-    return () => clearInterval(interval);
-  }, [filter]);
+    const interval = setInterval(() => {
+      fetchOrders(t, true);
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [filter, newStatus]);
 
   const todayNepal = getNepalDateString(new Date());
-  const todayOrders = orders.filter(
-    (o) => getNepalDateString(o.created_at) === todayNepal,
-  );
-
-  const todayTotal = todayOrders
-    .filter((o) => o.status !== "Cancelled")
-    .reduce((sum, o) => sum + (o.total_price || 0), 0);
-
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const sevenDaysAgoStr = getNepalDateString(sevenDaysAgo);
@@ -369,20 +608,18 @@ const AdminOrdersDashboard = () => {
   });
 
   const totalRevenue = filteredOrders
-    .filter((o) => o.status !== "Cancelled")
+    .filter((o) => o.status === "Served")
     .reduce((sum, o) => sum + (o.total_price || 0), 0);
 
   return (
     <>
       <div className="min-h-screen font-sans p-4 sm:p-6 lg:p-4 bg-[#ddf4e2]">
         <header className="mx-auto mb-6 flex flex-wrap items-center justify-between gap-y-4 gap-x-2">
-          {/* Left Section: Dashboard & Filters */}
           <div className="flex flex-col gap-1">
             <h1 className="text-lg sm:text-xl font-bold text-[#1C5721] leading-tight">
               Kitchen Dashboard
             </h1>
 
-            {/* Filter Buttons */}
             <div className="flex flex-wrap gap-2 mt-1">
               <button
                 onClick={() => setFilter("today")}
@@ -394,16 +631,23 @@ const AdminOrdersDashboard = () => {
               >
                 Today
               </button>
-              <button
-                onClick={() => setFilter("weekly")}
-                className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap cursor-pointer ${
-                  filter === "weekly"
-                    ? "bg-[#236B28] text-white shadow-md"
-                    : "bg-white text-[#236B28] border border-[#236B28]"
-                }`}
-              >
-                Last 7 Days
-              </button>
+              <div className="flex items-center gap-2 bg-white border border-[#236B28] rounded-lg px-3 py-1 shadow-sm">
+                <span className="text-[#236B28] font-semibold text-sm">
+                  Status
+                </span>
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
+                  className="bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer"
+                >
+                  <option value="pending">🟡 Pending</option>
+                  <option value="preparing">🔵 Preparing</option>
+                  <option value="ready">🟣 Ready</option>
+                  <option value="served">🟢 Served</option>
+                  <option value="cancelled">🔴 Cancelled</option>
+                  {/* <option value="paid">⚫ Paid</option> */}
+                </select>
+              </div>
             </div>
 
             <p className="text-[11px] sm:text-sm text-[#236B28] mt-0.5">
@@ -412,24 +656,23 @@ const AdminOrdersDashboard = () => {
             </p>
           </div>
 
-          {/* Right Section: Revenue Card */}
-          <div className="bg-white px-3 sm:px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-2 sm:gap-3 w-fit shrink-0">
-            <span className="text-[9px] sm:text-[10px] uppercase font-bold text-gray-400 tracking-wider whitespace-nowrap">
-              {filter === "today" ? "Today's Revenue" : "7 Days Revenue"}
-            </span>
-
-            <div className="h-4 w-px bg-gray-200"></div>
-
-            <span className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap">
-              Rs. {totalRevenue.toFixed(2)}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="bg-white px-3 sm:px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-2 sm:gap-3 w-fit shrink-0">
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-gray-400 tracking-wider whitespace-nowrap">
+                {filter === "today" ? "Today's Revenue" : "7 Days Revenue"}
+              </span>
+              <div className="h-4 w-px bg-gray-200"></div>
+              <span className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap">
+                Rs. {totalRevenue.toFixed(2)}
+              </span>
+            </div>
           </div>
         </header>
 
         <div className="mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
           {filteredOrders.map((order, idx) => (
             <div
-              key={order.order_id}
+              key={`${order.table_reference_id}-${idx}`}
               className={`flex flex-col justify-between border rounded-xl shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 relative
             ${
               order.status === "Cancelled"
@@ -440,7 +683,9 @@ const AdminOrdersDashboard = () => {
                     ? "bg-indigo-100 border-indigo-300 text-indigo-700"
                     : order.status === "Preparing"
                       ? "bg-blue-100 border-blue-300 text-blue-700"
-                      : "bg-amber-100 border-amber-300 text-amber-700"
+                      : order.status === "Paid"
+                        ? "bg-gray-100 border-gray-300 text-gray-700"
+                        : "bg-amber-100 border-amber-300 text-amber-700"
             }`}
             >
               <div className="p-3 border-b border-gray-100">
@@ -464,9 +709,9 @@ const AdminOrdersDashboard = () => {
               <div className="p-1 grow">
                 <div className="bg-gray-50 rounded p-3 mb-3">
                   <ul className="space-y-2">
-                    {order.items.map((i, idx) => (
+                    {order.items.map((i, itemIdx) => (
                       <li
-                        key={idx}
+                        key={itemIdx}
                         className="flex justify-between items-center text-[12px]"
                       >
                         <span className="text-gray-700 font-medium">
@@ -503,14 +748,15 @@ const AdminOrdersDashboard = () => {
                    ${
                      order.status === "Cancelled"
                        ? "bg-red-100 border-red-200 text-red-600"
-                       : "bg-green-50 border-green-200 text-[#236B28]"
+                       : order.status === "Paid"
+                         ? "bg-gray-100 border-gray-300 text-gray-600" // 👈 added
+                         : "bg-green-50 border-green-200 text-[#236B28]"
                    }`}
                   >
-                    {getStatusIndicator(order.status)}
-                    {order.status}
+                    {/* {getStatusIndicator(newStatus)} */}
+                    {newStatus}
                   </div>
-
-                  {order.status !== "Cancelled" && (
+                  {order.status !== "Cancelled" && order.status !== "Paid" && (
                     <div className="flex gap-2 relative">
                       <button
                         className="p-1.5 rounded-lg bg-green-50 text-[#236B28] hover:bg-[#236B28] hover:text-white transition-all shadow-sm cursor-pointer"
@@ -529,14 +775,16 @@ const AdminOrdersDashboard = () => {
                             title="Change Status"
                             onClick={() =>
                               setOpenDropdown((prev) =>
-                                prev === order.order_id ? null : order.order_id,
+                                prev === order.table_reference_id
+                                  ? null
+                                  : order.table_reference_id,
                               )
                             }
                           >
                             <CheckCircle className="w-4 h-4" />
                           </button>
 
-                          {openDropdown === order.order_id && (
+                          {openDropdown === order.table_reference_id && (
                             <div
                               ref={dropdownRef}
                               className="absolute right-0 bottom-full mb-2 w-32 bg-white border border-gray-200 rounded shadow-lg z-50 overflow-auto"
@@ -547,13 +795,16 @@ const AdminOrdersDashboard = () => {
                                   <div
                                     key={s}
                                     className={`px-3 py-2 text-[12px] cursor-pointer hover:bg-gray-100
-                            ${
-                              s === "Cancelled"
-                                ? "text-red-500 font-semibold"
-                                : "text-gray-700"
-                            }`}
+                                    ${
+                                      s === "Cancelled"
+                                        ? "text-red-500 font-semibold"
+                                        : "text-gray-700"
+                                    }`}
                                     onClick={() =>
-                                      handleStatusChange(order.order_id, s)
+                                      handleStatusChange(
+                                        order.table_reference_id,
+                                        s,
+                                      )
                                     }
                                   >
                                     {s}
@@ -573,7 +824,6 @@ const AdminOrdersDashboard = () => {
 
         <div className="mt-8 mx-auto border-t border-[#236B28]/20 pt-6 flex flex-col md:flex-row justify-between items-center text-sm">
           <span className="text-[#236B28]/70 font-medium">End of list</span>
-
           <div className="flex flex-col md:flex-row gap-2 md:gap-6 items-center">
             <span className="text-[#236B28]/80 font-semibold">
               Today's Orders:{" "}
@@ -585,25 +835,23 @@ const AdminOrdersDashboard = () => {
                 }
               </span>
             </span>
-
             <div className="hidden md:block h-4 w-px bg-[#236B28]/20"></div>
-
             <span className="text-[#236B28]/80 font-semibold">
               {filter === "today"
                 ? "Current View (Today): "
                 : "Current View (7 Days): "}
               <span className="font-black">{filteredOrders.length}</span>
             </span>
-
             <div className="hidden md:block h-4 w-px bg-[#236B28]/20"></div>
-
             <span className="text-[#236B28]/80 font-semibold">
-              Total Revenue:{" "}
+              Total Revenue (Served):{" "}
               <span className="font-black">Rs. {totalRevenue.toFixed(0)}</span>
             </span>
           </div>
         </div>
       </div>
+
+      <audio ref={audioRef} src="/notification.mp3" preload="auto" />
     </>
   );
 };

@@ -11,6 +11,7 @@ import "@/styles/customButtons.css";
 import HeaderWithSearch from "@/components/HeaderWithSearch";
 import DeleteModal from "@/components/DeleteModal";
 import CustomTable from "@/components/CustomTable";
+import CustomPagination from "@/components/CustomPagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -33,14 +34,15 @@ export default function AdminManagementPage() {
   const [search, setSearch] = useState("");
   const [deleteAdmin, setDeleteAdmin] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Open edit modal
   const openEditModal = (admin) => {
     setEditAdmin(admin);
     setShowEditModal(true);
   };
 
-  // Initial fetch
   useEffect(() => {
     const token = getCookie("adminToken");
 
@@ -55,27 +57,27 @@ export default function AdminManagementPage() {
     fetchBranches(token);
   }, []);
 
-  const fetchAdmins = async (token) => {
+  const fetchAdmins = async (token = adminToken) => {
     if (!token) return;
 
     try {
       const res = await fetch(`${API_URL}/api/user/admins/`, {
-        headers: { Authorization: `Token ${token}` },
+        headers: {
+          Authorization: `Token ${token}`,
+        },
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        setAdmins(data.data || []);
-      } else {
-        console.error("Server Error:", data);
+        setAdmins(data.data?.results || []);
+        setTotalCount(data.data?.count || 0);
       }
     } catch (err) {
       console.error("Fetch admins error:", err);
     }
   };
 
-  // Fetch restaurants
   const fetchRestaurants = async (token) => {
     try {
       const res = await fetch(`${API_URL}/api/restaurants/`, {
@@ -91,7 +93,6 @@ export default function AdminManagementPage() {
     }
   };
 
-  // Fetch branches
   const fetchBranches = async (token) => {
     try {
       const res = await fetch(`${API_URL}/api/branches/`, {
@@ -106,7 +107,6 @@ export default function AdminManagementPage() {
     }
   };
 
-  // Filter User
   const filteredUser = useMemo(() => {
     const query = search.toLowerCase();
     return admins.filter((b) => {
@@ -123,7 +123,6 @@ export default function AdminManagementPage() {
     });
   }, [admins, search]);
 
-  // Delete admin
   const handleDeleteConfirmed = async () => {
     if (!deleteAdmin) return;
 
@@ -157,7 +156,7 @@ export default function AdminManagementPage() {
     {
       header: "S.N.",
       width: "40px",
-      render: (_, index) => index + 1,
+      render: (_, index) => (page - 1) * rowsPerPage + index + 1,
     },
     {
       header: "Username",
@@ -169,21 +168,20 @@ export default function AdminManagementPage() {
     },
     {
       header: "Email",
-      render: (row) => row.email,
+      render: (row) => <div className="normal-case">{row.email}</div>,
     },
     {
       header: "Phone",
       render: (row) => row.mobile_number,
     },
     {
-      header: "Restaurent",
-      render: (row) => row.restaurant_name,
+      header: "Restaurant",
+      render: (row) => row.restaurant_name || "-",
     },
     {
       header: "Branch",
-      render: (row) => row.branch_name,
+      render: (row) => row.branch_name || "-",
     },
-
     {
       header: "Action",
       width: "80px",
@@ -208,6 +206,7 @@ export default function AdminManagementPage() {
       ),
     },
   ];
+
   return (
     <>
       <div className="mx-auto min-h-screen font-sans p-4 bg-[#ddf4e2] ">
@@ -220,6 +219,7 @@ export default function AdminManagementPage() {
             onSearchChange={setSearch}
             onButtonClick={() => {
               setShowForm(true);
+              setEditAdmin(null);
             }}
             buttonLabel="Create"
             placeholder="Search User..."
@@ -246,7 +246,7 @@ export default function AdminManagementPage() {
                 }
               }}
             >
-              <div className="rounded w-full max-w-2xl p-3  relative animate-fadeIn">
+              <div className="rounded w-full max-w-2xl p-3 relative animate-fadeIn">
                 <AdminRegisterPage
                   adminData={editAdmin}
                   admins={admins}
@@ -259,6 +259,7 @@ export default function AdminManagementPage() {
                     setShowEditModal(false);
                     setEditAdmin(null);
                   }}
+                  onValidationError={() => {}}
                 />
               </div>
             </div>
@@ -269,6 +270,13 @@ export default function AdminManagementPage() {
           columns={userColumns}
           emptyMessage="No user found"
           searchQuery={search}
+        />
+        <CustomPagination
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          totalCount={totalCount}
         />
       </div>
     </>
