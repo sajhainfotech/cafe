@@ -118,7 +118,8 @@ export default function AdminOrdersDashboard() {
 
       try {
         const res = await fetch(
-          `${API_URL}api/orders-list/?status=${statusFilter}`,
+          // add slash after api_url
+          `${API_URL}/api/orders-list/?status=${statusFilter}`,
           { headers: { ...authHeader(), Accept: "application/json" } },
         );
         if (!res.ok) throw new Error(`Failed to fetch orders: ${res.status}`);
@@ -219,8 +220,9 @@ export default function AdminOrdersDashboard() {
   const changeStatus = async (order, nextStatus) => {
     setOpenMenuFor(null);
     try {
+      // add slash after api_url
       const res = await fetch(
-        `${API_URL}api/orders/${order.table_reference_id}/`,
+        `${API_URL}/api/orders/${order.table_reference_id}/`,
         {
           method: "PATCH",
           headers: {
@@ -314,8 +316,9 @@ export default function AdminOrdersDashboard() {
 
     setSettling(true);
     try {
+      // add slash after api_url
       const res = await fetch(
-        `${API_URL}api/table/${order.table_reference_id}/bill-print/`,
+        `${API_URL}/api/table/${order.table_reference_id}/bill-print/`,
         {
           method: "PATCH",
           headers: {
