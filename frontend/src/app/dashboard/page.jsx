@@ -83,7 +83,8 @@ export default function AdminDashboard() {
 
     const fetchStats = async () => {
       try {
-        const res = await fetch(`${API_URL}api/dashboard-stats/`, {
+        // add slash after api_url
+        const res = await fetch(`${API_URL}/api/dashboard-stats/`, {
           headers: authHeader(),
         });
         if (!res.ok) throw new Error("Failed to fetch stats");
@@ -226,11 +227,7 @@ export default function AdminDashboard() {
           left scale and items-sold on a right scale, which makes the two lines'
           crossings meaningless — plus a Revenue/Units toggle wired to nothing. */}
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <ChartPanel
-          title="Revenue"
-          subtitle="Last 7 days"
-          hasData={hasWeekly}
-        >
+        <ChartPanel title="Revenue" subtitle="Last 7 days" hasData={hasWeekly}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={weekly}
@@ -238,11 +235,19 @@ export default function AdminDashboard() {
             >
               <defs>
                 <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={REVENUE_HUE} stopOpacity={0.18} />
+                  <stop
+                    offset="0%"
+                    stopColor={REVENUE_HUE}
+                    stopOpacity={0.18}
+                  />
                   <stop offset="100%" stopColor={REVENUE_HUE} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke={GRID} strokeDasharray="4 4" vertical={false} />
+              <CartesianGrid
+                stroke={GRID}
+                strokeDasharray="4 4"
+                vertical={false}
+              />
               <XAxis
                 dataKey="day"
                 axisLine={false}
@@ -287,7 +292,11 @@ export default function AdminDashboard() {
               data={weekly}
               margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
             >
-              <CartesianGrid stroke={GRID} strokeDasharray="4 4" vertical={false} />
+              <CartesianGrid
+                stroke={GRID}
+                strokeDasharray="4 4"
+                vertical={false}
+              />
               <XAxis
                 dataKey="day"
                 axisLine={false}
