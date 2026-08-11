@@ -21,7 +21,7 @@ import SearchSelect from "@/components/ui/SearchSelect";
 import ImageThumb from "@/components/ui/ImageThumb";
 import Badge from "@/components/ui/Badge";
 import { authHeader, getAuthToken } from "@/lib/cookies";
-import { cn } from "@/lib/utils";
+import { cn, toList } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const MAX_IMAGE_BYTES = 1024 * 1024;
@@ -95,7 +95,7 @@ export default function AdminMenuManager() {
       try {
         const res = await fetch(`${API_URL}${path}`, { headers: authHeader() });
         const data = await res.json();
-        setter(data.data?.results || data.data || []);
+        setter(toList(data.data));
       } catch (err) {
         console.error(err);
         toast.error(`Failed to load ${label}`);

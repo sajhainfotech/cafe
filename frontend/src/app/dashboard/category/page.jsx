@@ -12,6 +12,7 @@ import Button, { IconButton } from "@/components/ui/Button";
 import { CharCount, Field, Input, Textarea } from "@/components/ui/Field";
 import { authHeader, getAuthToken } from "@/lib/cookies";
 import { usePaginatedRows } from "@/lib/usePagination";
+import { toList } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const DESCRIPTION_MAX = 500;
@@ -42,7 +43,7 @@ export default function AdminCategoryManager() {
         headers: authHeader(),
       });
       const data = await res.json();
-      setCategories(data.data || []);
+      setCategories(toList(data.data));
     } catch (err) {
       console.error(err);
       toast.error("Failed to load categories");

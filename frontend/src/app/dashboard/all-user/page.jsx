@@ -11,6 +11,7 @@ import Pagination from "@/components/ui/Pagination";
 import Modal, { ConfirmDialog } from "@/components/ui/Modal";
 import Button, { IconButton } from "@/components/ui/Button";
 import { authHeader, getAuthToken } from "@/lib/cookies";
+import { toList } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -69,8 +70,10 @@ export default function AdminManagementPage() {
       try {
         const res = await fetch(`${API_URL}${path}`, { headers: authHeader() });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.response || `Failed to load ${label}`);
-        setter(data.data || []);
+        if (!res.ok)
+          throw new Error(data.response || `Failed to load ${label}`);
+        // These endpoints are paginated, so data.data is { results, count }.
+        setter(toList(data.data));
       } catch (err) {
         console.error(err);
         toast.error(`Failed to load ${label}`);
@@ -138,7 +141,8 @@ export default function AdminManagementPage() {
     {
       header: "User",
       render: (row) => {
-        const fullName = `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
+        const fullName =
+          `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
         return (
           <div className="flex items-center gap-2.5">
             <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-100 text-2xs font-bold text-brand-700">
@@ -167,11 +171,13 @@ export default function AdminManagementPage() {
     },
     {
       header: "Restaurant",
-      render: (row) => row.restaurant_name || <span className="text-ink-400">—</span>,
+      render: (row) =>
+        row.restaurant_name || <span className="text-ink-400">—</span>,
     },
     {
       header: "Branch",
-      render: (row) => row.branch_name || <span className="text-ink-400">—</span>,
+      render: (row) =>
+        row.branch_name || <span className="text-ink-400">—</span>,
     },
     {
       header: "Actions",
