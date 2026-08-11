@@ -32,18 +32,41 @@ export default function Modal({
 }) {
   const panelRef = useRef(null);
 
+  /*
+   * Callers pass an inline arrow for onClose, so its identity changes on every
+   * render. Keeping it in a ref lets the effects below depend on `open` alone.
+   *
+   * They used to list `onClose` as a dependency, which meant every keystroke in
+   * a form re-ran them — and re-running the autofocus threw the caret back to
+   * the first field after a single character.
+   */
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  // Esc to close, and lock background scroll for as long as we're open.
   useEffect(() => {
     if (!open) return;
 
     const onKeyDown = (e) => {
-      if (e.key === "Escape") onClose?.();
+      if (e.key === "Escape") onCloseRef.current?.();
     };
     document.addEventListener("keydown", onKeyDown);
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    // Focus the first usable control, falling back to the panel itself.
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  // Autofocus, once per opening — never again while the user is typing.
+  useEffect(() => {
+    if (!open) return;
+
     const focusTimer = window.setTimeout(() => {
       const target = panelRef.current?.querySelector(
         "input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])",
@@ -51,12 +74,8 @@ export default function Modal({
       (target ?? panelRef.current)?.focus?.();
     }, 0);
 
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      window.clearTimeout(focusTimer);
-    };
-  }, [open, onClose]);
+    return () => window.clearTimeout(focusTimer);
+  }, [open]);
 
   if (!open) return null;
 
