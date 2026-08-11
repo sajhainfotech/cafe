@@ -1,414 +1,391 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import ToastProvider from "@/components/ToastProvider";
-import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
-import { Download, X } from "lucide-react";
-import "@/styles/customButtons.css";
-import HeaderWithSearch from "@/components/HeaderWithSearch";
+import { Download, Pencil, Plus, QrCode, Trash2 } from "lucide-react";
+
+import PageShell, { PageHeader } from "@/components/ui/PageShell";
+import DataTable, { RowActions } from "@/components/ui/DataTable";
+import Pagination from "@/components/ui/Pagination";
+import Modal, { ConfirmDialog } from "@/components/ui/Modal";
+import Button, { IconButton } from "@/components/ui/Button";
+import { Field, Input } from "@/components/ui/Field";
+import { authHeader, getAuthToken } from "@/lib/cookies";
 import { generateTableQR } from "@/lib/generateTableQR.js";
-import DeleteModal from "@/components/DeleteModal";
-import CustomTable from "@/components/CustomTable";
-import CustomPagination from "@/components/CustomPagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const getCookie = (name) => {
-  if (typeof document === "undefined") return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-  return null;
-};
-
 export default function TableManager() {
   const [tables, setTables] = useState([]);
-  const [showForm, setShowForm] = useState(false);
+  const [fetching, setFetching] = useState(true);
+
+  const [tableNumber, setTableNumber] = useState("");
   const [editId, setEditId] = useState(null);
-  const [tableName, setTableName] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [openQr, setOpenQr] = useState(null);
-  const [deleteTable, setDeleteTable] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedTable, setSelectedTable] = useState(null);
-
-  const [validationError, setValidationError] = useState("");
-
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
-  const tableColumns = [
-    {
-      header: "S.N.",
-      width: "40px",
-      render: (_, index) => (page - 1) * rowsPerPage + index + 1,
-    },
-    {
-      header: "Table Name",
-      render: (row) => (
-        <div className="py-0.5 text-gray-800 font-medium">
-          T {row.table_number}
-        </div>
-      ),
-    },
-    {
-      header: "QR Code",
-      width: "100px",
-      render: (row) => (
-        <div className="flex items-center">
-          {row.qr_code ? (
-            <img
-              src={row.qr_code}
-              alt="QR"
-              className="w-6 h-6 cursor-pointer hover:scale-110 transition-transform"
-              onClick={() => {
-                setSelectedTable(row);
-                setOpenQr(row.qr_code);
-              }}
-            />
-          ) : (
-            <span className="text-[10px] text-gray-400 italic">No QR</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      header: "Action",
-      width: "80px",
-      render: (row) => (
-        <div className="flex justify-end gap-1.5">
-          <button
-            onClick={() => handleEdit(row)}
-            className="text-blue-500 hover:scale-110 transition cursor-pointer"
-          >
-            <PencilIcon className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            onClick={() => {
-              setDeleteTable(row);
-              setShowDeleteModal(true);
-            }}
-            className="text-red-500 hover:scale-110 transition cursor-pointer"
-          >
-            <TrashIcon className="w-4 h-4" />
-          </button>
-        </div>
-      ),
-    },
-  ];
+  const [qrTable, setQrTable] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchTables = async () => {
+    if (!getAuthToken()) return;
+    setFetching(true);
     try {
-      const token = getCookie("adminToken");
-      if (!token) return toast.error("Login first!");
-
       const res = await fetch(
         `${API_URL}/api/tables/?page=${page}&page_size=${rowsPerPage}`,
-        {
-          headers: { Authorization: `Token ${token}` },
-        },
+        { headers: authHeader() },
       );
       const data = await res.json();
-      if (!res.ok || data.response_code !== "0")
-        throw new Error(data.response || "Failed to fetch tables");
+      if (!res.ok || data.response_code !== "0") {
+        throw new Error(data.response || "Failed to load tables");
+      }
 
-      const tablesWithQR = await Promise.all(
+      const withQr = await Promise.all(
         (data.data?.results || []).map(async (t) => {
-          const tokenNumber =
-            t.token || new URL(t.qr_code_url || "").searchParams.get("token");
-          const qrBase64 = await generateTableQR(tokenNumber);
-          return { ...t, qr_code: qrBase64, token_number: tokenNumber };
+          let tokenNumber = t.token;
+          if (!tokenNumber && t.qr_code_url) {
+            try {
+              tokenNumber = new URL(t.qr_code_url).searchParams.get("token");
+            } catch {
+              tokenNumber = null;
+            }
+          }
+          return {
+            ...t,
+            token_number: tokenNumber,
+            qr_code: tokenNumber ? await generateTableQR(tokenNumber) : "",
+          };
         }),
       );
 
-      setTables(tablesWithQR);
-      setTotalCount(data?.data?.count || 0);
+      setTables(withQr);
+      setTotalCount(data.data?.count || 0);
     } catch (err) {
-      toast.error(err.message || "Failed to load tables");
       console.error(err);
+      toast.error(err.message);
+    } finally {
+      setFetching(false);
     }
   };
 
   useEffect(() => {
-    const token = getCookie("adminToken");
-    if (token) {
-      fetchTables();
-    }
+    fetchTables();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage]);
 
-  const filteredTables = tables.filter((t) =>
-    t.table_number.toString().includes(search.trim()),
-  );
+  const visible = useMemo(() => {
+    const q = search.trim();
+    if (!q) return tables;
+    return tables.filter((t) => String(t.table_number).includes(q));
+  }, [tables, search]);
 
-  useEffect(() => {
-    setSearchQuery(search);
-  }, [search]);
-
-  const resetForm = () => {
-    setTableName("");
-    setEditId(null);
-    setValidationError("");
-  };
-
-  const validateForm = () => {
-    if (!tableName || tableName.trim() === "") {
-      setValidationError("Table number is required");
+  const validate = () => {
+    const value = tableNumber.trim();
+    if (!value) {
+      setError("Table number is required");
       return false;
     }
-
-    if (!editId) {
-      const duplicate = tables.some(
-        (t) => t.table_number.toString() === tableName.trim(),
-      );
-      if (duplicate) {
-        setValidationError("Table number already exists");
-        return false;
-      }
+    if (
+      tables.some(
+        (t) =>
+          String(t.table_number) === value && t.reference_id !== editId,
+      )
+    ) {
+      setError("That table number is already taken");
+      return false;
     }
-
-    setValidationError("");
+    setError("");
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
 
-    const isValid = validateForm();
-    if (!isValid) {
-      const errorElement = document.querySelector(".border-red-500");
-      if (errorElement) {
-        errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        errorElement.focus();
-      }
-      return;
-    }
-
-    setLoading(true);
+    setSaving(true);
     try {
-      const token = getCookie("adminToken");
-      if (!token) throw new Error("Login required");
-
       const tableToken = editId
         ? tables.find((t) => t.reference_id === editId)?.token_number
         : Date.now().toString();
-
       const qr = tableToken ? await generateTableQR(tableToken) : "";
 
-      const formData = new FormData();
-      formData.append("table_number", tableName.trim());
-      formData.append("qr_code", qr);
-      formData.append("token", tableToken);
-      if (editId) formData.append("table_id", editId);
+      const body = new FormData();
+      body.append("table_number", tableNumber.trim());
+      body.append("qr_code", qr);
+      body.append("token", tableToken ?? "");
+      if (editId) body.append("table_id", editId);
 
-      const url = editId
-        ? `${API_URL}/api/tables/${editId}/`
-        : `${API_URL}/api/tables/`;
-      const method = editId ? "PATCH" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: { Authorization: `Token ${token}` },
-        body: formData,
-      });
+      const res = await fetch(
+        editId ? `${API_URL}/api/tables/${editId}/` : `${API_URL}/api/tables/`,
+        { method: editId ? "PATCH" : "POST", headers: authHeader(), body },
+      );
       const data = await res.json();
-      if (!res.ok || data.response_code !== "0")
+      if (!res.ok || data.response_code !== "0") {
         throw new Error(data.response || "Failed to save table");
+      }
 
-      toast.success(editId ? "Table updated!" : "Table created!");
-      resetForm();
-      setShowForm(false);
+      toast.success(editId ? "Table updated" : "Table created");
+      closeForm();
       fetchTables();
     } catch (err) {
-      toast.error(err.message || "Failed to save table");
       console.error(err);
+      toast.error(err.message);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const handleEdit = (t) => {
-    setEditId(t.reference_id);
-    setTableName(t.table_number);
-    setValidationError("");
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/tables/${pendingDelete.reference_id}/`,
+        { method: "DELETE", headers: authHeader() },
+      );
+      if (!res.ok) throw new Error("Could not delete this table");
+
+      toast.success("Table deleted");
+      fetchTables();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
+    }
+  };
+
+  const openCreate = () => {
+    setEditId(null);
+    setTableNumber("");
+    setError("");
     setShowForm(true);
   };
 
-  const handleDeleteConfirmed = async () => {
-    if (!deleteTable) return;
-    try {
-      const token = getCookie("adminToken");
-      const res = await fetch(
-        `${API_URL}/api/tables/${deleteTable.reference_id}/`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Token ${token}` },
-        },
-      );
-      if (!res.ok) throw new Error("Delete failed");
-
-      toast.success("Table deleted!");
-      fetchTables();
-    } catch (err) {
-      toast.error(err.message || "Delete failed");
-    } finally {
-      setShowDeleteModal(false);
-      setDeleteTable(null);
-    }
+  const openEdit = (table) => {
+    setEditId(table.reference_id);
+    setTableNumber(String(table.table_number ?? ""));
+    setError("");
+    setShowForm(true);
   };
 
-  return (
-    <div className="mx-auto min-h-screen font-sans p-4 bg-[#ddf4e2]">
-      <ToastProvider />
+  const closeForm = () => {
+    setShowForm(false);
+    setEditId(null);
+    setTableNumber("");
+    setError("");
+  };
 
-      <HeaderWithSearch
-        title="Table"
+  const columns = [
+    {
+      header: "S.N.",
+      width: "68px",
+      render: (_row, i) => (
+        <span className="text-ink-400">{(page - 1) * rowsPerPage + i + 1}</span>
+      ),
+    },
+    {
+      header: "Table",
+      render: (row) => (
+        <span className="inline-flex items-center gap-2 font-semibold text-ink-900">
+          <span className="grid size-7 place-items-center rounded-md bg-brand-100 text-2xs font-bold text-brand-700">
+            {row.table_number}
+          </span>
+          Table {row.table_number}
+        </span>
+      ),
+    },
+    {
+      header: "QR code",
+      width: "140px",
+      render: (row) =>
+        row.qr_code ? (
+          <button
+            type="button"
+            onClick={() => setQrTable(row)}
+            className="inline-flex items-center gap-2 rounded-md border border-ink-200 bg-white px-2 py-1 text-2xs font-semibold text-ink-600 transition-colors hover:border-brand-300 hover:text-brand-700 cursor-pointer"
+          >
+            <img src={row.qr_code} alt="" className="size-5" aria-hidden="true" />
+            View & print
+          </button>
+        ) : (
+          <span className="text-2xs text-ink-400">Not generated</span>
+        ),
+    },
+    {
+      header: "Actions",
+      width: "96px",
+      align: "right",
+      render: (row) => (
+        <RowActions>
+          <IconButton
+            icon={Pencil}
+            label={`Edit table ${row.table_number}`}
+            size="sm"
+            onClick={() => openEdit(row)}
+            variant="ghost-brand"
+          />
+          <IconButton
+            icon={Trash2}
+            label={`Delete table ${row.table_number}`}
+            size="sm"
+            onClick={() => setPendingDelete(row)}
+            variant="ghost-danger"
+          />
+        </RowActions>
+      ),
+    },
+  ];
+
+  return (
+    <PageShell>
+      <PageHeader
+        title="Tables"
+        subtitle="Each table gets a QR code customers scan to open the menu."
         searchValue={search}
         onSearchChange={setSearch}
-        buttonLabel="Create"
-        onButtonClick={() => {
-          resetForm();
-          setShowForm(true);
-        }}
-        placeholder="Search Table..."
+        searchPlaceholder="Search table number…"
+        action={
+          <Button icon={Plus} onClick={openCreate}>
+            New table
+          </Button>
+        }
       />
 
-      {showDeleteModal && (
-        <DeleteModal
-          branch={deleteTable?.table_number}
-          setShowDeleteModal={() => setShowDeleteModal(false)}
-          handleDeleteConfirmed={handleDeleteConfirmed}
+      <DataTable
+        data={visible}
+        columns={columns}
+        loading={fetching}
+        searchQuery={search}
+        onClearSearch={() => setSearch("")}
+        emptyIcon={QrCode}
+        emptyTitle="No tables yet"
+        emptyDescription="Add a table to generate its QR code."
+        emptyAction={
+          <Button icon={Plus} size="sm" onClick={openCreate}>
+            New table
+          </Button>
+        }
+      />
+
+      {totalCount > 0 && (
+        <Pagination
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          totalCount={totalCount}
         />
       )}
 
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[1px]">
-          <div className="bg-white w-full max-w-[320px] rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 bg-gray-50/50">
-              <h2 className="text-[13px] font-bold text-gray-700">
-                {editId ? "Edit Table" : "Add New Table"}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  resetForm();
-                }}
-                className="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-gray-100 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-4 space-y-4" noValidate>
-              <div className="space-y-1.5">
-                <label className="block text-[12px] font-semibold text-gray-600">
-                  Table Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={tableName}
-                  onChange={(e) => {
-                    setTableName(e.target.value);
-                    if (validationError) {
-                      setValidationError("");
-                    }
-                  }}
-                  placeholder="e.g. 1"
-                  className={`w-full px-3 py-1.5 text-[12px] border rounded focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 outline-none transition-all placeholder:text-gray-400 ${
-                    validationError ? "border-red-500" : "border-gray-300"
-                  }`}
-                  required
-                  autoFocus
-                />
-                {validationError && (
-                  <p className="text-red-500 text-[10px] mt-0.5">
-                    {validationError}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    resetForm();
-                  }}
-                  className="px-4 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`px-4 py-1.5 text-[12px] font-semibold text-white rounded shadow-sm transition-all cursor-pointer
-              ${
-                loading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-[#236B28] hover:bg-[#1C5721] active:scale-95"
-              }`}
-                >
-                  {loading ? "Saving..." : editId ? "Update" : "Create"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      <CustomTable
-        data={filteredTables}
-        columns={tableColumns}
-        emptyMessage="No table found"
-        searchQuery={searchQuery}
-      />
-
-      <CustomPagination
-        page={page}
-        setPage={setPage}
-        rowsPerPage={rowsPerPage}
-        setRowsPerPage={setRowsPerPage}
-        totalCount={totalCount}
-      />
-
-      {openQr && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-          onClick={() => setOpenQr(null)}
-        >
-          <div
-            className="relative bg-white p-4 rounded-lg max-w-sm w-full"
-            onClick={(e) => e.stopPropagation()}
+      <Modal
+        open={showForm}
+        onClose={closeForm}
+        title={editId ? "Edit table" : "New table"}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={closeForm}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              loading={saving}
+              type="submit"
+              form="table-form"
+            >
+              {editId ? "Update table" : "Create table"}
+            </Button>
+          </>
+        }
+      >
+        <form id="table-form" onSubmit={handleSubmit} noValidate>
+          <Field
+            label="Table number"
+            required
+            error={error}
+            hint="Shown to customers as “Table 4”."
           >
-            <a
-              href={openQr}
-              download={`Table_${selectedTable?.table_number || "QR"}.png`}
-              className="absolute top-2 right-2 text-gray-600 hover:text-amber-500"
-              title="Download QR"
-            >
-              <Download className="h-5 w-5 cursor-pointer" />
-            </a>
+            {(props) => (
+              <Input
+                {...props}
+                inputMode="numeric"
+                value={tableNumber}
+                onChange={(e) => {
+                  setTableNumber(e.target.value);
+                  if (error) setError("");
+                }}
+                placeholder="e.g. 4"
+              />
+            )}
+          </Field>
+        </form>
+      </Modal>
 
-            <img
-              src={openQr}
-              alt={`Table ${selectedTable?.table_number} QR`}
-              className="w-full h-auto object-contain"
-            />
-
-            <button
-              onClick={() => setOpenQr(null)}
-              className="mt-4 w-full bg-gray-800 text-white py-2 rounded hover:bg-gray-900 cursor-pointer"
-            >
+      <Modal
+        open={Boolean(qrTable)}
+        onClose={() => setQrTable(null)}
+        title={`Table ${qrTable?.table_number} QR code`}
+        description="Print this and place it on the table."
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setQrTable(null)}>
               Close
-            </button>
+            </Button>
+            <Button
+              size="sm"
+              icon={Download}
+              onClick={() => {
+                const link = document.createElement("a");
+                link.href = qrTable.qr_code;
+                link.download = `table-${qrTable.table_number}-qr.png`;
+                link.click();
+              }}
+            >
+              Download PNG
+            </Button>
+          </>
+        }
+      >
+        {qrTable?.qr_code && (
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src={qrTable.qr_code}
+              alt={`QR code for table ${qrTable.table_number}`}
+              className="w-full max-w-56 rounded-lg border border-ink-200 p-2"
+            />
+            <p className="text-2xs text-ink-500">
+              Scanning opens the menu for table {qrTable.table_number}.
+            </p>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleDelete}
+        itemName={`Table ${pendingDelete?.table_number}`}
+        loading={deleting}
+        title="Delete table"
+        message={
+          <>
+            Deleting{" "}
+            <span className="font-semibold text-ink-900">
+              Table {pendingDelete?.table_number}
+            </span>{" "}
+            invalidates its QR code — any printed copy will stop working.
+          </>
+        }
+      />
+    </PageShell>
   );
 }

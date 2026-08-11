@@ -1,1213 +1,837 @@
 "use client";
 
-import { Select } from "antd";
-
-import { Trash2, Edit2, X, Plus, ChevronDown } from "lucide-react";
-
-import { useState, useEffect } from "react";
-
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import {
+  ImagePlus,
+  Pencil,
+  Plus,
+  SquareMenu,
+  Trash2,
+  Upload,
+} from "lucide-react";
 
-import ToastProvider from "./ToastProvider";
-
-import { useRef } from "react";
-
-import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
-
-import "../styles/customButtons.css";
-
-import MenuImageHover from "./ImageHover";
-
-import HeaderWithSearch from "./HeaderWithSearch";
-
-import DeleteModal from "./DeleteModal";
-
-import CustomTable from "./CustomTable";
-
-import CustomPagination from "./CustomPagination";
+import PageShell, { PageHeader } from "@/components/ui/PageShell";
+import DataTable, { RowActions } from "@/components/ui/DataTable";
+import Pagination from "@/components/ui/Pagination";
+import Modal, { ConfirmDialog } from "@/components/ui/Modal";
+import Button, { IconButton } from "@/components/ui/Button";
+import { Field, Input } from "@/components/ui/Field";
+import SearchSelect from "@/components/ui/SearchSelect";
+import ImageThumb from "@/components/ui/ImageThumb";
+import Badge from "@/components/ui/Badge";
+import { authHeader, getAuthToken } from "@/lib/cookies";
+import { cn } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const MAX_IMAGE_BYTES = 1024 * 1024;
 
-const getCookie = (name) => {
-  if (typeof document === "undefined") return null;
+const emptyItem = () => ({
+  name: "",
+  price: "",
+  item_category: "",
+  unit: "",
+  imageFile: null,
+  imagePreview: null,
+});
 
-  const value = `; ${document.cookie}`;
-
-  const parts = value.split(`; ${name}=`);
-
-  if (parts.length === 2) return parts.pop().split(";").shift();
-
-  return null;
-};
+const money = (value) =>
+  value === "" || value == null ? "—" : `Rs ${Number(value).toLocaleString()}`;
 
 export default function AdminMenuManager() {
-  const formRef = useRef(null);
-
-  const [units, setUnits] = useState([]);
-
-  const [categoriesList, setCategoriesList] = useState([]);
-
   const [menus, setMenus] = useState([]);
-
-  const [search, setSearch] = useState("");
-
-  const [deleteMenu, setDeleteMenu] = useState(null);
-
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  const [openDropdownIdx, setOpenDropdownIdx] = useState(null);
-
-  const [openUnitDropdownIdx, setOpenUnitDropdownIdx] = useState(null);
-
-  const isFetched = useRef(false);
-
-  const [form, setForm] = useState({
-    menu_date: "",
-
-    categories: [
-      { name: "", price: "", item_category: "", unit: "", imageFile: null },
-    ],
-  });
-
-  const [loading, setLoading] = useState(false);
-
-  const [editingMenuId, setEditingMenuId] = useState(null);
+  const [units, setUnits] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [fetching, setFetching] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
+  const [editingMenuId, setEditingMenuId] = useState(null);
+  const [menuDate, setMenuDate] = useState("");
+  const [items, setItems] = useState([emptyItem()]);
+  const [errors, setErrors] = useState({ menu_date: "", items: [] });
+  const [saving, setSaving] = useState(false);
 
-  const [validationErrors, setValidationErrors] = useState({
-    menu_date: "",
-
-    categories: [],
-  });
-
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
   const [totalCount, setTotalCount] = useState(0);
 
-  const columns = [
-    {
-      header: "S.N.",
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-      width: "40px",
+  const loadedLookups = useRef(false);
 
-      render: (_, index) => (page - 1) * rowsPerPage + index + 1,
-    },
+  /* ---------------------------------------------------------------- fetching */
 
-    {
-      header: "Date",
-
-      accessor: "menu_date",
-    },
-
-    {
-      header: "Name",
-
-      render: (row) => row.name,
-    },
-
-    {
-      header: "Price",
-
-      render: (row) => row.price,
-    },
-
-    {
-      header: "Category",
-
-      render: (row) => getCategoryName(row.item_category),
-    },
-
-    {
-      header: "Unit",
-
-      render: (row) => getUnitName(row.unit),
-    },
-
-    {
-      header: "Image",
-
-      render: (row) => (
-        <div className="w-6 h-6 overflow-hidden mx-auto">
-          <MenuImageHover src={row.image || row.image_url} />
-        </div>
-      ),
-    },
-
-    {
-      header: "Action",
-
-      width: "80px",
-
-      render: (row) => (
-        <div className="flex justify-end gap-1.5">
-          <button
-            onClick={() => handleEditMenu(row)}
-            className="text-blue-500 hover:scale-110 transition cursor-pointer"
-          >
-            <PencilIcon className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            onClick={() => {
-              setDeleteMenu(row);
-
-              setShowDeleteModal(true);
-            }}
-            className="text-red-500 hover:scale-110 transition cursor-pointer"
-          >
-            <TrashIcon className="w-4 h-4" />
-          </button>
-        </div>
-      ),
-    },
-  ];
-
-  const resetForm = () => {
-    setForm({
-      menu_date: "",
-
-      categories: [
-        {
-          name: "",
-
-          price: "",
-
-          item_category: "",
-
-          unit: "",
-
-          imageFile: null,
-
-          imagePreview: null,
-        },
-      ],
-    });
-
-    setValidationErrors({
-      menu_date: "",
-
-      categories: [{}],
-    });
-
-    setEditingMenuId(null);
-  };
-
-  const fetchUnits = async () => {
+  const fetchMenus = async () => {
+    if (!getAuthToken()) return;
+    setFetching(true);
     try {
-      const token = getCookie("adminToken");
-
-      if (!token) return;
-
       const res = await fetch(
-        `${API_URL}/api/units/?page=${page}&page_size=${rowsPerPage}`,
-
-        {
-          headers: { Authorization: `Token ${token}` },
-        },
+        `${API_URL}/api/menus/?page=${page}&page_size=${rowsPerPage}`,
+        { headers: authHeader() },
       );
-
       const data = await res.json();
-
-      setUnits(data.data?.results || []);
+      setMenus(data.data?.results || []);
+      setTotalCount(data.data?.count || 0);
     } catch (err) {
       console.error(err);
-
-      toast.error("Failed to fetch units");
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const token = getCookie("adminToken");
-
-      if (!token) return;
-
-      const res = await fetch(`${API_URL}/api/item-categories/`, {
-        headers: { Authorization: `Token ${token}` },
-      });
-
-      const data = await res.json();
-
-      setCategoriesList(data.data || []);
-    } catch (err) {
-      console.error(err);
-
-      toast.error("Failed to fetch categories");
+      toast.error("Failed to load menu items");
+    } finally {
+      setFetching(false);
     }
   };
 
   useEffect(() => {
     fetchMenus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage]);
 
-  const fetchMenus = async () => {
-    try {
-      const token = getCookie("adminToken");
-
-      if (!token) return;
-
-      const res = await fetch(
-        `${API_URL}/api/menus/?page=${page}&page_size=${rowsPerPage}`,
-
-        {
-          headers: { Authorization: `Token ${token}` },
-        },
-      );
-
-      const data = await res.json();
-
-      setMenus(data.data?.results || []);
-
-      setTotalCount(data?.data?.count || 0);
-    } catch (err) {
-      console.error(err);
-
-      toast.error("Failed to fetch menus");
-    }
-  };
-
   useEffect(() => {
-    if (!isFetched.current) {
-      const loadInitialData = async () => {
-        const token = getCookie("adminToken");
+    if (loadedLookups.current || !getAuthToken()) return;
+    loadedLookups.current = true;
 
-        if (token) {
-          await Promise.all([fetchUnits(), fetchCategories(), fetchMenus()]);
-        }
-      };
+    const load = async (path, setter, label) => {
+      try {
+        const res = await fetch(`${API_URL}${path}`, { headers: authHeader() });
+        const data = await res.json();
+        setter(data.data?.results || data.data || []);
+      } catch (err) {
+        console.error(err);
+        toast.error(`Failed to load ${label}`);
+      }
+    };
 
-      loadInitialData();
-
-      isFetched.current = true;
-    }
+    // page_size is large here on purpose: these feed dropdowns, not a table.
+    load("/api/units/?page=1&page_size=200", setUnits, "units");
+    load("/api/item-categories/", setCategories, "categories");
   }, []);
 
-  const extractIdFromString = (value) => {
-    if (typeof value === "string" && value.includes("object")) {
-      const match = value.match(/\((\d+)\)/);
+  /* ------------------------------------------------------- name resolution */
 
-      return match ? match[1] : null;
+  /** The API returns these as an id string, a nested object, or "object (12)". */
+  const resolveName = (value, list) => {
+    if (!value) return null;
+
+    if (typeof value === "object") {
+      if (value.name) return value.name;
+      const id = value.reference_id ?? value.id;
+      const hit = list.find(
+        (x) => x.reference_id === id || String(x.id) === String(id),
+      );
+      return hit?.name ?? null;
+    }
+
+    const direct = list.find((x) => x.reference_id === value);
+    if (direct) return direct.name;
+
+    const embedded = String(value).match(/\((\d+)\)/)?.[1];
+    if (embedded) {
+      const hit = list.find(
+        (x) => String(x.id) === embedded || x.reference_id === embedded,
+      );
+      if (hit) return hit.name;
     }
 
     return null;
   };
 
-  const getCategoryName = (itemCategory) => {
-    if (!itemCategory) return "N/A";
+  const idOf = (value) =>
+    typeof value === "object" && value !== null
+      ? (value.reference_id ?? value.id ?? "")
+      : (value ?? "");
 
-    if (typeof itemCategory === "object" && itemCategory !== null) {
-      if (itemCategory.name) return itemCategory.name;
+  const categoryOptions = useMemo(
+    () => categories.map((c) => ({ value: c.reference_id, label: c.name })),
+    [categories],
+  );
+  const unitOptions = useMemo(
+    () => units.map((u) => ({ value: u.reference_id, label: u.name })),
+    [units],
+  );
 
-      if (itemCategory.item_category && itemCategory.item_category.name) {
-        return itemCategory.item_category.name;
-      }
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!Array.isArray(menus)) return [];
+    if (!q) return menus;
+    return menus.filter(
+      (m) =>
+        m.name?.toLowerCase().includes(q) ||
+        resolveName(m.item_category, categories)?.toLowerCase().includes(q),
+    );
+  }, [menus, search, categories]);
 
-      const lookupId = itemCategory.reference_id || itemCategory.id;
+  /* ------------------------------------------------------------ form state */
 
-      if (lookupId) {
-        const found = categoriesList.find(
-          (c) =>
-            c.reference_id === lookupId ||
-            (c.id && String(c.id) === String(lookupId)),
-        );
-
-        if (found) return found.name;
-      }
-    }
-
-    if (typeof itemCategory === "string" && itemCategory) {
-      const found = categoriesList.find((c) => c.reference_id === itemCategory);
-
-      if (found) return found.name;
-
-      const extractedId = extractIdFromString(itemCategory);
-
-      if (extractedId) {
-        const foundById = categoriesList.find((c) => {
-          if (c.id && String(c.id) === extractedId) return true;
-
-          if (c.reference_id === extractedId) return true;
-
-          return false;
-        });
-
-        if (foundById) return foundById.name;
-      }
-    }
-
-    return "N/A";
+  const openCreate = () => {
+    setEditingMenuId(null);
+    setMenuDate("");
+    setItems([emptyItem()]);
+    setErrors({ menu_date: "", items: [] });
+    setShowForm(true);
   };
 
-  const getUnitName = (unit) => {
-    if (!unit) return "N/A";
-
-    if (typeof unit === "object" && unit !== null) {
-      if (unit.name) return unit.name;
-
-      if (unit.unit && unit.unit.name) {
-        return unit.unit.name;
-      }
-
-      const lookupId = unit.reference_id || unit.id;
-
-      if (lookupId) {
-        const found = units.find(
-          (u) =>
-            u.reference_id === lookupId ||
-            (u.id && String(u.id) === String(lookupId)),
-        );
-
-        if (found) return found.name;
-      }
-    }
-
-    if (typeof unit === "string" && unit) {
-      const found = units.find((u) => u.reference_id === unit);
-
-      if (found) return found.name;
-
-      const extractedId = extractIdFromString(unit);
-
-      if (extractedId) {
-        const foundById = units.find((u) => {
-          if (u.id && String(u.id) === extractedId) return true;
-
-          if (u.reference_id === extractedId) return true;
-
-          return false;
-        });
-
-        if (foundById) return foundById.name;
-      }
-    }
-
-    return "N/A";
+  const openEdit = (menu) => {
+    setEditingMenuId(menu.reference_id);
+    setMenuDate(menu.menu_date || "");
+    setItems([
+      {
+        name: menu.name || "",
+        price: menu.price ?? "",
+        item_category: idOf(menu.item_category),
+        unit: idOf(menu.unit),
+        imageFile: null,
+        imagePreview: menu.image || menu.image_url || null,
+      },
+    ]);
+    setErrors({ menu_date: "", items: [] });
+    setShowForm(true);
   };
 
-  const handleCategoryChange = (index, field, value) => {
-    const updated = [...form.categories];
-
-    updated[index][field] = value;
-
-    setForm({ ...form, categories: updated });
-
-    if (validationErrors.categories[index]) {
-      const updatedErrors = { ...validationErrors };
-
-      if (field === "item_category" && (!value || value.trim() === "")) {
-        updatedErrors.categories[index].item_category = "Category is required";
-      } else if (field === "unit" && (!value || value.trim() === "")) {
-        updatedErrors.categories[index].unit = "Unit is required";
-      } else if (field === "name" && (!value || value.trim() === "")) {
-        updatedErrors.categories[index].name = "Name is required";
-      } else if (
-        field === "price" &&
-        (value === "" || value === null || value === undefined)
-      ) {
-        updatedErrors.categories[index].price = "Price is required";
-      } else if (field === "price" && value !== "" && isNaN(value)) {
-        updatedErrors.categories[index].price = "Price must be a number";
-      } else if (field === "price" && value !== "" && Number(value) <= 0) {
-        updatedErrors.categories[index].price = "Price must be greater than 0";
-      } else {
-        updatedErrors.categories[index][field] = "";
-      }
-
-      setValidationErrors(updatedErrors);
-    }
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingMenuId(null);
+    setItems([emptyItem()]);
+    setErrors({ menu_date: "", items: [] });
   };
 
-  const handleCategoryImage = (index, e) => {
-    const file = e.target.files[0];
+  const setItemField = (index, field, value) => {
+    setItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+    );
+    setErrors((prev) => {
+      const nextItems = [...prev.items];
+      if (nextItems[index]?.[field]) {
+        nextItems[index] = { ...nextItems[index], [field]: "" };
+      }
+      return { ...prev, items: nextItems };
+    });
+  };
 
+  const pickImage = (index, file) => {
     if (!file) return;
 
-    const MAX_SIZE = 1024 * 1024;
-
-    if (file.size > MAX_SIZE) {
-      toast.error("Image size must be less than 1MB");
-
-      e.target.value = "";
-
-      return;
-    }
-
     if (!file.type.startsWith("image/")) {
-      toast.error("Only image files are allowed");
-
-      e.target.value = "";
-
+      toast.error("That file isn't an image");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      toast.error("Image must be under 1 MB");
       return;
     }
 
-    const updated = [...form.categories];
-
-    updated[index].imageFile = file;
-
-    updated[index].imagePreview = URL.createObjectURL(file);
-
-    setForm({ ...form, categories: updated });
-
-    if (validationErrors.categories[index]?.image) {
-      const updatedErrors = { ...validationErrors };
-
-      if (updatedErrors.categories[index]) {
-        updatedErrors.categories[index].image = "";
-      }
-
-      setValidationErrors(updatedErrors);
-    }
-  };
-
-  const handleAddCategory = () => {
-    setForm({
-      ...form,
-
-      categories: [
-        ...form.categories,
-
-        { name: "", price: "", item_category: "", unit: "", imageFile: null },
-      ],
-    });
-
-    setValidationErrors({
-      ...validationErrors,
-
-      categories: [
-        ...validationErrors.categories,
-
-        { name: "", price: "", item_category: "", unit: "", image: "" },
-      ],
-    });
-  };
-
-  const handleDeleteCategoryForm = (index) => {
-    const updated = form.categories.filter((_, i) => i !== index);
-
-    setForm({ ...form, categories: updated });
-
-    const updatedErrors = { ...validationErrors };
-
-    updatedErrors.categories = updatedErrors.categories.filter(
-      (_, i) => i !== index,
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              imageFile: file,
+              imagePreview: URL.createObjectURL(file),
+            }
+          : item,
+      ),
     );
-
-    setValidationErrors(updatedErrors);
+    setErrors((prev) => {
+      const nextItems = [...prev.items];
+      if (nextItems[index]?.image) {
+        nextItems[index] = { ...nextItems[index], image: "" };
+      }
+      return { ...prev, items: nextItems };
+    });
   };
 
-  const validateForm = () => {
-    const fieldErrors = {
-      menu_date: "",
-      categories: [],
-    };
+  // Carry the previous row's category and unit forward: when you're entering
+  // ten drinks in a row, those two columns are almost always the same.
+  const addItem = () =>
+    setItems((prev) => {
+      const last = prev[prev.length - 1];
+      return [
+        ...prev,
+        {
+          ...emptyItem(),
+          item_category: last?.item_category ?? "",
+          unit: last?.unit ?? "",
+        },
+      ];
+    });
+  const removeItem = (index) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+    setErrors((prev) => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+    }));
+  };
 
-    let hasError = false;
+  const validate = () => {
+    const next = { menu_date: "", items: [] };
+    let ok = true;
 
-    if (!form.menu_date) {
-      fieldErrors.menu_date = "Menu date is required";
-      hasError = true;
+    if (!menuDate) {
+      next.menu_date = "Pick the date this menu applies to";
+      ok = false;
     }
 
-    form.categories.forEach((cat, index) => {
-      const categoryErrors = {};
+    items.forEach((item) => {
+      const itemErrors = {};
 
-      if (!cat.name || cat.name.trim() === "") {
-        categoryErrors.name = "Name is required";
-        hasError = true;
+      if (!item.name?.trim()) {
+        itemErrors.name = "Required";
+        ok = false;
       }
 
-      if (cat.price === "" || cat.price === null || cat.price === undefined) {
-        categoryErrors.price = "Price is required";
-        hasError = true;
-      } else if (isNaN(cat.price)) {
-        categoryErrors.price = "Price must be a number";
-        hasError = true;
-      } else if (Number(cat.price) <= 0) {
-        categoryErrors.price = "Price must be greater than 0";
-        hasError = true;
+      if (item.price === "" || item.price == null) {
+        itemErrors.price = "Required";
+        ok = false;
+      } else if (Number.isNaN(Number(item.price))) {
+        itemErrors.price = "Must be a number";
+        ok = false;
+      } else if (Number(item.price) <= 0) {
+        itemErrors.price = "Must be above 0";
+        ok = false;
       }
 
-      if (!cat.item_category || cat.item_category.trim() === "") {
-        categoryErrors.item_category = "Category is required";
-        hasError = true;
+      if (!item.item_category) {
+        itemErrors.item_category = "Required";
+        ok = false;
+      }
+      if (!item.unit) {
+        itemErrors.unit = "Required";
+        ok = false;
+      }
+      if (!editingMenuId && !item.imageFile) {
+        itemErrors.image = "Image required";
+        ok = false;
       }
 
-      if (!cat.unit || cat.unit.trim() === "") {
-        categoryErrors.unit = "Unit is required";
-        hasError = true;
-      }
-
-      if (!editingMenuId && !cat.imageFile) {
-        categoryErrors.image = "Image is required";
-        hasError = true;
-      }
-
-      fieldErrors.categories.push(categoryErrors);
+      next.items.push(itemErrors);
     });
 
-    setValidationErrors(fieldErrors);
-    return hasError;
+    setErrors(next);
+    return ok;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const hasError = validateForm();
-
-    if (hasError) {
-      const firstErrorElement = document.querySelector(
-        ".border-red-500, [status='error']",
-      );
-      if (firstErrorElement) {
-        firstErrorElement.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-        firstErrorElement.focus();
-      }
+    if (!validate()) {
+      toast.error("Check the highlighted fields");
       return;
     }
 
-    setLoading(true);
-
+    setSaving(true);
     try {
-      const token = getCookie("adminToken");
-
-      if (!token) throw new Error("Login again!");
-
       const payload = new FormData();
-
-      payload.append("menu_date", form.menu_date);
+      payload.append("menu_date", menuDate);
 
       if (editingMenuId) {
-        const cat = form.categories[0];
-
-        payload.append("name", cat.name);
-
-        payload.append("price", cat.price);
-
-        payload.append("item_category", cat.item_category);
-
-        payload.append("unit", cat.unit);
-
-        if (cat.imageFile) {
-          payload.append("image", cat.imageFile);
-        }
+        const item = items[0];
+        payload.append("name", item.name.trim());
+        payload.append("price", item.price);
+        payload.append("item_category", item.item_category);
+        payload.append("unit", item.unit);
+        if (item.imageFile) payload.append("image", item.imageFile);
       } else {
-        form.categories.forEach((cat, index) => {
-          payload.append(`items[${index}][name]`, cat.name);
-
-          payload.append(`items[${index}][price]`, cat.price);
-
-          payload.append(`items[${index}][item_category]`, cat.item_category);
-
-          payload.append(`items[${index}][unit]`, cat.unit);
-
-          if (cat.imageFile) {
-            payload.append(`items[${index}][image]`, cat.imageFile);
-          }
+        items.forEach((item, i) => {
+          payload.append(`items[${i}][name]`, item.name.trim());
+          payload.append(`items[${i}][price]`, item.price);
+          payload.append(`items[${i}][item_category]`, item.item_category);
+          payload.append(`items[${i}][unit]`, item.unit);
+          if (item.imageFile)
+            payload.append(`items[${i}][image]`, item.imageFile);
         });
       }
 
-      const url = editingMenuId
-        ? `${API_URL}/api/menus/${editingMenuId}/`
-        : `${API_URL}/api/menus/`;
-
-      const method = editingMenuId ? "PATCH" : "POST";
-
-      const res = await fetch(url, {
-        method,
-
-        headers: {
-          Authorization: `Token ${token}`,
-        },
-
-        body: payload,
-      });
-
-      let resData;
-
-      try {
-        resData = await res.json();
-      } catch {
-        throw new Error("Invalid server response");
-      }
-
-      if (!res.ok || resData.response_code !== "0") {
-        throw new Error(resData.message || "Save failed");
-      }
-
-      toast.success(editingMenuId ? "Menu updated!" : "Menu created!");
-
-      setForm({
-        menu_date: "",
-
-        categories: [
-          {
-            name: "",
-
-            price: "",
-
-            item_category: "",
-
-            unit: "",
-
-            imageFile: null,
-          },
-        ],
-      });
-
-      setValidationErrors({
-        menu_date: "",
-
-        categories: [{}],
-      });
-
-      setEditingMenuId(null);
-
-      setShowForm(false);
-
-      fetchMenus();
-    } catch (err) {
-      console.error(err);
-
-      toast.error(err.message || "Error saving menu");
-    }
-
-    setLoading(false);
-  };
-
-  // Handle Edit
-
-  const handleEditMenu = (menu) => {
-    setEditingMenuId(menu.reference_id);
-
-    setForm({
-      menu_date: menu.menu_date || "",
-
-      categories: [
-        {
-          name: menu.name || "",
-
-          price: menu.price || "",
-
-          item_category: menu.item_category,
-
-          unit: menu.unit,
-
-          imageFile: null,
-
-          imagePreview: menu.image || menu.image_url || null,
-        },
-      ],
-    });
-
-    setValidationErrors({
-      menu_date: "",
-
-      categories: [{}],
-    });
-
-    setShowForm(true);
-  };
-
-  const handleDeleteConfirmed = async () => {
-    if (!deleteMenu) return;
-
-    try {
-      const token = getCookie("adminToken");
-
       const res = await fetch(
-        `${API_URL}/api/menus/${deleteMenu.reference_id}/`,
-
+        editingMenuId
+          ? `${API_URL}/api/menus/${editingMenuId}/`
+          : `${API_URL}/api/menus/`,
         {
-          method: "DELETE",
-
-          headers: { Authorization: `Token ${token}` },
+          method: editingMenuId ? "PATCH" : "POST",
+          headers: authHeader(),
+          body: payload,
         },
       );
 
-      if (!res.ok) throw new Error("Failed to delete menu");
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Unexpected response from the server");
+      }
 
-      toast.success("Menu deleted!");
+      if (!res.ok || data.response_code !== "0") {
+        throw new Error(data.message || "Failed to save the menu");
+      }
 
+      toast.success(
+        editingMenuId
+          ? "Menu item updated"
+          : `${items.length} item${items.length > 1 ? "s" : ""} added`,
+      );
+      closeForm();
       fetchMenus();
     } catch (err) {
-      toast.error(err.message || "Delete failed");
-
       console.error(err);
+      toast.error(err.message);
     } finally {
-      setShowDeleteModal(false);
-
-      setDeleteMenu(null);
+      setSaving(false);
     }
   };
 
-  const filteredMenus = Array.isArray(menus)
-    ? menus.filter(
-        (menu) =>
-          menu.name?.toLowerCase().includes(search.toLowerCase()) ||
-          getCategoryName(menu.item_category)
-            ?.toLowerCase()
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/menus/${pendingDelete.reference_id}/`,
+        { method: "DELETE", headers: authHeader() },
+      );
+      if (!res.ok) throw new Error("Could not delete this item");
 
-            .includes(search.toLowerCase()),
-      )
-    : [];
+      toast.success("Menu item deleted");
+      fetchMenus();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
+    }
+  };
+
+  /* ---------------------------------------------------------------- columns */
+
+  const columns = [
+    {
+      header: "S.N.",
+      width: "68px",
+      render: (_row, i) => (
+        <span className="text-ink-400">{(page - 1) * rowsPerPage + i + 1}</span>
+      ),
+    },
+    {
+      header: "Item",
+      render: (row) => (
+        <div className="flex items-center gap-2.5">
+          <ImageThumb
+            src={row.image || row.image_url}
+            alt={row.name}
+            size={36}
+          />
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-ink-900">{row.name}</p>
+            <p className="text-2xs text-ink-500">
+              {resolveName(row.unit, units) ?? "No unit"}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Category",
+      render: (row) => {
+        const name = resolveName(row.item_category, categories);
+        return name ? (
+          <Badge tone="neutral">{name}</Badge>
+        ) : (
+          <span className="text-ink-400">—</span>
+        );
+      },
+    },
+    {
+      header: "Price",
+      align: "right",
+      render: (row) => (
+        <span className="font-semibold tabular-nums text-ink-900">
+          {money(row.price)}
+        </span>
+      ),
+    },
+    {
+      header: "Menu date",
+      render: (row) => (
+        <span className="tabular-nums text-ink-600">
+          {row.menu_date || "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Actions",
+      width: "96px",
+      align: "right",
+      render: (row) => (
+        <RowActions>
+          <IconButton
+            icon={Pencil}
+            label={`Edit ${row.name}`}
+            size="sm"
+            onClick={() => openEdit(row)}
+            variant="ghost-brand"
+          />
+          <IconButton
+            icon={Trash2}
+            label={`Delete ${row.name}`}
+            size="sm"
+            onClick={() => setPendingDelete(row)}
+            variant="ghost-danger"
+          />
+        </RowActions>
+      ),
+    },
+  ];
 
   return (
-    <>
-      <div className="mx-auto min-h-screen font-sans p-4 bg-[#ddf4e2]">
-        <ToastProvider />
+    <PageShell>
+      <PageHeader
+        title="Menu"
+        subtitle="Dishes customers see when they scan a table QR code."
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search menu items…"
+        action={
+          <Button icon={Plus} onClick={openCreate}>
+            Add items
+          </Button>
+        }
+      />
 
-        <HeaderWithSearch
-          title="Menu"
-          searchValue={search}
-          onSearchChange={setSearch}
-          buttonLabel="Create"
-          onButtonClick={() => {
-            resetForm();
+      <DataTable
+        data={visible}
+        columns={columns}
+        loading={fetching}
+        searchQuery={search}
+        onClearSearch={() => setSearch("")}
+        emptyIcon={SquareMenu}
+        emptyTitle="No menu items yet"
+        emptyDescription="Add dishes with a price, category and photo."
+        emptyAction={
+          <Button icon={Plus} size="sm" onClick={openCreate}>
+            Add items
+          </Button>
+        }
+      />
 
-            setShowForm(true);
-          }}
-          placeholder="Search Menu..."
-        />
-
-        {showDeleteModal && (
-          <DeleteModal
-            branch={deleteMenu?.name}
-            setShowDeleteModal={() => setShowDeleteModal(false)}
-            handleDeleteConfirmed={handleDeleteConfirmed}
-          />
-        )}
-
-        {showForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-[1px]">
-            <form
-              ref={formRef}
-              onSubmit={handleSubmit}
-              className="bg-white w-full max-w-4xl rounded shadow-lg overflow-hidden animate-in fade-in zoom-in duration-150 border border-gray-300"
-              noValidate
-            >
-              <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 bg-white">
-                <h2 className="text-[14px] font-semibold text-gray-800 tracking-tight">
-                  {editingMenuId ? "Edit Menu" : "Create New Menu"}
-                </h2>
-
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="text-red-500 hover:text-red-600 transition-all p-1 hover:bg-gray-100 rounded cursor-pointer"
-                >
-                  <X size={16} strokeWidth={2} />
-                </button>
-              </div>
-
-              <div className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <label className="text-[12px] text-gray-600 font-medium whitespace-nowrap">
-                    Menu Date:
-                    <span className="text-red-500 ml-0.5">*</span>
-                  </label>
-
-                  <div className="flex-1">
-                    <input
-                      type="date"
-                      value={form.menu_date}
-                      onChange={(e) => {
-                        setForm({ ...form, menu_date: e.target.value });
-
-                        if (validationErrors.menu_date) {
-                          setValidationErrors({
-                            ...validationErrors,
-
-                            menu_date: "",
-                          });
-                        }
-                      }}
-                      className={`w-40 border px-2 py-1 rounded hover:border-blue-400 focus:border-blue-500 outline-none transition-all text-[12px] ${
-                        validationErrors.menu_date
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
-                      required
-                      autoFocus
-                    />
-
-                    {validationErrors.menu_date && (
-                      <p className="text-red-500 text-[10px] mt-0.5">
-                        {validationErrors.menu_date}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto border border-gray-300 rounded-lg bg-white max-h-[400px] overflow-y-auto">
-                  <table className="w-full border-collapse relative">
-                    <thead className="bg-white border-b border-gray-300 sticky top-0 z-10 shadow-[0_1px_0_0_rgba(229,231,235,1)]">
-                      <tr className="text-[14px] text-gray-600 font-medium">
-                        <th className="px-4 py-1 text-left border-r border-gray-300 w-56 bg-white sticky top-0">
-                          Name <span className="text-red-500">*</span>
-                        </th>
-
-                        <th className="px-4 py-1 text-left border-r border-gray-300 w-24 bg-white sticky top-0">
-                          Price <span className="text-red-500">*</span>
-                        </th>
-
-                        <th className="px-4 py-1 text-left border-r border-gray-300 w-45 bg-white sticky top-0">
-                          Category <span className="text-red-500">*</span>
-                        </th>
-
-                        <th className="px-4 py-1 text-left border-r border-gray-300 w-35 bg-white sticky top-0">
-                          Unit <span className="text-red-500">*</span>
-                        </th>
-
-                        <th className="px-4 py-1 text-center border-r border-gray-300 w-16 bg-white sticky top-0">
-                          Img <span className="text-red-500">*</span>
-                        </th>
-
-                        <th className="px-4 py-1 text-center w-20 bg-white sticky top-0">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {form.categories.map((cat, idx) => (
-                        <tr key={idx} className="border-b border-gray-300">
-                          <td className="p-1.5 border-r border-gray-300">
-                            <div>
-                              <input
-                                type="text"
-                                value={cat.name}
-                                placeholder="Enter menu name"
-                                onChange={(e) =>
-                                  handleCategoryChange(
-                                    idx,
-
-                                    "name",
-
-                                    e.target.value,
-                                  )
-                                }
-                                className={`w-full border rounded-md px-3 h-[30px] text-[14px] outline-none focus:border-blue-500 ${
-                                  validationErrors.categories[idx]?.name
-                                    ? "border-red-500"
-                                    : "border-gray-300"
-                                }`}
-                                required
-                              />
-
-                              {validationErrors.categories[idx]?.name && (
-                                <p className="text-red-500 text-[10px] mt-0.5">
-                                  {validationErrors.categories[idx].name}
-                                </p>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="p-1.5 border-r border-gray-300">
-                            <div>
-                              <input
-                                type="number"
-                                value={cat.price}
-                                placeholder="0.00"
-                                onChange={(e) =>
-                                  handleCategoryChange(
-                                    idx,
-
-                                    "price",
-
-                                    e.target.value,
-                                  )
-                                }
-                                className={`w-full border rounded-md px-3 h-[30px] text-[14px] outline-none focus:border-blue-500 ${
-                                  validationErrors.categories[idx]?.price
-                                    ? "border-red-500"
-                                    : "border-gray-300"
-                                }`}
-                                required
-                                min="0.01"
-                                step="0.01"
-                              />
-
-                              {validationErrors.categories[idx]?.price && (
-                                <p className="text-red-500 text-[10px] mt-0.5">
-                                  {validationErrors.categories[idx].price}
-                                </p>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="p-1.5 border-r border-gray-300">
-                            <div>
-                              <div className="relative">
-                                <Select
-                                  showSearch
-                                  allowClear
-                                  open={openDropdownIdx === idx}
-                                  onDropdownVisibleChange={(visible) =>
-                                    setOpenDropdownIdx(visible ? idx : null)
-                                  }
-                                  value={cat.item_category || undefined}
-                                  placeholder="Select category"
-                                  className={`w-full text-[14px] custom-card-select ${
-                                    validationErrors.categories[idx]
-                                      ?.item_category
-                                      ? "border-red-500"
-                                      : ""
-                                  }`}
-                                  style={{ height: "30px" }}
-                                  optionFilterProp="label"
-                                  filterOption={(input, option) =>
-                                    (option?.label ?? "")
-
-                                      .toLowerCase()
-
-                                      .includes(input.toLowerCase())
-                                  }
-                                  onChange={(value) => {
-                                    handleCategoryChange(
-                                      idx,
-
-                                      "item_category",
-
-                                      value,
-                                    );
-
-                                    setOpenDropdownIdx(null);
-                                  }}
-                                  onClear={() => {
-                                    handleCategoryChange(
-                                      idx,
-
-                                      "item_category",
-
-                                      "",
-                                    );
-
-                                    const updatedErrors = {
-                                      ...validationErrors,
-                                    };
-
-                                    if (updatedErrors.categories[idx]) {
-                                      updatedErrors.categories[
-                                        idx
-                                      ].item_category = "Category is required";
-                                    }
-
-                                    setValidationErrors(updatedErrors);
-                                  }}
-                                  popupClassName="custom-dropdown-card"
-                                  options={categoriesList.map((c) => ({
-                                    value: c.reference_id,
-
-                                    label: c.name,
-                                  }))}
-                                  status={
-                                    validationErrors.categories[idx]
-                                      ?.item_category
-                                      ? "error"
-                                      : ""
-                                  }
-                                />
-                              </div>
-
-                              {validationErrors.categories[idx]
-                                ?.item_category && (
-                                <p className="text-red-500 text-[10px] mt-0.5 text-left">
-                                  {
-                                    validationErrors.categories[idx]
-                                      .item_category
-                                  }
-                                </p>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="p-1.5 border-r border-gray-300">
-                            <div>
-                              <div className="relative">
-                                <Select
-                                  showSearch
-                                  allowClear
-                                  open={openUnitDropdownIdx === idx}
-                                  onDropdownVisibleChange={(visible) =>
-                                    setOpenUnitDropdownIdx(visible ? idx : null)
-                                  }
-                                  value={cat.unit || undefined}
-                                  placeholder="Select unit"
-                                  className={`w-full text-[14px] custom-card-select ${
-                                    validationErrors.categories[idx]?.unit
-                                      ? "border-red-500"
-                                      : ""
-                                  }`}
-                                  style={{ height: "30px" }}
-                                  optionFilterProp="label"
-                                  popupClassName="custom-dropdown-card"
-                                  onChange={(value) => {
-                                    handleCategoryChange(idx, "unit", value);
-
-                                    setOpenUnitDropdownIdx(null);
-                                  }}
-                                  onClear={() => {
-                                    handleCategoryChange(idx, "unit", "");
-
-                                    const updatedErrors = {
-                                      ...validationErrors,
-                                    };
-
-                                    if (updatedErrors.categories[idx]) {
-                                      updatedErrors.categories[idx].unit =
-                                        "Unit is required";
-                                    }
-
-                                    setValidationErrors(updatedErrors);
-                                  }}
-                                  filterOption={(input, option) =>
-                                    (option?.label ?? "")
-
-                                      .toLowerCase()
-
-                                      .includes(input.toLowerCase())
-                                  }
-                                  options={units.map((u) => ({
-                                    value: u.reference_id,
-
-                                    label: u.name,
-                                  }))}
-                                  status={
-                                    validationErrors.categories[idx]?.unit
-                                      ? "error"
-                                      : ""
-                                  }
-                                />
-                              </div>
-
-                              {validationErrors.categories[idx]?.unit && (
-                                <p className="text-red-500 text-[10px] mt-0.5 text-left">
-                                  {validationErrors.categories[idx].unit}
-                                </p>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="p-1.5 border-r border-gray-300 text-center">
-                            <div>
-                              <input
-                                type="file"
-                                id={`upload-${idx}`}
-                                onChange={(e) => handleCategoryImage(idx, e)}
-                                className="hidden"
-                                accept="image/*"
-                                required={!editingMenuId && !cat.imageFile}
-                              />
-
-                              <label
-                                htmlFor={`upload-${idx}`}
-                                className={`inline-flex w-full h-[30px] items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-gray-400 bg-white ${
-                                  validationErrors.categories[idx]?.image
-                                    ? "border-red-500"
-                                    : !cat.imageFile && !editingMenuId
-                                      ? "border-red-300 hover:border-red-400"
-                                      : "border-gray-300"
-                                }`}
-                              >
-                                {cat.imagePreview ? (
-                                  <img
-                                    src={cat.imagePreview}
-                                    className="w-full h-full object-cover rounded-md"
-                                    alt="Menu item"
-                                  />
-                                ) : (
-                                  <Plus size={14} className="text-gray-400" />
-                                )}
-                              </label>
-
-                              {validationErrors.categories[idx]?.image && (
-                                <p className="text-red-500 text-[10px] mt-0.5">
-                                  {validationErrors.categories[idx].image}
-                                </p>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="p-1.5 text-center">
-                            <div className="flex justify-center items-center gap-4 h-[30px]">
-                              {idx === form.categories.length - 1 && (
-                                <button
-                                  type="button"
-                                  onClick={handleAddCategory}
-                                  className="text-green-500 hover:text-green-600 transition-colors"
-                                  title="Add new item"
-                                >
-                                  <Plus size={16} />
-                                </button>
-                              )}
-
-                              {form.categories.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteCategoryForm(idx)}
-                                  className="text-red-500 hover:text-red-600 transition-colors"
-                                  title="Remove item"
-                                >
-                                  <X size={16} />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 px-4 py-2 border-t border-gray-100 bg-gray-50/50">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`px-4 py-1.5 text-[12px] font-semibold text-white rounded shadow-sm transition-all cursor-pointer
-
-              ${
-                loading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-[#236B28] hover:bg-[#1C5721] active:scale-95"
-              }`}
-                >
-                  {loading ? "Saving..." : editingMenuId ? "Update" : "Create"}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        <CustomTable
-          data={filteredMenus}
-          columns={columns}
-          emptyMessage="No menu found"
-          searchQuery={search}
-        />
-
-        <CustomPagination
+      {totalCount > 0 && (
+        <Pagination
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
           setRowsPerPage={setRowsPerPage}
           totalCount={totalCount}
         />
+      )}
+
+      <Modal
+        open={showForm}
+        onClose={closeForm}
+        title={editingMenuId ? "Edit menu item" : "Add menu items"}
+        description={
+          editingMenuId
+            ? undefined
+            : "Add several dishes at once — they'll share the menu date."
+        }
+        size="2xl"
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={closeForm}>
+              Cancel
+            </Button>
+            <Button size="sm" loading={saving} type="submit" form="menu-form">
+              {editingMenuId
+                ? "Update item"
+                : `Create ${items.length} item${items.length > 1 ? "s" : ""}`}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="menu-form"
+          onSubmit={handleSubmit}
+          className="space-y-4"
+          noValidate
+        >
+          <Field
+            label="Menu date"
+            required
+            error={errors.menu_date}
+            className="max-w-52"
+          >
+            {(props) => (
+              <Input
+                {...props}
+                type="date"
+                value={menuDate}
+                onChange={(e) => {
+                  setMenuDate(e.target.value);
+                  if (errors.menu_date)
+                    setErrors((prev) => ({ ...prev, menu_date: "" }));
+                }}
+              />
+            )}
+          </Field>
+
+          <div className="overflow-hidden rounded-lg border border-ink-300">
+            <ItemGridHeader imageRequired={!editingMenuId} />
+
+            {items.map((item, idx) => (
+              <ItemRow
+                key={idx}
+                index={idx}
+                item={item}
+                errors={errors.items[idx] ?? {}}
+                categoryOptions={categoryOptions}
+                unitOptions={unitOptions}
+                onChange={setItemField}
+                onPickImage={pickImage}
+                onRemove={items.length > 1 ? () => removeItem(idx) : null}
+                imageRequired={!editingMenuId}
+              />
+            ))}
+
+            {!editingMenuId && (
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-ink-50 px-3 py-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={Plus}
+                  onClick={addItem}
+                >
+                  Add row
+                </Button>
+                <p className="text-2xs text-ink-500">
+                  {items.length} row{items.length > 1 ? "s" : ""} · new rows
+                  reuse the category and unit above
+                </p>
+              </div>
+            )}
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleDelete}
+        itemName={pendingDelete?.name}
+        loading={deleting}
+        title="Delete menu item"
+      />
+    </PageShell>
+  );
+}
+
+/* ==========================================================================
+   Bulk-entry grid
+   A real table on md+ (headers once, tab straight across a row) that reflows
+   into labelled blocks on narrow screens, where seven columns can't fit.
+   One markup, two layouts — the column template is shared below.
+   ========================================================================== */
+
+const GRID =
+  "md:grid md:items-start md:gap-2 " +
+  "md:grid-cols-[42px_56px_minmax(140px,1fr)_100px_minmax(140px,185px)_minmax(105px,145px)_32px]";
+
+function Th({ children, className }) {
+  return (
+    <span
+      className={cn(
+        "text-2xs font-bold uppercase tracking-wider text-ink-500",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Required() {
+  return (
+    <span className="text-danger-600" aria-hidden="true">
+      *
+    </span>
+  );
+}
+
+function ItemGridHeader({ imageRequired }) {
+  return (
+    <div
+      className={cn("hidden border-b border-ink-300 bg-ink-50 px-3 py-2", GRID)}
+    >
+      <Th>S.N.</Th>
+      <Th>
+        Img
+        {imageRequired && <Required />}
+      </Th>
+      <Th>
+        Name <Required />
+      </Th>
+      <Th>
+        Price <Required />
+      </Th>
+      <Th>
+        Category <Required />
+      </Th>
+      <Th>
+        Unit <Required />
+      </Th>
+      <Th className="sr-only">Remove</Th>
+    </div>
+  );
+}
+
+/**
+ * One dish. Cells carry their own aria-label because on md+ the visible label
+ * lives in the header row, out of each control's accessible name.
+ */
+function ItemRow({
+  index,
+  item,
+  errors,
+  categoryOptions,
+  unitOptions,
+  onChange,
+  onPickImage,
+  onRemove,
+  imageRequired,
+}) {
+  const imageInputId = `item-${index}-image`;
+  const position = index + 1;
+
+  return (
+    <div
+      className={cn(
+        "border-b border-ink-200 px-3 py-3 last:border-b-0 md:py-2",
+        "space-y-2.5 md:space-y-0",
+        "odd:bg-white even:bg-ink-50/40",
+        GRID,
+      )}
+    >
+      {/* Row number — a heading on mobile, a plain cell in the grid */}
+      <div className="flex items-center justify-between md:h-9 md:justify-start">
+        <span className="text-2xs font-bold uppercase tracking-wider text-ink-400 md:normal-case md:tracking-normal md:text-ink-400">
+          <span className="md:hidden">Item {position}</span>
+          <span className="hidden md:inline">{position}</span>
+        </span>
+        {onRemove && (
+          <span className="md:hidden">
+            <IconButton
+              icon={Trash2}
+              label={`Remove item ${position}`}
+              size="sm"
+              onClick={onRemove}
+              variant="ghost-danger"
+            />
+          </span>
+        )}
       </div>
-    </>
+
+      {/* Photo */}
+      <Cell label="Photo" error={errors.image}>
+        <label
+          htmlFor={imageInputId}
+          className={cn(
+            "group relative grid size-14 cursor-pointer place-items-center overflow-hidden rounded-md border-2 border-dashed bg-white transition-colors md:size-9",
+            errors.image
+              ? "border-danger-600"
+              : "border-ink-300 hover:border-brand-500",
+          )}
+        >
+          {item.imagePreview ? (
+            <>
+              <img
+                src={item.imagePreview}
+                alt=""
+                className="size-full object-cover"
+              />
+              <span className="absolute inset-0 grid place-items-center bg-ink-900/55 opacity-0 transition-opacity group-hover:opacity-100">
+                <Upload className="size-3.5 text-white" aria-hidden="true" />
+              </span>
+            </>
+          ) : (
+            <ImagePlus className="size-4 text-ink-400" aria-hidden="true" />
+          )}
+        </label>
+        <input
+          id={imageInputId}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          aria-label={`Photo for item ${position}${imageRequired ? " (required)" : ""}`}
+          onChange={(e) => onPickImage(index, e.target.files?.[0])}
+        />
+      </Cell>
+
+      <Cell label="Name" error={errors.name}>
+        <Input
+          value={item.name}
+          onChange={(e) => onChange(index, "name", e.target.value)}
+          placeholder="Chicken Momo"
+          aria-label={`Name for item ${position}`}
+          invalid={Boolean(errors.name)}
+        />
+      </Cell>
+
+      <Cell label="Price" error={errors.price}>
+        <Input
+          inputMode="decimal"
+          value={item.price}
+          onChange={(e) => onChange(index, "price", e.target.value)}
+          placeholder="180"
+          aria-label={`Price for item ${position}`}
+          invalid={Boolean(errors.price)}
+          className="tabular-nums"
+        />
+      </Cell>
+
+      <Cell label="Category" error={errors.item_category}>
+        <SearchSelect
+          value={item.item_category}
+          onChange={(value) => onChange(index, "item_category", value)}
+          options={categoryOptions}
+          placeholder="Category"
+          aria-label={`Category for item ${position}`}
+          invalid={Boolean(errors.item_category)}
+        />
+      </Cell>
+
+      <Cell label="Unit" error={errors.unit}>
+        <SearchSelect
+          value={item.unit}
+          onChange={(value) => onChange(index, "unit", value)}
+          options={unitOptions}
+          placeholder="Unit"
+          aria-label={`Unit for item ${position}`}
+          invalid={Boolean(errors.unit)}
+        />
+      </Cell>
+
+      {/* Remove — mobile shows it beside the row heading instead */}
+      <div className="hidden md:flex md:h-9 md:items-center">
+        {onRemove && (
+          <IconButton
+            icon={Trash2}
+            label={`Remove item ${position}`}
+            size="sm"
+            onClick={onRemove}
+            variant="ghost-danger"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Grid cell: label shows only where the header row is hidden. */
+function Cell({ label, error, children }) {
+  return (
+    <div className="min-w-0">
+      {label && (
+        <span className="mb-1 block text-2xs font-semibold text-ink-600 md:hidden">
+          {label}
+        </span>
+      )}
+      {children}
+      {error && (
+        <p className="mt-1 text-[10px] font-medium text-danger-600">{error}</p>
+      )}
+    </div>
   );
 }

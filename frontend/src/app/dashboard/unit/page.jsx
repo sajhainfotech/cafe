@@ -1,347 +1,281 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { Boxes, Pencil, Plus, Trash2 } from "lucide-react";
 
-import "@/styles/customButtons.css";
-import ToastProvider from "@/components/ToastProvider";
-import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
-import { X } from "lucide-react";
-import HeaderWithSearch from "@/components/HeaderWithSearch";
-import DeleteModal from "@/components/DeleteModal";
-import CustomTable from "@/components/CustomTable";
-import CustomPagination from "@/components/CustomPagination";
+import PageShell, { PageHeader } from "@/components/ui/PageShell";
+import DataTable, { RowActions } from "@/components/ui/DataTable";
+import Pagination from "@/components/ui/Pagination";
+import Modal, { ConfirmDialog } from "@/components/ui/Modal";
+import Button, { IconButton } from "@/components/ui/Button";
+import { Field, Input } from "@/components/ui/Field";
+import { authHeader, getAuthToken } from "@/lib/cookies";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const getCookie = (name) => {
-  if (typeof document === "undefined") return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-  return null;
-};
-
 export default function AdminMenuUnitPage() {
   const [units, setUnits] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState(null);
+  const [fetching, setFetching] = useState(true);
+
   const [unitName, setUnitName] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
-  const [deleteUnit, setDeleteUnit] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  const [validationError, setValidationError] = useState("");
-
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
-  const unitColumns = [
-    {
-      header: "S.N.",
-      width: "40px",
-      render: (_, index) => (page - 1) * rowsPerPage + index + 1,
-    },
-    {
-      header: "Name",
-      render: (row) => (
-        <div className="py-0.5 text-gray-800 font-medium">{row.name}</div>
-      ),
-    },
-    {
-      header: "Action",
-      width: "80px",
-      render: (row) => (
-        <div className="flex justify-end gap-1.5">
-          <button
-            onClick={() => handleEdit(row)}
-            className="text-blue-500 hover:scale-110 transition cursor-pointer"
-            title="Edit"
-          >
-            <PencilIcon className="w-3.5 h-3.5" />
-          </button>
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-          <button
-            onClick={() => {
-              setDeleteUnit(row);
-              setShowDeleteModal(true);
-            }}
-            className="text-red-500 hover:scale-110 transition cursor-pointer"
-            title="Delete"
-          >
-            <TrashIcon className="w-4 h-4" />
-          </button>
-        </div>
-      ),
-    },
-  ];
-
+  // This endpoint paginates server-side, so page/rowsPerPage go in the query
+  // and the response count drives the pager.
   const fetchUnits = async () => {
+    if (!getAuthToken()) return;
+    setFetching(true);
     try {
-      const token = getCookie("adminToken");
-      if (!token) return;
-
       const res = await fetch(
         `${API_URL}/api/units/?page=${page}&page_size=${rowsPerPage}`,
-        {
-          headers: { Authorization: `Token ${token}` },
-        },
+        { headers: authHeader() },
       );
       const data = await res.json();
       setUnits(data.data?.results || []);
-      setTotalCount(data?.data?.count || 0);
-    } catch (err) {
-      toast.error("Failed to fetch units");
+      setTotalCount(data.data?.count || 0);
+    } catch {
+      toast.error("Failed to load units");
+    } finally {
+      setFetching(false);
     }
   };
 
   useEffect(() => {
-    const loadUnits = async () => {
-      const token = getCookie("adminToken");
-      if (token) {
-        await fetchUnits();
-      }
-    };
-
-    loadUnits();
+    fetchUnits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage]);
 
-  const filteredUnits = useMemo(() => {
-    return units.filter((u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()),
-    );
+  const visibleUnits = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return units;
+    return units.filter((u) => u.name?.toLowerCase().includes(q));
   }, [units, search]);
 
-  const validateForm = () => {
-    if (!unitName || unitName.trim() === "") {
-      setValidationError("Unit name is required");
+  const validate = () => {
+    const name = unitName.trim();
+    if (!name) {
+      setError("Unit name is required");
       return false;
     }
-
-    if (!editId) {
-      const duplicate = units.some(
-        (u) => u.name.toLowerCase() === unitName.trim().toLowerCase(),
-      );
-      if (duplicate) {
-        setValidationError("Unit name already exists");
-        return false;
-      }
-    } else {
-      const duplicate = units.some(
+    if (
+      units.some(
         (u) =>
-          u.name.toLowerCase() === unitName.trim().toLowerCase() &&
+          u.name?.toLowerCase() === name.toLowerCase() &&
           u.reference_id !== editId,
-      );
-      if (duplicate) {
-        setValidationError("Unit name already exists");
-        return false;
-      }
+      )
+    ) {
+      setError("A unit with this name already exists");
+      return false;
     }
-
-    setValidationError("");
+    setError("");
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
 
-    const isValid = validateForm();
-    if (!isValid) {
-      const errorElement = document.querySelector(".border-red-500");
-      if (errorElement) {
-        errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        errorElement.focus();
-      }
-      return;
-    }
-
-    setLoading(true);
-
+    setSaving(true);
     try {
-      const token = getCookie("adminToken");
-      if (!token) throw new Error("Login again");
-
-      const payload = { name: unitName.trim() };
-      const url = editId
-        ? `${API_URL}/api/units/${editId}/`
-        : `${API_URL}/api/units/`;
-      const method = editId ? "PATCH" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Token ${token}`,
+      const res = await fetch(
+        editId ? `${API_URL}/api/units/${editId}/` : `${API_URL}/api/units/`,
+        {
+          method: editId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json", ...authHeader() },
+          body: JSON.stringify({ name: unitName.trim() }),
         },
-        body: JSON.stringify(payload),
-      });
+      );
+      if (!res.ok) throw new Error("Failed to save unit");
 
-      if (!res.ok) throw new Error("Save failed");
-
-      toast.success(editId ? "Unit updated!" : "Unit created!");
-      closeModal();
+      toast.success(editId ? "Unit updated" : "Unit created");
+      closeForm();
       fetchUnits();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setSaving(false);
     }
-
-    setLoading(false);
   };
 
-  const handleEdit = (unit) => {
-    setEditId(unit.reference_id);
-    setUnitName(unit.name);
-    setValidationError("");
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/units/${pendingDelete.reference_id}/`,
+        { method: "DELETE", headers: authHeader() },
+      );
+      if (!res.ok) throw new Error("Could not delete this unit");
+
+      toast.success("Unit deleted");
+      fetchUnits();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
+    }
+  };
+
+  const openCreate = () => {
+    setEditId(null);
+    setUnitName("");
+    setError("");
     setShowForm(true);
   };
 
-  const handleDeleteConfirmed = async () => {
-    if (!deleteUnit) return;
-
-    try {
-      const token = getCookie("adminToken");
-      const res = await fetch(
-        `${API_URL}/api/units/${deleteUnit.reference_id}/`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Token ${token}` },
-        },
-      );
-
-      if (!res.ok) throw new Error("Delete failed");
-
-      toast.success("Unit deleted!");
-      fetchUnits();
-    } catch (err) {
-      toast.error(err.message || "Delete failed");
-    } finally {
-      setShowDeleteModal(false);
-      setDeleteUnit(null);
-    }
+  const openEdit = (unit) => {
+    setEditId(unit.reference_id);
+    setUnitName(unit.name ?? "");
+    setError("");
+    setShowForm(true);
   };
 
-  const closeModal = () => {
+  const closeForm = () => {
     setShowForm(false);
     setEditId(null);
     setUnitName("");
-    setValidationError("");
+    setError("");
   };
 
-  return (
-    <>
-      <div className="mx-auto min-h-screen  font-sans p-4 bg-[#ddf4e2]">
-        <ToastProvider />
-        <HeaderWithSearch
-          title="Unit"
-          searchValue={search}
-          onSearchChange={setSearch}
-          onButtonClick={() => {
-            closeModal();
-            setShowForm(true);
-          }}
-          buttonLabel="Create"
-          placeholder="Search Unit..."
-        />
-
-        {showDeleteModal && (
-          <DeleteModal
-            branch={deleteUnit?.name}
-            setShowDeleteModal={() => setShowDeleteModal(false)}
-            handleDeleteConfirmed={handleDeleteConfirmed}
+  const columns = [
+    {
+      header: "S.N.",
+      width: "68px",
+      render: (_row, i) => (
+        <span className="text-ink-400">{(page - 1) * rowsPerPage + i + 1}</span>
+      ),
+    },
+    {
+      header: "Unit name",
+      render: (row) => (
+        <span className="font-semibold text-ink-900">{row.name}</span>
+      ),
+    },
+    {
+      header: "Actions",
+      width: "96px",
+      align: "right",
+      render: (row) => (
+        <RowActions>
+          <IconButton
+            icon={Pencil}
+            label={`Edit ${row.name}`}
+            size="sm"
+            onClick={() => openEdit(row)}
+            variant="ghost-brand"
           />
-        )}
+          <IconButton
+            icon={Trash2}
+            label={`Delete ${row.name}`}
+            size="sm"
+            onClick={() => setPendingDelete(row)}
+            variant="ghost-danger"
+          />
+        </RowActions>
+      ),
+    },
+  ];
 
-        {showForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[1px]">
-            <div className="bg-white w-full max-w-[320px] rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300">
-              <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 bg-gray-50/50">
-                <h2 className="text-[13px] font-bold text-gray-700">
-                  {editId ? "Edit Unit" : "Add New Unit"}
-                </h2>
-                <button
-                  onClick={closeModal}
-                  className="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-gray-100 cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
-              </div>
+  return (
+    <PageShell>
+      <PageHeader
+        title="Units"
+        subtitle="How menu items are measured — plate, cup, kg, piece."
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search units…"
+        action={
+          <Button icon={Plus} onClick={openCreate}>
+            New unit
+          </Button>
+        }
+      />
 
-              <form
-                onSubmit={handleSubmit}
-                className="p-4 space-y-4"
-                noValidate
-              >
-                <div className="space-y-1.5">
-                  <label className="block text-[12px] font-semibold text-gray-600">
-                    Unit Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={unitName}
-                    onChange={(e) => {
-                      setUnitName(e.target.value);
-                      if (validationError) {
-                        setValidationError("");
-                      }
-                    }}
-                    placeholder="e.g. Kg, Plate, Piece"
-                    className={`w-full px-3 py-1.5 text-[12px] border rounded focus:border-[#236B28] focus:ring-2 focus:ring-[#236B28]/10 outline-none transition-all placeholder:text-gray-400 ${
-                      validationError ? "border-red-500" : "border-gray-300"
-                    }`}
-                    required
-                    autoFocus
-                  />
-                  {validationError && (
-                    <p className="text-red-500 text-[10px] mt-0.5">
-                      {validationError}
-                    </p>
-                  )}
-                </div>
+      <DataTable
+        data={visibleUnits}
+        columns={columns}
+        loading={fetching}
+        searchQuery={search}
+        onClearSearch={() => setSearch("")}
+        emptyIcon={Boxes}
+        emptyTitle="No units yet"
+        emptyDescription="Every menu item needs a unit — add your first one."
+        emptyAction={
+          <Button icon={Plus} size="sm" onClick={openCreate}>
+            New unit
+          </Button>
+        }
+      />
 
-                <div className="flex justify-end gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-4 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={`px-4 py-1.5 text-[12px] font-semibold text-white rounded shadow-sm transition-all cursor-pointer
-              ${
-                loading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-[#236B28] hover:bg-[#1C5721] active:scale-95"
-              }`}
-                  >
-                    {loading ? "Saving..." : editId ? "Update" : "Create"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        <CustomTable
-          data={filteredUnits}
-          columns={unitColumns}
-          emptyMessage="No unit found"
-          searchQuery={search}
-        />
-
-        <CustomPagination
+      {totalCount > 0 && (
+        <Pagination
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
           setRowsPerPage={setRowsPerPage}
           totalCount={totalCount}
         />
-      </div>
-    </>
+      )}
+
+      <Modal
+        open={showForm}
+        onClose={closeForm}
+        title={editId ? "Edit unit" : "New unit"}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={closeForm}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              loading={saving}
+              type="submit"
+              form="unit-form"
+            >
+              {editId ? "Update unit" : "Create unit"}
+            </Button>
+          </>
+        }
+      >
+        <form id="unit-form" onSubmit={handleSubmit} noValidate>
+          <Field label="Unit name" required error={error}>
+            {(props) => (
+              <Input
+                {...props}
+                value={unitName}
+                onChange={(e) => {
+                  setUnitName(e.target.value);
+                  if (error) setError("");
+                }}
+                placeholder="e.g. Plate, Cup, Kg"
+              />
+            )}
+          </Field>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleDelete}
+        itemName={pendingDelete?.name}
+        loading={deleting}
+        title="Delete unit"
+      />
+    </PageShell>
   );
 }

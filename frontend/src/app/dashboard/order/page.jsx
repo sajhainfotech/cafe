@@ -1,23 +1,84 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
-import { Printer, CheckCircle } from "lucide-react";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import {
+  BadgeCheck,
+  ChevronDown,
+  ClipboardList,
+  Printer,
+  RotateCcw,
+  Utensils,
+  Wallet,
+} from "lucide-react";
+
+import PageShell, {
+  PageHeader,
+  SegmentedControl,
+} from "@/components/ui/PageShell";
+import { StatCard } from "@/components/ui/Card";
+import Badge, { StatusBadge } from "@/components/ui/Badge";
+import Button, { IconButton } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/Modal";
+import { Select } from "@/components/ui/Field";
+import EmptyState from "@/components/ui/EmptyState";
+import Skeleton from "@/components/ui/Skeleton";
+import { authHeader, getAuthToken } from "@/lib/cookies";
+import { fetchBill } from "@/lib/bill";
+import { useNotificationSound } from "@/lib/useNotificationSound";
+import { useAccount } from "@/lib/useAccount";
+import { cn } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const POLL_INTERVAL = 5000;
+
+const STATUS_FILTERS = [
+  { value: "pending", label: "Pending" },
+  { value: "preparing", label: "Preparing" },
+  { value: "ready", label: "Ready" },
+  { value: "served", label: "Served" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+const RANGE_OPTIONS = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "Last 7 days" },
+];
+
+/** Statuses an order can be moved to from the card. */
+const NEXT_STATUSES = ["Pending", "Preparing", "Ready", "Served", "Cancelled"];
+
+/* Left-edge accent per status, so a full board scans by colour without tinting
+   every card background the way the previous version did. */
+const ACCENT = {
+  Pending: "bg-warning-600",
+  Preparing: "bg-info-600",
+  Ready: "bg-brand-500",
+  Served: "bg-success-600",
+  Paid: "bg-ink-400",
+  Cancelled: "bg-danger-600",
+};
 
 const toNepalDate = (date) => {
   if (!date) return null;
-  const d = new Date(date);
-  return new Date(d.getTime() + 5.75 * 60 * 60 * 1000);
+  return new Date(new Date(date).getTime() + 5.75 * 60 * 60 * 1000);
+};
+
+const getNepalDateString = (date) => {
+  const nepal = toNepalDate(date);
+  if (!nepal) return "";
+  return [
+    nepal.getFullYear(),
+    String(nepal.getMonth() + 1).padStart(2, "0"),
+    String(nepal.getDate()).padStart(2, "0"),
+  ].join("-");
 };
 
 const formatNepalTime = (iso) => {
-  if (!iso) return "-";
-  const date = new Date(iso);
-  return date.toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-US", {
     day: "numeric",
+    month: "short",
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
@@ -25,832 +86,682 @@ const formatNepalTime = (iso) => {
   });
 };
 
-const getNepalDateString = (date) => {
-  const nepal = toNepalDate(date);
-  if (!nepal) return "";
-  const yyyy = nepal.getFullYear();
-  const mm = String(nepal.getMonth() + 1).padStart(2, "0");
-  const dd = String(nepal.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-};
-
 const normalizeStatus = (status) => {
   if (!status) return "Pending";
-  switch (status.toLowerCase()) {
-    case "pending":
-      return "Pending";
-    case "preparing":
-      return "Preparing";
-    case "ready":
-      return "Ready";
-    case "served":
-      return "Served";
-    case "cancelled":
-      return "Cancelled";
-    case "paid":
-      return "Paid";
-    default:
-      return status;
-  }
+  const s = String(status).toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
-const backendStatus = (status) => status.toLowerCase();
+const money = (n) => `Rs ${Number(n ?? 0).toLocaleString()}`;
 
-const getStatusIndicator = (status) => {
-  const colors = {
-    Pending: "bg-yellow-300",
-    Preparing: "bg-blue-300",
-    Ready: "bg-indigo-300",
-    Served: "bg-green-300",
-    Cancelled: "bg-red-300",
-  };
-  return (
-    <span
-      className={`w-2 h-2 rounded-full inline-block mr-1 ${
-        colors[status] || "bg-gray-400"
-      }`}
-    ></span>
-  );
-};
-
-const statusOptions = ["Pending", "Preparing", "Ready", "Served"];
-
-const getCookie = (name) => {
-  if (typeof document === "undefined") return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-  return null;
-};
-
-const AdminOrdersDashboard = () => {
+export default function AdminOrdersDashboard() {
   const [orders, setOrders] = useState([]);
-  const [token, setToken] = useState("");
-  const [openDropdown, setOpenDropdown] = useState(null);
-  const [filter, setFilter] = useState("today");
-  const [newStatus, setNewStatus] = useState("pending");
+  const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState("today");
+  const [statusFilter, setStatusFilter] = useState("pending");
+  const [openMenuFor, setOpenMenuFor] = useState(null);
+  const [printingFor, setPrintingFor] = useState(null);
+  const [pendingSettle, setPendingSettle] = useState(null);
+  const [settling, setSettling] = useState(false);
 
-  const dropdownRef = useRef(null);
-  const audioRef = useRef(null);
-  const previousOrderIds = useRef(new Set());
+  // Only a fallback for the receipt header — GET bill/ supplies these itself.
+  const { restaurant, branch } = useAccount();
+
+  const playChime = useNotificationSound();
+  const knownOrderIds = useRef(new Set());
   const isFirstLoad = useRef(true);
-  const audioInitialized = useRef(false);
-  const [restaurant, setRestaurant] = useState("");
-  const [branch, setBranch] = useState("");
 
-  useEffect(() => {
-    setRestaurant(sessionStorage.getItem("restaurant_name") || "");
-    setBranch(sessionStorage.getItem("branch_name") || "");
-  }, []);
+  const fetchOrders = useCallback(
+    async (notify = true) => {
+      const token = getAuthToken();
+      if (!token) return;
 
-  useEffect(() => {
-    const initAudio = async () => {
-      if (audioRef.current && !audioInitialized.current) {
-        try {
-          audioRef.current.load();
-          await audioRef.current.play();
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-          audioInitialized.current = true;
-        } catch (err) {
-          audioInitialized.current = true;
+      try {
+        const res = await fetch(
+          `${API_URL}api/orders-list/?status=${statusFilter}`,
+          { headers: { ...authHeader(), Accept: "application/json" } },
+        );
+        if (!res.ok) throw new Error(`Failed to fetch orders: ${res.status}`);
+
+        const result = await res.json();
+        const raw = Array.isArray(result?.data) ? result.data : [];
+
+        const currentIds = new Set(
+          raw
+            .filter((o) => o.table_reference_id)
+            .map((o) => o.table_reference_id),
+        );
+
+        if (notify && !isFirstLoad.current) {
+          const newId = [...currentIds].find(
+            (id) => !knownOrderIds.current.has(id),
+          );
+          if (newId) {
+            const order = raw.find((o) => o.table_reference_id === newId);
+            await playChime();
+            toast.success(
+              order?.table_number
+                ? `New order — Table ${order.table_number}`
+                : "New order received",
+              { id: "new-order", duration: 5000 },
+            );
+          }
         }
+
+        knownOrderIds.current = currentIds;
+        isFirstLoad.current = false;
+
+        setOrders(
+          raw.map((o) => ({
+            table_reference_id: o.table_reference_id,
+            table_number: o.table_number,
+            tableName: o.table_number ? `Table ${o.table_number}` : "Takeout",
+            items: Array.isArray(o.items)
+              ? o.items.map((i) => ({
+                  name: i.menu_name,
+                  quantity: Number(i.total_quantity),
+                  total_price: Number(i.total_price),
+                }))
+              : [],
+            total_price: Number(o.grand_total),
+            status: normalizeStatus(o.status),
+            created_at: o.order_time || new Date().toISOString(),
+          })),
+        );
+      } catch (err) {
+        console.error("Order fetch error:", err);
+        setOrders([]);
+      } finally {
+        setLoading(false);
       }
-      document.removeEventListener("click", initAudio);
-      document.removeEventListener("touchstart", initAudio);
-    };
-
-    document.addEventListener("click", initAudio);
-    document.addEventListener("touchstart", initAudio);
-
-    return () => {
-      document.removeEventListener("click", initAudio);
-      document.removeEventListener("touchstart", initAudio);
-    };
-  }, []);
-
-  const playNotificationSound = async () => {
-    if (!audioRef.current) {
-      console.warn("❌ Audio element not available");
-      return false;
-    }
-
-    try {
-      audioRef.current.currentTime = 0;
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        await playPromise;
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error("❌ Audio playback error:", err.message);
-      if (err.name === "NotAllowedError") {
-        toast.error("🔊 Click here to enable sound", {
-          duration: 5000,
-          onClick: async () => {
-            try {
-              await audioRef.current.play();
-              audioRef.current.pause();
-              audioRef.current.currentTime = 0;
-              audioInitialized.current = true;
-              toast.success("🔊 Sound enabled!");
-            } catch (e) {
-              console.error("Manual play failed:", e);
-            }
-          },
-        });
-      }
-      return false;
-    }
-  };
+    },
+    [statusFilter, playChime],
+  );
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setOpenDropdown(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    knownOrderIds.current = new Set();
+    isFirstLoad.current = true;
+    setLoading(true);
 
-  const fetchOrders = async (authToken, showNewOrderNotification = true) => {
+    fetchOrders(false);
+    const interval = setInterval(() => fetchOrders(true), POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    if (!openMenuFor) return;
+    const close = () => setOpenMenuFor(null);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [openMenuFor]);
+
+  const visibleOrders = useMemo(() => {
+    const today = getNepalDateString(new Date());
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoString = getNepalDateString(weekAgo);
+
+    return orders.filter((o) => {
+      const day = getNepalDateString(o.created_at);
+      return range === "today" ? day === today : day >= weekAgoString;
+    });
+  }, [orders, range]);
+
+  const inViewRevenue = visibleOrders.reduce(
+    (sum, o) => sum + (o.total_price || 0),
+    0,
+  );
+  const itemCount = visibleOrders.reduce(
+    (sum, o) => sum + o.items.reduce((n, i) => n + (i.quantity || 0), 0),
+    0,
+  );
+
+  const changeStatus = async (order, nextStatus) => {
+    setOpenMenuFor(null);
     try {
       const res = await fetch(
-        `${API_URL}api/orders-list/?status=${newStatus}`,
+        `${API_URL}api/orders/${order.table_reference_id}/`,
         {
+          method: "PATCH",
           headers: {
-            Authorization: `Token ${authToken}`,
+            ...authHeader(),
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ status: nextStatus.toLowerCase() }),
+        },
+      );
+
+      const text = await res.text();
+      let payload = null;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        // Some error responses aren't JSON; fall through to the status code.
+      }
+
+      if (!res.ok) {
+        throw new Error(
+          payload?.message ||
+            payload?.error ||
+            payload?.detail ||
+            `Request failed with status ${res.status}`,
+        );
+      }
+
+      toast.success(
+        nextStatus === "Cancelled"
+          ? `${order.tableName} cancelled`
+          : `${order.tableName} → ${nextStatus}`,
+        { id: "order-status" },
+      );
+      await fetchOrders(false);
+    } catch (err) {
+      toast.error(err.message || "Could not update this order", {
+        id: "order-status-error",
+      });
+    }
+  };
+
+  /**
+   * Prints from GET bill/ — read-only, so this is safe to repeat and settles
+   * nothing. The figures come from the server's build_bill(), the same function
+   * PATCH bill-print/ uses, so the printed bill and the charged amount agree.
+   *
+   * The popup is opened synchronously, before the await: a window.open() that
+   * happens after an await has lost the user-gesture context and gets blocked.
+   * It shows "Preparing bill…" until the response lands.
+   */
+  const printReceipt = async (order) => {
+    const win = window.open("", "_blank", "width=380,height=680");
+    if (!win) {
+      toast.error("Allow pop-ups for this site to print bills");
+      return;
+    }
+    win.document.write(loadingDocument());
+    win.document.close();
+
+    setPrintingFor(order.table_reference_id);
+    try {
+      const bill = await fetchBill(order.table_reference_id);
+
+      win.document.open();
+      win.document.write(receiptDocument(bill, { restaurant, branch }));
+      win.document.close();
+      win.focus();
+      win.print();
+    } catch (err) {
+      // Never fall back to the card's own numbers: printing a total the server
+      // didn't produce is the exact drift this endpoint split prevents.
+      win.document.open();
+      win.document.write(errorDocument(err.message));
+      win.document.close();
+      toast.error(err.message || "Couldn't load the bill");
+    } finally {
+      setPrintingFor(null);
+    }
+  };
+
+  /** The irreversible half: closes the order and marks it paid. */
+  const settleOrder = async () => {
+    const order = pendingSettle;
+    if (!order) return;
+
+    if (!getAuthToken()) {
+      toast.error("Please sign in again");
+      return;
+    }
+
+    setSettling(true);
+    try {
+      const res = await fetch(
+        `${API_URL}api/table/${order.table_reference_id}/bill-print/`,
+        {
+          method: "PATCH",
+          headers: {
+            ...authHeader(),
+            "Content-Type": "application/json",
             Accept: "application/json",
           },
         },
       );
 
       if (!res.ok) {
-        throw new Error(`Failed to fetch orders: ${res.status}`);
-      }
-
-      const result = await res.json();
-      const ordersData = result?.data || [];
-
-      const currentOrderIds = new Set(
-        ordersData
-          .filter((order) => order.table_reference_id)
-          .map((order) => order.table_reference_id),
-      );
-
-      let hasNewOrder = false;
-      let newOrderData = null;
-
-      if (
-        showNewOrderNotification &&
-        !isFirstLoad.current &&
-        currentOrderIds.size > 0
-      ) {
-        for (const id of currentOrderIds) {
-          if (!previousOrderIds.current.has(id)) {
-            console.log("🆕 NEW order detected for table:", id);
-            hasNewOrder = true;
-            newOrderData = ordersData.find(
-              (order) => order.table_reference_id === id,
-            );
-            break;
-          }
-        }
-      }
-
-      previousOrderIds.current = currentOrderIds;
-
-      if (isFirstLoad.current) {
-        isFirstLoad.current = false;
-        console.log("📋 First load complete");
-      }
-
-      if (hasNewOrder && newOrderData) {
-        console.log("🔊 Playing notification sound...");
-        const soundPlayed = await playNotificationSound();
-        const tableDisplay = newOrderData.table_number
-          ? `Table ${newOrderData.table_number}`
-          : "Takeout / Unassigned";
-
-        toast.success(`🆕 New Order at ${tableDisplay}!`, {
-          icon: "🔔",
-          id: "new-order-notification",
-          duration: 5000,
-        });
-
-        if (!soundPlayed) {
-          console.warn("⚠️ Sound didn't play, but toast shown");
-        }
-      }
-
-      const normalized = Array.isArray(ordersData)
-        ? ordersData.map((o) => ({
-            table_reference_id: o.table_reference_id,
-            table_number: o.table_number,
-            tableName: o.table_number
-              ? `Table ${o.table_number}`
-              : "Takeout / Unassigned",
-            items: Array.isArray(o.items)
-              ? o.items.map((i) => ({
-                  name: i.menu_name,
-                  quantity: Number(i.total_quantity),
-                  unit_name: "-",
-                  total_price: Number(i.total_price),
-                }))
-              : [],
-            total_price: Number(o.grand_total),
-            status: normalizeStatus(o.status), // uses the updated function
-            created_at: o.order_time || new Date().toISOString(),
-          }))
-        : [];
-
-      setOrders(normalized);
-    } catch (err) {
-      console.error("❌ Fetch error:", err);
-      setOrders([]);
-    }
-  };
-
-  const handleStatusChange = async (tableReferenceId, selectedStatus) => {
-    try {
-      const response = await fetch(
-        `${API_URL}api/orders/${tableReferenceId}/`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            status: backendStatus(selectedStatus),
-          }),
-        },
-      );
-
-      const responseText = await response.text();
-      let result = null;
-
-      try {
-        result = JSON.parse(responseText);
-      } catch (error) {
-        console.error("JSON parse error:", error);
-      }
-
-      if (!response.ok) {
-        const errorMessage =
-          result?.message ||
-          result?.error ||
-          result?.detail ||
-          `Request failed with status ${response.status}`;
-        throw new Error(errorMessage);
-      }
-
-      toast.success(
-        selectedStatus === "Cancelled"
-          ? "Order cancelled successfully."
-          : "Order status updated successfully.",
-        {
-          id: "order-status-update",
-        },
-      );
-
-      setOpenDropdown(null);
-      await fetchOrders(token, false);
-    } catch (error) {
-      console.error("❌ PATCH Error:", error);
-      toast.error(error.message || "Unable to update order status.", {
-        id: "order-status-error",
-      });
-    }
-  };
-
-  const printBillContent = (order) => {
-    const w = window.open("", "", "width=360,height=600");
-
-    const formatMoney = (amount) => Math.round(Number(amount));
-
-    const getNepalTimeString = () => {
-      const now = new Date();
-      const formatter = new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Asia/Kathmandu",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      });
-      const parts = formatter.formatToParts(now);
-      const date = {};
-      parts.forEach(({ type, value }) => {
-        date[type] = value;
-      });
-      return `${date.day}.${date.month}.${date.year}/${date.hour}:${date.minute}:${date.second}`;
-    };
-
-    w.document.write(`
-  <html>
-    <head>
-      <title>Bill</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-          font-family: 'Courier New', monospace;
-          background: #f4f4f4;
-          display: flex;
-          justify-content: center;
-          padding: 12px 6px;
-        }
-        .receipt {
-          max-width: 280px;
-          width: 100%;
-          background: white;
-          padding: 10px 10px 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-          border-radius: 2px;
-        }
-        .store-name {
-          font-size: 14px;
-          font-weight: 700;
-          text-align: center;
-          letter-spacing: 0.5px;
-          color: #1e293b;
-          padding-bottom: 2px;
-          border-bottom: 1px dashed #aaa;
-          margin-bottom: 4px;
-        }
-        .store-name span { color: #0f7b3a; }
-        .tagline {
-          text-align: center;
-          font-size: 7px;
-          text-transform: uppercase;
-          color: #888;
-          letter-spacing: 0.5px;
-          margin-top: -1px;
-          margin-bottom: 6px;
-        }
-        .meta {
-          display: flex;
-          justify-content: space-between;
-          font-size: 8px;
-          padding: 2px 0;
-          border-bottom: 1px dotted #ccc;
-          margin-bottom: 4px;
-        }
-        .meta .label { color: #666; }
-        .meta .value { font-weight: 600; color: #222; }
-        .items-head {
-          display: flex;
-          justify-content: space-between;
-          font-size: 7px;
-          text-transform: uppercase;
-          color: #999;
-          letter-spacing: 0.3px;
-          padding: 2px 0;
-          border-bottom: 1px solid #eee;
-        }
-        .items-head .head-item { flex: 1; }
-        .items-head .head-qty { width: 28px; text-align: center; }
-        .items-head .head-price { width: 60px; text-align: right; }
-        .item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 2px 0;
-          font-size: 9px;
-          border-bottom: 1px dotted #f0f0f0;
-        }
-        .item:last-of-type { border-bottom: none; }
-        .item-name {
-          flex: 1;
-          font-weight: 500;
-          color: #222;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .item-name small {
-          font-weight: 400;
-          color: #999;
-          font-size: 7px;
-          margin-left: 2px;
-        }
-        .item-qty { width: 28px; text-align: center; font-weight: 600; color: #333; }
-        .item-price { width: 60px; text-align: right; font-weight: 600; color: #1e293b; }
-        .divider { border: none; border-top: 1px dashed #ccc; margin: 4px 0; }
-        .total {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 4px 0 0;
-          border-top: 2px solid #222;
-          margin-top: 2px;
-        }
-        .total-label {
-          font-size: 9px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          color: #222;
-        }
-        .total-amount { font-size: 12px; font-weight: 700; color: #222; }
-        .footer {
-          text-align: center;
-          font-size: 8px;
-          color: #666;
-          padding-top: 8px;
-          border-top: 1px dashed #ccc;
-          margin-top: 6px;
-          line-height: 1.4;
-        }
-        .footer .thanks { font-size: 10px; font-weight: 600; color: #1e293b; }
-        .footer .sub { font-size: 7px; color: #999; }
-        @media print {
-          body { background: white; padding: 0; }
-          .receipt { box-shadow: none; border-radius: 0; padding: 8px; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="receipt">
-        <div class="store-name">✦ <span>${restaurant}</div>
-        <div class="tagline">${branch}</div>
-
-        <div class="meta">
-          <span class="label">Table</span>
-          <span class="value">${order.tableName}</span>
-        </div>
-        <div class="meta" style="border-bottom: none; padding-top: 0;">
-          <span class="label">Date</span>
-          <span class="value">${getNepalTimeString()}</span>
-        </div>
-
-        <div class="items-head">
-          <span class="head-item">Item</span>
-          <span class="head-qty">Qty</span>
-          <span class="head-price">Price</span>
-        </div>
-
-        ${order.items
-          .map(
-            (i) => `
-          <div class="item">
-            <div class="item-name">${i.name} <small>${i.unit_name}</small></div>
-            <div class="item-qty">${i.quantity}</div>
-            <div class="item-price">Rs.${formatMoney(i.total_price)}</div>
-          </div>
-        `,
-          )
-          .join("")}
-
-        <hr class="divider" />
-
-        <div class="total">
-          <span class="total-label">TOTAL</span>
-          <span class="total-amount">Rs. ${formatMoney(order.total_price)}</span>
-        </div>
-
-        <div class="footer">
-          <div class="thanks">Thank you!</div>
-          <div class="sub">We hope to see you again</div>
-        </div>
-      </div>
-    </body>
-  </html>
-  `);
-
-    w.document.close();
-    w.print();
-  };
-
-  const printBill = async (order) => {
-    if (!token) {
-      toast.error("Authentication token missing.");
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `${API_URL}api/table/${order.table_reference_id}/bill-print/`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const data = await res.json().catch(() => ({}));
         throw new Error(
-          errorData.message ||
-            errorData.detail ||
-            `Request failed with status ${response.status}`,
+          data.message ||
+            data.detail ||
+            `Request failed with status ${res.status}`,
         );
       }
 
-      const result = await response.json();
-
-      toast.success("Bill printed and orders marked as paid.");
-
-      printBillContent(order);
-
-      await fetchOrders(token, false);
-    } catch (error) {
-      toast.error(error.message || "Unable to print bill.");
+      toast.success(`${order.tableName} marked paid`);
+      setPendingSettle(null);
+      await fetchOrders(false);
+    } catch (err) {
+      toast.error(err.message || "Unable to close this order");
+    } finally {
+      setSettling(false);
     }
   };
 
-  useEffect(() => {
-    const t = getCookie("adminToken");
-    if (!t) {
-      console.warn("No admin token found");
-      return;
-    }
-
-    setToken(t);
-    previousOrderIds.current = new Set();
-    isFirstLoad.current = true;
-
-    fetchOrders(t, false);
-
-    const interval = setInterval(() => {
-      fetchOrders(t, true);
-    }, 5000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [filter, newStatus]);
-
-  const todayNepal = getNepalDateString(new Date());
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const sevenDaysAgoStr = getNepalDateString(sevenDaysAgo);
-
-  const filteredOrders = orders.filter((o) => {
-    const orderDate = getNepalDateString(o.created_at);
-    if (filter === "today") {
-      return orderDate === todayNepal;
-    } else {
-      return orderDate >= sevenDaysAgoStr;
-    }
-  });
-
-  const totalRevenue = filteredOrders
-    .filter((o) => o.status === "Served")
-    .reduce((sum, o) => sum + (o.total_price || 0), 0);
-
   return (
-    <>
-      <div className="min-h-screen font-sans p-4 sm:p-6 lg:p-4 bg-[#ddf4e2]">
-        <header className="mx-auto mb-6 flex flex-wrap items-center justify-between gap-y-4 gap-x-2">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-lg sm:text-xl font-bold text-[#1C5721] leading-tight">
-              Kitchen Dashboard
-            </h1>
+    <PageShell>
+      <PageHeader
+        title="Orders"
+        subtitle="Live kitchen board — refreshes every 5 seconds."
+      >
+        <SegmentedControl
+          value={range}
+          onChange={setRange}
+          options={RANGE_OPTIONS}
+        />
+        <Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter by status"
+          className="sm:w-40"
+        >
+          {STATUS_FILTERS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </Select>
+      </PageHeader>
 
-            <div className="flex flex-wrap gap-2 mt-1">
-              <button
-                onClick={() => setFilter("today")}
-                className={`px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full transition-all whitespace-nowrap cursor-pointer ${
-                  filter === "today"
-                    ? "bg-[#236B28] text-white shadow-md"
-                    : "bg-white text-[#236B28] border border-[#236B28]"
-                }`}
-              >
-                Today
-              </button>
-              <div className="flex items-center gap-2 bg-white border border-[#236B28] rounded-lg px-3 py-1 shadow-sm">
-                <span className="text-[#236B28] font-semibold text-sm">
-                  Status
-                </span>
-                <select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                  className="bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer"
-                >
-                  <option value="pending">🟡 Pending</option>
-                  <option value="preparing">🔵 Preparing</option>
-                  <option value="ready">🟣 Ready</option>
-                  <option value="served">🟢 Served</option>
-                  <option value="cancelled">🔴 Cancelled</option>
-                  {/* <option value="paid">⚫ Paid</option> */}
-                </select>
-              </div>
-            </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard
+          label={`${statusFilter} orders`}
+          value={visibleOrders.length}
+          icon={ClipboardList}
+          tone="brand"
+          loading={loading}
+        />
+        <StatCard
+          label="Items in view"
+          value={itemCount}
+          icon={Utensils}
+          tone="info"
+          loading={loading}
+        />
+        <StatCard
+          label="Value in view"
+          value={money(inViewRevenue)}
+          icon={Wallet}
+          tone="success"
+          loading={loading}
+          hint={`${statusFilter} only — not total sales`}
+        />
+      </div>
 
-            <p className="text-[11px] sm:text-sm text-[#236B28] mt-0.5">
-              Displaying{" "}
-              <span className="font-bold">{filteredOrders.length}</span> orders
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="bg-white px-3 sm:px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-2 sm:gap-3 w-fit shrink-0">
-              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-gray-400 tracking-wider whitespace-nowrap">
-                {filter === "today" ? "Today's Revenue" : "7 Days Revenue"}
-              </span>
-              <div className="h-4 w-px bg-gray-200"></div>
-              <span className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap">
-                Rs. {totalRevenue.toFixed(2)}
-              </span>
-            </div>
-          </div>
-        </header>
-
-        <div className="mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-          {filteredOrders.map((order, idx) => (
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
             <div
-              key={`${order.table_reference_id}-${idx}`}
-              className={`flex flex-col justify-between border rounded-xl shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 relative
-            ${
-              order.status === "Cancelled"
-                ? "bg-red-100 border-red-300 text-red-700"
-                : order.status === "Served"
-                  ? "bg-green-100 border-green-300 text-green-700"
-                  : order.status === "Ready"
-                    ? "bg-indigo-100 border-indigo-300 text-indigo-700"
-                    : order.status === "Preparing"
-                      ? "bg-blue-100 border-blue-300 text-blue-700"
-                      : order.status === "Paid"
-                        ? "bg-gray-100 border-gray-300 text-gray-700"
-                        : "bg-amber-100 border-amber-300 text-amber-700"
-            }`}
+              key={i}
+              className="space-y-3 rounded-xl border border-ink-200 bg-white p-4"
             >
-              <div className="p-3 border-b border-gray-100">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="bg-[#236B28] text-white text-[10px] font-semibold px-2 py-0.5 rounded">
-                        #{idx + 1}
-                      </span>
-                      <h3 className="text-sm font-semibold text-gray-800">
-                        {order.tableName}
-                      </h3>
-                    </div>
-                    <p className="text-[11px] text-gray-400 mt-1 font-mono">
-                      {formatNepalTime(order.created_at)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-1 grow">
-                <div className="bg-gray-50 rounded p-3 mb-3">
-                  <ul className="space-y-2">
-                    {order.items.map((i, itemIdx) => (
-                      <li
-                        key={itemIdx}
-                        className="flex justify-between items-center text-[12px]"
-                      >
-                        <span className="text-gray-700 font-medium">
-                          <span className="text-gray-400 text-[10px] mr-1">
-                            {i.quantity}x
-                          </span>
-                          {i.name}{" "}
-                          <span className="text-[10px] text-gray-400">
-                            ({i.unit_name})
-                          </span>
-                        </span>
-                        <span className="text-gray-600 font-mono text-[11px] whitespace-nowrap">
-                          Rs.{i.total_price.toFixed(0)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="flex justify-between items-center mt-2 px-1">
-                  <span className="text-gray-500 text-[12px] font-medium">
-                    Order Total
-                  </span>
-                  <span className="text-[15px] font-bold text-[#236B28]">
-                    Rs.{order.total_price.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-2 pt-2">
-                <div className="flex items-center justify-between border-t border-gray-100 pt-2">
-                  <div
-                    className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border text-[11px] font-semibold uppercase tracking-wide
-                   ${
-                     order.status === "Cancelled"
-                       ? "bg-red-100 border-red-200 text-red-600"
-                       : order.status === "Paid"
-                         ? "bg-gray-100 border-gray-300 text-gray-600" // 👈 added
-                         : "bg-green-50 border-green-200 text-[#236B28]"
-                   }`}
-                  >
-                    {/* {getStatusIndicator(newStatus)} */}
-                    {newStatus}
-                  </div>
-                  {order.status !== "Cancelled" && order.status !== "Paid" && (
-                    <div className="flex gap-2 relative">
-                      <button
-                        className="p-1.5 rounded-lg bg-green-50 text-[#236B28] hover:bg-[#236B28] hover:text-white transition-all shadow-sm cursor-pointer"
-                        onClick={() => printBill(order)}
-                        title="Print Bill"
-                      >
-                        <Printer className="w-4 h-4" />
-                      </button>
-
-                      {["Pending", "Preparing", "Ready"].includes(
-                        order.status,
-                      ) && (
-                        <div className="relative">
-                          <button
-                            className="p-1.5 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-500 hover:text-white transition-all shadow-sm cursor-pointer"
-                            title="Change Status"
-                            onClick={() =>
-                              setOpenDropdown((prev) =>
-                                prev === order.table_reference_id
-                                  ? null
-                                  : order.table_reference_id,
-                              )
-                            }
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-
-                          {openDropdown === order.table_reference_id && (
-                            <div
-                              ref={dropdownRef}
-                              className="absolute right-0 bottom-full mb-2 w-32 bg-white border border-gray-200 rounded shadow-lg z-50 overflow-auto"
-                            >
-                              {[...statusOptions, "Cancelled"]
-                                .filter((s) => s !== order.status)
-                                .map((s) => (
-                                  <div
-                                    key={s}
-                                    className={`px-3 py-2 text-[12px] cursor-pointer hover:bg-gray-100
-                                    ${
-                                      s === "Cancelled"
-                                        ? "text-red-500 font-semibold"
-                                        : "text-gray-700"
-                                    }`}
-                                    onClick={() =>
-                                      handleStatusChange(
-                                        order.table_reference_id,
-                                        s,
-                                      )
-                                    }
-                                  >
-                                    {s}
-                                  </div>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-8 w-full" />
             </div>
           ))}
         </div>
-
-        <div className="mt-8 mx-auto border-t border-[#236B28]/20 pt-6 flex flex-col md:flex-row justify-between items-center text-sm">
-          <span className="text-[#236B28]/70 font-medium">End of list</span>
-          <div className="flex flex-col md:flex-row gap-2 md:gap-6 items-center">
-            <span className="text-[#236B28]/80 font-semibold">
-              Today's Orders:{" "}
-              <span className="font-black">
-                {
-                  orders.filter(
-                    (o) => getNepalDateString(o.created_at) === todayNepal,
-                  ).length
-                }
-              </span>
-            </span>
-            <div className="hidden md:block h-4 w-px bg-[#236B28]/20"></div>
-            <span className="text-[#236B28]/80 font-semibold">
-              {filter === "today"
-                ? "Current View (Today): "
-                : "Current View (7 Days): "}
-              <span className="font-black">{filteredOrders.length}</span>
-            </span>
-            <div className="hidden md:block h-4 w-px bg-[#236B28]/20"></div>
-            <span className="text-[#236B28]/80 font-semibold">
-              Total Revenue (Served):{" "}
-              <span className="font-black">Rs. {totalRevenue.toFixed(0)}</span>
-            </span>
-          </div>
+      ) : visibleOrders.length === 0 ? (
+        <div className="rounded-xl border border-ink-200 bg-white">
+          <EmptyState
+            icon={ClipboardList}
+            title={`No ${statusFilter} orders`}
+            description={
+              range === "today"
+                ? "Nothing with this status today. New orders appear here automatically."
+                : "Nothing with this status in the last 7 days."
+            }
+          />
         </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {visibleOrders.map((order, idx) => (
+            <OrderCard
+              key={`${order.table_reference_id}-${idx}`}
+              order={order}
+              index={idx}
+              menuOpen={openMenuFor === order.table_reference_id}
+              onToggleMenu={() =>
+                setOpenMenuFor((prev) =>
+                  prev === order.table_reference_id
+                    ? null
+                    : order.table_reference_id,
+                )
+              }
+              onChangeStatus={changeStatus}
+              onPrint={printReceipt}
+              printing={printingFor === order.table_reference_id}
+              onSettle={setPendingSettle}
+            />
+          ))}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={Boolean(pendingSettle)}
+        onClose={() => setPendingSettle(null)}
+        onConfirm={settleOrder}
+        loading={settling}
+        title="Mark order as paid"
+        confirmLabel="Mark paid"
+        tone="primary"
+        message={
+          <>
+            This closes{" "}
+            <span className="font-semibold text-ink-900">
+              {pendingSettle?.tableName}
+            </span>{" "}
+            for{" "}
+            <span className="font-semibold text-ink-900">
+              {money(pendingSettle?.total_price)}
+            </span>{" "}
+            and frees the table. Only do this once the customer has actually
+            paid — it can&apos;t be undone from here.
+          </>
+        }
+      />
+    </PageShell>
+  );
+}
+
+function OrderCard({
+  order,
+  index,
+  menuOpen,
+  onToggleMenu,
+  onChangeStatus,
+  onPrint,
+  onSettle,
+  printing,
+}) {
+  const closed = order.status === "Cancelled" || order.status === "Paid";
+
+  return (
+    <article className="relative flex flex-col overflow-hidden rounded-xl border border-ink-200 bg-white shadow-card transition-shadow hover:shadow-card-hover">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute inset-y-0 left-0 w-1",
+          ACCENT[order.status] ?? "bg-ink-300",
+        )}
+      />
+
+      <header className="flex items-start justify-between gap-2 border-b border-ink-100 px-4 py-3 pl-5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-2xs font-bold text-ink-400">
+              #{index + 1}
+            </span>
+            <h3 className="truncate text-sm font-bold text-ink-900">
+              {order.tableName}
+            </h3>
+          </div>
+          <p className="mt-0.5 text-2xs text-ink-500 tabular-nums">
+            {formatNepalTime(order.created_at)}
+          </p>
+        </div>
+
+        {/* The old card printed the *filter* value here rather than the order's
+            own status, so a card could contradict its own colour. */}
+        <StatusBadge status={order.status} />
+      </header>
+
+      <div className="flex-1 px-4 py-3 pl-5">
+        <ul className="space-y-1.5">
+          {order.items.map((item, i) => (
+            <li
+              key={i}
+              className="flex items-baseline justify-between gap-3 text-sm"
+            >
+              <span className="min-w-0 text-ink-700">
+                <span className="mr-1.5 font-bold text-ink-400 tabular-nums">
+                  {item.quantity}×
+                </span>
+                {item.name}
+              </span>
+              <span className="shrink-0 tabular-nums text-ink-500">
+                {money(item.total_price)}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <audio ref={audioRef} src="/notification.mp3" preload="auto" />
-    </>
+      <footer className="border-t border-ink-100 px-4 py-3 pl-5">
+        <div className="mb-3 flex items-baseline justify-between">
+          <span className="text-2xs font-semibold uppercase tracking-wider text-ink-500">
+            Total
+          </span>
+          <span className="text-base font-bold tabular-nums text-ink-900">
+            {money(order.total_price)}
+          </span>
+        </div>
+
+        {closed ? (
+          <div className="flex items-center justify-between gap-2">
+            <Badge tone={order.status === "Cancelled" ? "danger" : "neutral"}>
+              {order.status === "Cancelled" ? "Cancelled" : "Paid & closed"}
+            </Badge>
+            {order.status === "Paid" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={RotateCcw}
+                loading={printing}
+                onClick={() => onPrint(order)}
+              >
+                Reprint
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            {/* Print is now read-only — it opens the receipt and changes
+                nothing. Settling is the separate button below. */}
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={Printer}
+              loading={printing}
+              onClick={() => onPrint(order)}
+              className="flex-1"
+            >
+              Print bill
+            </Button>
+
+            <div className="relative" onMouseDown={(e) => e.stopPropagation()}>
+              <Button
+                size="sm"
+                variant="secondary"
+                iconRight={ChevronDown}
+                onClick={onToggleMenu}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+              >
+                Status
+              </Button>
+
+              {menuOpen && (
+                <div
+                  role="menu"
+                  className="absolute bottom-full right-0 z-30 mb-1.5 w-40 overflow-hidden rounded-lg border border-ink-200 bg-white shadow-pop animate-pop-in"
+                >
+                  {NEXT_STATUSES.filter((s) => s !== order.status).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => onChangeStatus(order, s)}
+                      className={cn(
+                        "flex w-full items-center justify-between px-3 py-2 text-sm transition-colors cursor-pointer",
+                        s === "Cancelled"
+                          ? "font-semibold text-danger-600 hover:bg-danger-50"
+                          : "text-ink-700 hover:bg-ink-50",
+                      )}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!closed && (
+          <Button
+            size="sm"
+            variant="primary"
+            icon={BadgeCheck}
+            onClick={() => onSettle(order)}
+            className="mt-2 w-full"
+          >
+            Mark paid &amp; close
+          </Button>
+        )}
+      </footer>
+    </article>
   );
+}
+
+/* ==========================================================================
+   Receipt rendering
+   Every figure below comes from GET bill/ — the client never computes bill
+   totals, so what prints always matches what build_bill() will charge.
+   ========================================================================== */
+
+const escapeHtml = (value) =>
+  String(value ?? "").replace(
+    /[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+  );
+
+const rupees = (value) => Math.round(Number(value ?? 0)).toLocaleString();
+
+const stampNepal = (iso) => {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kathmandu",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const p = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute}`;
 };
 
-export default AdminOrdersDashboard;
+const RECEIPT_CSS = `
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Courier New", monospace;
+    background: #f4f4f4;
+    display: flex;
+    justify-content: center;
+    padding: 12px 6px;
+    color: #111;
+  }
+  .receipt { width: 100%; max-width: 288px; background: #fff; padding: 12px; }
+  .store { text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .5px; }
+  .branch { text-align: center; font-size: 8px; text-transform: uppercase; letter-spacing: .8px; color: #777; margin-top: 2px; }
+  .rule { border: none; border-top: 1px dashed #bbb; margin: 8px 0; }
+  .meta { display: flex; justify-content: space-between; font-size: 9px; padding: 1px 0; }
+  .meta b { font-weight: 700; }
+  .head, .row { display: flex; font-size: 9px; }
+  .head { text-transform: uppercase; letter-spacing: .4px; color: #888; padding-bottom: 3px; border-bottom: 1px solid #eee; }
+  .row { font-size: 10px; padding: 3px 0; align-items: baseline; }
+  .name { flex: 1; padding-right: 4px; word-break: break-word; }
+  .qty { width: 26px; text-align: center; font-weight: 700; }
+  .rate { width: 52px; text-align: right; }
+  .amt { width: 60px; text-align: right; font-weight: 700; }
+  .sums { margin-top: 6px; padding-top: 5px; border-top: 1px dashed #bbb; }
+  .sum { display: flex; justify-content: space-between; font-size: 10px; padding: 1px 0; }
+  .sum.discount { color: #0f7b3a; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid #111; padding-top: 6px; margin-top: 5px; }
+  .total span:first-child { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+  .total span:last-child { font-size: 15px; font-weight: 700; }
+  .foot { text-align: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #bbb; }
+  .foot .thanks { font-size: 11px; font-weight: 700; }
+  .foot .sub { font-size: 8px; color: #888; margin-top: 2px; }
+  .wait { padding: 40px 12px; text-align: center; font-size: 11px; color: #666; }
+  @media print { body { background: #fff; padding: 0; } .receipt { padding: 8px; } }
+`;
+
+const receiptShell = (title, inner) => `<!doctype html>
+<html><head><meta charset="utf-8" /><title>${escapeHtml(title)}</title>
+<style>${RECEIPT_CSS}</style></head><body>${inner}</body></html>`;
+
+/** Written into the popup immediately, while GET bill/ is in flight. */
+const loadingDocument = () =>
+  receiptShell("Preparing bill…", '<div class="wait">Preparing bill…</div>');
+
+const errorDocument = (message) =>
+  receiptShell(
+    "Bill unavailable",
+    `<div class="wait">${escapeHtml(message)}<br /><br />Close this window and try again.</div>`,
+  );
+
+function receiptDocument(bill, fallback) {
+  const restaurant = bill.restaurantName || fallback.restaurant || "Cafe";
+  const branch = bill.branchName || fallback.branch || "";
+  const opened = stampNepal(bill.openedAt);
+  const printed =
+    stampNepal(bill.printedAt) ?? stampNepal(new Date().toISOString());
+  const hasDiscount = Number(bill.discount) > 0;
+
+  const rows = bill.items
+    .map(
+      (item) => `<div class="row">
+        <span class="name">${escapeHtml(item.name)}${
+          item.unitName ? ` <small>(${escapeHtml(item.unitName)})</small>` : ""
+        }</span>
+        <span class="qty">${item.quantity}</span>
+        <span class="rate">${rupees(item.unitPrice)}</span>
+        <span class="amt">${rupees(item.totalPrice)}</span>
+      </div>`,
+    )
+    .join("");
+
+  return receiptShell(
+    `Bill — Table ${bill.tableNumber ?? ""}`,
+    `<div class="receipt">
+      <div class="store">${escapeHtml(restaurant)}</div>
+      ${branch ? `<div class="branch">${escapeHtml(branch)}</div>` : ""}
+      <hr class="rule" />
+      <div class="meta"><span>Table</span><b>${escapeHtml(bill.tableNumber ?? "—")}</b></div>
+      ${opened ? `<div class="meta"><span>Opened</span><b>${opened}</b></div>` : ""}
+      ${printed ? `<div class="meta"><span>Billed</span><b>${printed}</b></div>` : ""}
+      <hr class="rule" />
+      <div class="head">
+        <span class="name">Item</span><span class="qty">Qty</span>
+        <span class="rate">Rate</span><span class="amt">Amount</span>
+      </div>
+      ${rows}
+      <div class="sums">
+        <div class="sum"><span>Sub total</span><span>Rs. ${rupees(bill.subTotal)}</span></div>
+        ${
+          hasDiscount
+            ? `<div class="sum discount"><span>Discount</span><span>− Rs. ${rupees(bill.discount)}</span></div>`
+            : ""
+        }
+      </div>
+      <div class="total"><span>Total</span><span>Rs. ${rupees(bill.grandTotal)}</span></div>
+      <div class="foot">
+        <div class="thanks">Thank you!</div>
+        <div class="sub">We hope to see you again</div>
+      </div>
+    </div>`,
+  );
+}
