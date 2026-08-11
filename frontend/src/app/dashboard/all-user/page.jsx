@@ -1,284 +1,274 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
+import { Pencil, Plus, Trash2, Users } from "lucide-react";
 
 import AdminRegisterPage from "@/app/auth/register/page";
-
-import ToastProvider from "@/components/ToastProvider";
-import "@/styles/customButtons.css";
-import HeaderWithSearch from "@/components/HeaderWithSearch";
-import DeleteModal from "@/components/DeleteModal";
-import CustomTable from "@/components/CustomTable";
-import CustomPagination from "@/components/CustomPagination";
+import PageShell, { PageHeader } from "@/components/ui/PageShell";
+import DataTable, { RowActions } from "@/components/ui/DataTable";
+import Pagination from "@/components/ui/Pagination";
+import Modal, { ConfirmDialog } from "@/components/ui/Modal";
+import Button, { IconButton } from "@/components/ui/Button";
+import { authHeader, getAuthToken } from "@/lib/cookies";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-const getCookie = (name) => {
-  if (typeof document === "undefined") return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-  return null;
-};
 
 export default function AdminManagementPage() {
   const [admins, setAdmins] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [adminToken, setAdminToken] = useState("");
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [fetching, setFetching] = useState(true);
+
   const [showForm, setShowForm] = useState(false);
   const [editAdmin, setEditAdmin] = useState(null);
+
   const [search, setSearch] = useState("");
-  const [deleteAdmin, setDeleteAdmin] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
-  const openEditModal = (admin) => {
-    setEditAdmin(admin);
-    setShowEditModal(true);
-  };
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    const token = getCookie("adminToken");
-
-    if (!token) {
-      toast.error("Admin token missing. Please login!");
-      return;
-    }
-
-    setAdminToken(token);
-    fetchAdmins(token);
-    fetchRestaurants(token);
-    fetchBranches(token);
-  }, []);
-
-  const fetchAdmins = async (token = adminToken) => {
-    if (!token) return;
-
+  // The page/page_size params were previously missing, so the pager rendered
+  // controls that could never fetch a second page.
+  const fetchAdmins = async () => {
+    if (!getAuthToken()) return;
+    setFetching(true);
     try {
-      const res = await fetch(`${API_URL}/api/user/admins/`, {
-        headers: {
-          Authorization: `Token ${token}`,
-        },
-      });
-
+      const res = await fetch(
+        `${API_URL}/api/user/admins/?page=${page}&page_size=${rowsPerPage}`,
+        { headers: authHeader() },
+      );
       const data = await res.json();
-
       if (res.ok) {
         setAdmins(data.data?.results || []);
         setTotalCount(data.data?.count || 0);
       }
     } catch (err) {
       console.error("Fetch admins error:", err);
+      toast.error("Failed to load users");
+    } finally {
+      setFetching(false);
     }
   };
 
-  const fetchRestaurants = async (token) => {
-    try {
-      const res = await fetch(`${API_URL}/api/restaurants/`, {
-        headers: { Authorization: `Token ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.response || "Failed to fetch restaurants");
-      setRestaurants(data.data || []);
-    } catch (err) {
-      console.error("Fetch restaurants error:", err);
-      toast.error("Failed to fetch restaurants");
-    }
-  };
+  useEffect(() => {
+    fetchAdmins();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, rowsPerPage]);
 
-  const fetchBranches = async (token) => {
-    try {
-      const res = await fetch(`${API_URL}/api/branches/`, {
-        headers: { Authorization: `Token ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.response || "Failed to fetch branches");
-      setBranches(data.data || []);
-    } catch (err) {
-      console.error("Fetch branches error:", err);
-      toast.error("Failed to fetch branches");
+  useEffect(() => {
+    if (!getAuthToken()) {
+      toast.error("Please sign in again");
+      return;
     }
-  };
 
-  const filteredUser = useMemo(() => {
-    const query = search.toLowerCase();
-    return admins.filter((b) => {
-      return (
-        b.username?.toLowerCase().includes(query) ||
-        b.first_name?.toLowerCase().includes(query) ||
-        b.last_name?.toLowerCase().includes(query) ||
-        `${b.first_name} ${b.last_name}`.toLowerCase().includes(query) ||
-        b.email?.toLowerCase().includes(query) ||
-        b.mobile_number?.toLowerCase().includes(query) ||
-        b.restaurant_name?.toLowerCase().includes(query) ||
-        b.branch_name?.toLowerCase().includes(query)
-      );
-    });
+    const load = async (path, setter, label) => {
+      try {
+        const res = await fetch(`${API_URL}${path}`, { headers: authHeader() });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.response || `Failed to load ${label}`);
+        setter(data.data || []);
+      } catch (err) {
+        console.error(err);
+        toast.error(`Failed to load ${label}`);
+      }
+    };
+
+    load("/api/restaurants/", setRestaurants, "restaurants");
+    load("/api/branches/", setBranches, "branches");
+  }, []);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return admins;
+    return admins.filter((a) =>
+      [
+        a.username,
+        a.first_name,
+        a.last_name,
+        `${a.first_name} ${a.last_name}`,
+        a.email,
+        a.mobile_number,
+        a.restaurant_name,
+        a.branch_name,
+      ].some((field) => field?.toLowerCase?.().includes(q)),
+    );
   }, [admins, search]);
 
-  const handleDeleteConfirmed = async () => {
-    if (!deleteAdmin) return;
-
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/user/admins/${deleteAdmin.reference_id}/`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Token ${adminToken}` },
-        },
+        `${API_URL}/api/user/admins/${pendingDelete.reference_id}/`,
+        { method: "DELETE", headers: authHeader() },
       );
-
-      const data = await res.json();
-
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.response || "Delete failed");
 
-      toast.success("Admin deleted successfully!");
+      toast.success("User deleted");
       setAdmins((prev) =>
-        prev.filter((admin) => admin.reference_id !== deleteAdmin.reference_id),
+        prev.filter((a) => a.reference_id !== pendingDelete.reference_id),
       );
+      setTotalCount((c) => Math.max(0, c - 1));
     } catch (err) {
-      console.error("Delete Error:", err);
       toast.error(err.message);
     } finally {
-      setShowDeleteModal(false);
-      setDeleteAdmin(null);
+      setDeleting(false);
+      setPendingDelete(null);
     }
   };
 
-  const userColumns = [
+  const closeForm = () => {
+    setShowForm(false);
+    setEditAdmin(null);
+  };
+
+  const columns = [
     {
       header: "S.N.",
-      width: "40px",
-      render: (_, index) => (page - 1) * rowsPerPage + index + 1,
+      width: "68px",
+      render: (_row, i) => (
+        <span className="text-ink-400">{(page - 1) * rowsPerPage + i + 1}</span>
+      ),
     },
     {
-      header: "Username",
-      render: (row) => row.username,
+      header: "User",
+      render: (row) => {
+        const fullName = `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
+        return (
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-100 text-2xs font-bold text-brand-700">
+              {(fullName || row.username || "?").charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-ink-900">
+                {fullName || row.username}
+              </p>
+              <p className="truncate text-2xs text-ink-500">@{row.username}</p>
+            </div>
+          </div>
+        );
+      },
     },
     {
-      header: "Name",
-      render: (row) => `${row.first_name} ${row.last_name}`,
-    },
-    {
-      header: "Email",
-      render: (row) => <div className="normal-case">{row.email}</div>,
-    },
-    {
-      header: "Phone",
-      render: (row) => row.mobile_number,
+      header: "Contact",
+      render: (row) => (
+        <div className="min-w-0">
+          <p className="truncate lowercase text-ink-700">{row.email || "—"}</p>
+          <p className="text-2xs text-ink-500 tabular-nums">
+            {row.mobile_number || "—"}
+          </p>
+        </div>
+      ),
     },
     {
       header: "Restaurant",
-      render: (row) => row.restaurant_name || "-",
+      render: (row) => row.restaurant_name || <span className="text-ink-400">—</span>,
     },
     {
       header: "Branch",
-      render: (row) => row.branch_name || "-",
+      render: (row) => row.branch_name || <span className="text-ink-400">—</span>,
     },
     {
-      header: "Action",
-      width: "80px",
+      header: "Actions",
+      width: "96px",
+      align: "right",
       render: (row) => (
-        <div className="flex justify-end gap-1.5">
-          <button
-            onClick={() => openEditModal(row)}
-            className="text-blue-500 hover:scale-110 transition cursor-pointer"
-          >
-            <PencilIcon className="w-3.5 h-3.5" />
-          </button>
-          <button
+        <RowActions>
+          <IconButton
+            icon={Pencil}
+            label={`Edit ${row.username}`}
+            size="sm"
             onClick={() => {
-              setDeleteAdmin(row);
-              setShowDeleteModal(true);
+              setEditAdmin(row);
+              setShowForm(true);
             }}
-            className="text-red-500 hover:scale-110 transition cursor-pointer"
-          >
-            <TrashIcon className="w-4 h-4" />
-          </button>
-        </div>
+            variant="ghost-brand"
+          />
+          <IconButton
+            icon={Trash2}
+            label={`Delete ${row.username}`}
+            size="sm"
+            onClick={() => setPendingDelete(row)}
+            variant="ghost-danger"
+          />
+        </RowActions>
       ),
     },
   ];
 
   return (
-    <>
-      <div className="mx-auto min-h-screen font-sans p-4 bg-[#ddf4e2] ">
-        <ToastProvider />
-
-        <div className="px-2 sm:px-3 md:px-0 ">
-          <HeaderWithSearch
-            title="All User"
-            searchValue={search}
-            onSearchChange={setSearch}
-            onButtonClick={() => {
-              setShowForm(true);
+    <PageShell>
+      <PageHeader
+        title="Users"
+        subtitle="Staff accounts and which branch each one belongs to."
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search users…"
+        action={
+          <Button
+            icon={Plus}
+            onClick={() => {
               setEditAdmin(null);
+              setShowForm(true);
             }}
-            buttonLabel="Create"
-            placeholder="Search User..."
-          />
+          >
+            New user
+          </Button>
+        }
+      />
 
-          {showDeleteModal && (
-            <DeleteModal
-              branch={deleteAdmin?.username}
-              setShowDeleteModal={() => {
-                setShowDeleteModal(false);
-              }}
-              handleDeleteConfirmed={handleDeleteConfirmed}
-            />
-          )}
+      <DataTable
+        data={visible}
+        columns={columns}
+        loading={fetching}
+        searchQuery={search}
+        onClearSearch={() => setSearch("")}
+        emptyIcon={Users}
+        emptyTitle="No users yet"
+        emptyDescription="Create an account so your staff can sign in."
+      />
 
-          {(showForm || showEditModal) && (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2"
-              onClick={(e) => {
-                if (e.target === e.currentTarget) {
-                  setShowForm(false);
-                  setShowEditModal(false);
-                  setEditAdmin(null);
-                }
-              }}
-            >
-              <div className="rounded w-full max-w-2xl p-3 relative animate-fadeIn">
-                <AdminRegisterPage
-                  adminData={editAdmin}
-                  admins={admins}
-                  adminToken={adminToken}
-                  restaurants={restaurants}
-                  branches={branches}
-                  refreshAdmins={fetchAdmins}
-                  closeModal={() => {
-                    setShowForm(false);
-                    setShowEditModal(false);
-                    setEditAdmin(null);
-                  }}
-                  onValidationError={() => {}}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-        <CustomTable
-          data={filteredUser}
-          columns={userColumns}
-          emptyMessage="No user found"
-          searchQuery={search}
-        />
-        <CustomPagination
+      {totalCount > 0 && (
+        <Pagination
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
           setRowsPerPage={setRowsPerPage}
           totalCount={totalCount}
         />
-      </div>
-    </>
+      )}
+
+      <Modal
+        open={showForm}
+        onClose={closeForm}
+        title={editAdmin ? "Edit user" : "New user"}
+        size="xl"
+      >
+        <AdminRegisterPage
+          adminData={editAdmin}
+          admins={admins}
+          adminToken={getAuthToken()}
+          restaurants={restaurants}
+          branches={branches}
+          refreshAdmins={fetchAdmins}
+          closeModal={closeForm}
+          onValidationError={() => {}}
+        />
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleDelete}
+        itemName={pendingDelete?.username}
+        loading={deleting}
+        title="Delete user"
+      />
+    </PageShell>
   );
 }

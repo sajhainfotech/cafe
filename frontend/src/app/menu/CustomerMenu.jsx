@@ -1,29 +1,88 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useSearchParams } from "next/navigation";
-import { Commet } from "react-loading-indicators";
-import { ShoppingCart, Soup, Plus, Minus, Search, X } from "lucide-react";
-import ToastProvider from "@/components/ToastProvider";
+import {
+  Minus,
+  Plus,
+  ReceiptText,
+  Search,
+  Soup,
+  UtensilsCrossed,
+  X,
+} from "lucide-react";
+
+import ImageThumb from "@/components/ui/ImageThumb";
+import Badge from "@/components/ui/Badge";
+import { cn } from "@/lib/utils";
+import {
+  fetchTableOrders,
+  readHistory,
+  statusMeta,
+  writeHistory,
+} from "@/lib/customerOrders";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const ORDERS_POLL_INTERVAL = 10000;
+
+const money = (n) => `Rs ${Number(n ?? 0).toLocaleString()}`;
 
 export default function CustomerMenu() {
   const searchParams = useSearchParams();
   const tableToken =
     searchParams.get("token") || searchParams.get("table_token");
 
+  const [tab, setTab] = useState("menu");
   const [table, setTable] = useState(null);
   const [menuList, setMenuList] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [previewImage, setPreviewImage] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [history, setHistory] = useState([]);
+
+  // null = haven't probed yet, true = endpoint exists, false = fall back local.
+  const [liveSupported, setLiveSupported] = useState(null);
+  const [serverOrders, setServerOrders] = useState([]);
+
+  useEffect(() => {
+    setHistory(readHistory(tableToken));
+  }, [tableToken]);
+
+  const refreshServerOrders = useCallback(async () => {
+    if (!tableToken) return;
+    const { supported, orders } = await fetchTableOrders(tableToken);
+    if (supported === false) {
+      setLiveSupported(false);
+      return;
+    }
+    if (supported === true) {
+      setLiveSupported(true);
+      setServerOrders(orders);
+    }
+    // supported === null: transient, keep what we have.
+  }, [tableToken]);
+
+  // Probe once on load so the tab badge is right before it's opened.
+  useEffect(() => {
+    refreshServerOrders();
+  }, [refreshServerOrders]);
+
+  // Poll only while the receipts are on screen, and only if the endpoint is
+  // actually there — a missing endpoint costs one request, not one every 10s.
+  useEffect(() => {
+    if (tab !== "orders" || liveSupported === false) return;
+    const interval = setInterval(refreshServerOrders, ORDERS_POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [tab, liveSupported, refreshServerOrders]);
+
+  // Server wins when present: it sees every phone at the table, not just this one.
+  const orders = liveSupported ? serverOrders : history;
 
   useEffect(() => {
     if (!tableToken) {
-      toast.error("Invalid QR code");
+      toast.error("This QR code isn't valid");
       setLoading(false);
       return;
     }
@@ -35,19 +94,20 @@ export default function CustomerMenu() {
         });
 
         if (res.data.code === "0") {
-          const summary = res.data.data?.summary_data;
-          const details = res.data.data?.details_data || [];
-
-          setTable(summary);
+          setTable(res.data.data?.summary_data);
           setMenuList(
-            details.map((m) => ({ ...m, quantity: 0, price: Number(m.price) })),
+            (res.data.data?.details_data || []).map((m) => ({
+              ...m,
+              quantity: 0,
+              price: Number(m.price),
+            })),
           );
         } else {
-          toast.error("Failed to fetch menu");
+          toast.error("Couldn't load the menu");
         }
       } catch (err) {
         console.error(err);
-        toast.error("Error fetching menu");
+        toast.error("Couldn't load the menu");
       } finally {
         setLoading(false);
       }
@@ -56,225 +116,460 @@ export default function CustomerMenu() {
     fetchData();
   }, [tableToken]);
 
-  const handleQtyChange = (index, change) => {
+  const changeQty = useCallback((referenceId, delta) => {
     setMenuList((prev) =>
-      prev.map((item, i) =>
-        i === index
-          ? { ...item, quantity: Math.max(0, item.quantity + change) }
+      prev.map((item) =>
+        item.reference_id === referenceId
+          ? { ...item, quantity: Math.max(0, item.quantity + delta) }
           : item,
       ),
     );
-  };
+  }, []);
 
-  const filteredMenu = menuList.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredMenu = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return menuList;
+    return menuList.filter((item) => item.name?.toLowerCase().includes(q));
+  }, [menuList, searchTerm]);
 
-  const totalItems = menuList.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = menuList.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
+  const totalItems = menuList.reduce((sum, i) => sum + i.quantity, 0);
+  const totalPrice = menuList.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  const handleSubmitOrder = async () => {
-    if (!totalItems) return toast.error("Your cart is empty!");
+  const submitOrder = async () => {
+    if (!totalItems) return;
 
+    const chosen = menuList.filter((m) => m.quantity > 0);
+
+    setSubmitting(true);
     try {
-      const payload = {
+      const res = await axios.post(`${API_URL}/api/orders/`, {
         table_id: table?.table_id || "",
         table_number: table?.table_number || "",
-        items: menuList
-          .filter((m) => m.quantity > 0)
-          .map((i) => ({
-            menu_id: i.reference_id,
-            name: i.name,
-            unit_name: i.unit_name,
-            quantity: i.quantity,
-            item_price: i.price,
-            total_price: i.price * i.quantity,
-          })),
+        items: chosen.map((i) => ({
+          menu_id: i.reference_id,
+          name: i.name,
+          unit_name: i.unit_name,
+          quantity: i.quantity,
+          item_price: i.price,
+          total_price: i.price * i.quantity,
+        })),
         total_price: totalPrice,
         status: "pending",
         token: tableToken,
-      };
+      });
 
-      const res = await axios.post(`${API_URL}/api/orders/`, payload);
-
-      if (res.status === 200 || res.status === 201) {
-        toast.success("Order placed successfully!");
-        setMenuList((prev) => prev.map((m) => ({ ...m, quantity: 0 })));
-      } else {
+      if (res.status !== 200 && res.status !== 201) {
         throw new Error("Something went wrong");
       }
+
+      const record = {
+        placedAt: new Date().toISOString(),
+        total: totalPrice,
+        items: chosen.map((i) => ({
+          name: i.name,
+          unit_name: i.unit_name,
+          quantity: i.quantity,
+          total_price: i.price * i.quantity,
+        })),
+      };
+      // Always record locally, even when the server endpoint exists: it makes
+      // the receipt appear instantly instead of on the next poll, and keeps the
+      // fallback warm if the endpoint goes away.
+      const next = [record, ...history];
+      setHistory(next);
+      writeHistory(tableToken, next);
+
+      setMenuList((prev) => prev.map((m) => ({ ...m, quantity: 0 })));
+      toast.success("Order sent to the kitchen!");
+      // Land them on the receipt so there's proof the order went through.
+      setTab("orders");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      refreshServerOrders();
     } catch (err) {
       console.error(err);
-      toast.error("Order failed. Please try again.");
+      toast.error("Couldn't place the order. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="flex flex-col h-screen items-center justify-center bg-white">
-        <Commet color="#236B28" size="medium" />
-        <p className="mt-4 text-[#236B28] font-medium animate-pulse">
-          Loading Menu...
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-white">
+        <div className="size-8 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />
+        <p className="text-sm font-medium text-brand-700">Loading menu…</p>
+      </div>
+    );
+  }
+
+  if (!table || menuList.length === 0) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-white px-6 text-center">
+        <div className="rounded-full bg-ink-100 p-4">
+          <Soup className="size-8 text-ink-400" aria-hidden="true" />
+        </div>
+        <p className="text-base font-semibold text-ink-900">
+          No menu available
+        </p>
+        <p className="max-w-xs text-sm text-ink-500">
+          Ask a member of staff — this table&apos;s menu isn&apos;t set up yet.
         </p>
       </div>
     );
+  }
 
-  if (!table || menuList.length === 0)
-    return (
-      <div className="flex flex-col h-screen items-center justify-center bg-white">
-        <Soup className="w-16 h-16 mb-4" />
-        <p>No menu available for this table.</p>
-      </div>
-    );
+  const showBar = tab === "menu" && totalItems > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-40">
-      <ToastProvider />
-      <header className="sticky top-0 z-50 p-2 bg-[#236B28] text-white shadow-xl">
-        <div className="px-3 py-3 md:p-3 flex items-center gap-3">
-          <div className="shrink-0">
-            <h1 className="text-md font-black leading-none uppercase tracking-tighter">
-              Eat & Repeat
+    <div
+      className="min-h-dvh bg-ink-50"
+      style={{
+        // Clear the sticky order bar and the iPhone home indicator.
+        paddingBottom: showBar
+          ? "calc(9rem + env(safe-area-inset-bottom))"
+          : "calc(2rem + env(safe-area-inset-bottom))",
+      }}
+    >
+      <header className="sticky top-0 z-40">
+        <div className="flex items-center justify-between gap-3 bg-brand-700 px-4 py-3 text-white">
+          <div className="flex min-w-0 items-center gap-2">
+            <UtensilsCrossed className="size-5 shrink-0" aria-hidden="true" />
+            <h1 className="truncate text-base font-bold tracking-tight">
+              {table?.restaurant_name || "Menu"}
             </h1>
-            <div className="inline-block bg-white/20 px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-md uppercase mt-1">
-              T-{table?.table_number || "-"}
-            </div>
           </div>
-
-          <div className="flex-1 relative group">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/50 group-focus-within:text-white" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full bg-white/10 border border-white/20 rounded-lg py-1.5 pl-8 pr-8 text-sm placeholder:text-white/40 focus:outline-none focus:bg-white/20 focus:border-white/40 transition-all"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2"
-              >
-                <X className="w-3.5 h-3.5 text-white/50 hover:text-white" />
-              </button>
-            )}
-          </div>
-
-          <div className="shrink-0 relative pl-2">
-            <ShoppingCart className="w-5 h-5" />
-            {totalItems > 0 && (
-              <span className="absolute -top-2 -right-1 bg-orange-500 text-white text-[9px] w-3.5 h-3.5 flex items-center justify-center rounded-full font-bold shadow-lg animate-bounce">
-                {totalItems}
-              </span>
-            )}
-          </div>
+          <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-xs font-bold">
+            Table {table?.table_number ?? "—"}
+          </span>
         </div>
+
+        {/* The header used to hold a cart icon that wasn't clickable and led
+            nowhere. The sticky bar at the bottom already is the cart, so this
+            slot now goes to something that was genuinely missing: a way to see
+            what you've already ordered. */}
+        <nav
+          role="tablist"
+          aria-label="Sections"
+          className="flex border-b border-ink-200 bg-white shadow-header"
+        >
+          <Tab
+            active={tab === "menu"}
+            onClick={() => setTab("menu")}
+            icon={Soup}
+            label="Menu"
+          />
+          <Tab
+            active={tab === "orders"}
+            onClick={() => setTab("orders")}
+            icon={ReceiptText}
+            label="My orders"
+            count={orders.length}
+          />
+        </nav>
       </header>
 
-      <main className="px-3 mt-6 space-y-3">
-        {filteredMenu.length === 0 ? (
-          <div className="text-center py-20 opacity-40">
-            <Soup className="w-16 h-16 mx-auto mb-4" />
-            <p className="text-lg font-medium text-slate-500">
-              {searchTerm
-                ? "No results found for your search."
-                : "No dishes available right now."}
-            </p>
-          </div>
-        ) : (
-          filteredMenu.map((menu, index) => (
-            <div
-              key={menu.reference_id}
-              className="flex bg-white rounded-2xl p-2 shadow-sm border border-slate-100 items-center"
-            >
-              <div className="relative w-16 h-16 overflow-hidden rounded-xl shrink-0">
-                <img
-                  src={menu.image || "https://via.placeholder.com/150"}
-                  className="w-full h-full object-cover cursor-pointer"
-                  onClick={() => setPreviewImage(menu.image)}
-                />
-              </div>
-              <div className="flex flex-1 justify-between items-center ml-3">
-                <div>
-                  <h3 className="text-[15px] font-bold text-slate-800 leading-tight">
-                    {menu.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-[#236B28] font-extrabold text-[16px]">
-                      Rs {menu.price}
-                    </p>
-                    <span className="text-slate-400 text-[10px] font-semibold uppercase">
-                      / {menu.unit_name}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center bg-slate-50 rounded-full p-0.5 border border-slate-200">
-                  <button
-                    onClick={() => handleQtyChange(index, -1)}
-                    className={`p-1 rounded-full ${
-                      menu.quantity > 0
-                        ? "bg-white text-[#236B28] shadow-sm"
-                        : "text-slate-300"
-                    }`}
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className="px-2 font-bold text-slate-700 text-sm min-w-[1.8rem] text-center">
-                    {menu.quantity}
-                  </span>
-                  <button
-                    onClick={() => handleQtyChange(index, 1)}
-                    className="p-1 rounded-full bg-[#236B28] text-white shadow-sm"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
+      {tab === "menu" ? (
+        <>
+          <div className="bg-white px-4 pb-3 pt-3">
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-400"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search dishes…"
+                aria-label="Search dishes"
+                /* text-base (16px) is deliberate: iOS Safari zooms the whole
+                   page when you focus an input below 16px. */
+                className="h-11 w-full rounded-lg border border-ink-300 bg-ink-50 pl-9 pr-10 text-base text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:bg-white focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  aria-label="Clear search"
+                  className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-ink-400 active:bg-ink-100"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </button>
+              )}
             </div>
-          ))
-        )}
-      </main>
+          </div>
 
-      {totalItems > 0 && (
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full z-40 animate-slideUp">
-          <div className="bg-[#236B28] p-2 shadow-2xl border border-white/20 backdrop-blur-lg">
-            <div className="flex justify-between items-center mb-3 text-white">
-              <div>
-                <p className="text-white/70 text-sm">Item</p>
-                <p className="text-md font-bold">{totalItems}</p>
+          <main className="space-y-2 px-3 pt-3">
+            {filteredMenu.length === 0 ? (
+              <div className="py-16 text-center">
+                <Soup
+                  className="mx-auto size-10 text-ink-300"
+                  aria-hidden="true"
+                />
+                <p className="mt-3 text-sm font-medium text-ink-500">
+                  Nothing matched “{searchTerm}”.
+                </p>
               </div>
-              <div>
-                <p className="text-white/70 text-sm">Total Amount</p>
-                <p className="text-md font-black">Rs {totalPrice.toFixed(2)}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleSubmitOrder}
-              className="w-full bg-white text-[#236B28] py-2 mb-3 rounded font-black text-md shadow-lg hover:bg-orange-50 transition-colors active:scale-[0.98]"
-            >
-              PLACE ORDER NOW
-            </button>
-          </div>
-        </div>
+            ) : (
+              filteredMenu.map((item) => (
+                <MenuRow
+                  key={item.reference_id}
+                  item={item}
+                  onChangeQty={changeQty}
+                />
+              ))
+            )}
+          </main>
+        </>
+      ) : (
+        <OrdersTab
+          orders={orders}
+          live={liveSupported === true}
+          tableNumber={table?.table_number}
+          onBrowse={() => setTab("menu")}
+        />
       )}
 
-      {previewImage && (
+      {showBar && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={() => setPreviewImage(null)}
+          className="fixed inset-x-0 bottom-0 z-40 animate-slide-up border-t border-brand-800 bg-brand-700 px-4 pt-3"
+          style={{
+            paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+          }}
         >
-          <div className="relative max-w-lg w-full">
-            <img
-              src={previewImage}
-              className="w-full h-auto rounded-4xl shadow-2xl"
-              alt="Preview"
-            />
+          <div className="mb-2.5 flex items-center justify-between text-white">
+            <p className="text-sm font-semibold">
+              {totalItems} item{totalItems > 1 ? "s" : ""}
+            </p>
+            <p className="text-lg font-bold tabular-nums">
+              {money(totalPrice)}
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={submitOrder}
+            disabled={submitting}
+            className="h-12 w-full rounded-lg bg-white text-base font-bold text-brand-700 transition-colors active:bg-brand-100 disabled:opacity-70"
+          >
+            {submitting ? "Sending…" : "Place order"}
+          </button>
         </div>
       )}
     </div>
+  );
+}
+
+function Tab({ active, onClick, icon: Icon, label, count }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        // h-12 keeps the tap target comfortably above the 44px minimum.
+        "relative flex h-12 flex-1 items-center justify-center gap-1.5 text-sm font-semibold transition-colors",
+        active ? "text-brand-700" : "text-ink-500 active:bg-ink-50",
+      )}
+    >
+      <Icon className="size-4" aria-hidden="true" />
+      {label}
+      {count > 0 && (
+        <span className="rounded-full bg-brand-100 px-1.5 text-2xs font-bold text-brand-700 tabular-nums">
+          {count}
+        </span>
+      )}
+      {active && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-3 bottom-0 h-0.5 rounded-t bg-brand-600"
+        />
+      )}
+    </button>
+  );
+}
+
+function MenuRow({ item, onChangeQty }) {
+  const inCart = item.quantity > 0;
+
+  return (
+    <article className="flex items-center gap-3 rounded-xl border border-ink-200 bg-white p-2.5">
+      <ImageThumb
+        src={item.image}
+        alt={item.name}
+        size={56}
+        rounded="rounded-lg"
+      />
+
+      <div className="min-w-0 flex-1">
+        <h3 className="text-sm font-bold leading-snug text-ink-900">
+          {item.name}
+        </h3>
+        <p className="mt-0.5 flex items-baseline gap-1.5">
+          <span className="text-base font-bold tabular-nums text-brand-700">
+            {money(item.price)}
+          </span>
+          {item.unit_name && (
+            <span className="text-2xs font-semibold uppercase text-ink-400">
+              / {item.unit_name}
+            </span>
+          )}
+        </p>
+      </div>
+
+      {/* Collapsed to a single "Add" until there's something to decrement —
+          a "− 0 +" stepper on every row is noise on a phone. */}
+      {inCart ? (
+        <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-brand-200 bg-brand-50 p-0.5">
+          <StepperButton
+            onClick={() => onChangeQty(item.reference_id, -1)}
+            label={`Remove one ${item.name}`}
+          >
+            <Minus className="size-4" aria-hidden="true" />
+          </StepperButton>
+          <span
+            aria-live="polite"
+            className="min-w-6 text-center text-sm font-bold tabular-nums text-brand-800"
+          >
+            {item.quantity}
+          </span>
+          <StepperButton
+            onClick={() => onChangeQty(item.reference_id, 1)}
+            label={`Add one more ${item.name}`}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+          </StepperButton>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onChangeQty(item.reference_id, 1)}
+          className="h-10 shrink-0 rounded-lg border border-brand-300 bg-white px-4 text-sm font-bold text-brand-700 transition-colors active:bg-brand-100"
+        >
+          Add
+        </button>
+      )}
+    </article>
+  );
+}
+
+function StepperButton({ onClick, label, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="grid size-9 place-items-center rounded-md bg-white text-brand-700 shadow-card transition-colors active:bg-brand-100"
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * Receipts for this table's orders.
+ *
+ * `live` means the values came from the server, so the kitchen status is real.
+ * Without it, the list is what this phone sent and every order reads "Sent to
+ * kitchen" — a guessed "Preparing"/"Ready" would be worse than none.
+ */
+function OrdersTab({ orders, live, tableNumber, onBrowse }) {
+  if (orders.length === 0) {
+    return (
+      <div className="px-6 py-20 text-center">
+        <div className="mx-auto w-fit rounded-full bg-ink-100 p-4">
+          <ReceiptText className="size-7 text-ink-400" aria-hidden="true" />
+        </div>
+        <p className="mt-3 text-base font-semibold text-ink-900">
+          No orders yet
+        </p>
+        <p className="mx-auto mt-1 max-w-xs text-sm text-ink-500">
+          Anything you order from the menu will show up here.
+        </p>
+        <button
+          type="button"
+          onClick={onBrowse}
+          className="mt-5 h-11 rounded-lg bg-brand-600 px-6 text-sm font-bold text-white active:bg-brand-700"
+        >
+          Browse the menu
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <main className="space-y-3 px-3 pt-3">
+      <p className="flex items-center gap-1.5 px-1 text-2xs text-ink-500">
+        {live ? (
+          <>
+            <span className="relative flex size-1.5" aria-hidden="true">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-success-600/60" />
+              <span className="relative inline-flex size-1.5 rounded-full bg-success-600" />
+            </span>
+            Live status for table {tableNumber} — updates automatically.
+          </>
+        ) : (
+          <>Orders sent from this phone for table {tableNumber}.</>
+        )}
+      </p>
+
+      {orders.map((order, idx) => {
+        const { label, tone } = statusMeta(order.status);
+        return (
+          <section
+            key={order.id ?? order.placedAt ?? idx}
+            className="overflow-hidden rounded-xl border border-ink-200 bg-white"
+          >
+            <header className="flex items-center justify-between gap-2 border-b border-ink-200 bg-ink-50 px-4 py-2.5">
+              <div>
+                <p className="text-sm font-bold text-ink-900">
+                  Order {orders.length - idx}
+                </p>
+                <p className="text-2xs text-ink-500 tabular-nums">
+                  {order.placedAt
+                    ? new Date(order.placedAt).toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })
+                    : ""}
+                </p>
+              </div>
+              <Badge tone={tone} dot>
+                {label}
+              </Badge>
+            </header>
+
+            <ul className="divide-y divide-ink-100">
+              {order.items.map((item, i) => (
+                <li
+                  key={i}
+                  className="flex items-baseline justify-between gap-3 px-4 py-2.5 text-sm"
+                >
+                  <span className="min-w-0 text-ink-700">
+                    <span className="mr-1.5 font-bold tabular-nums text-ink-400">
+                      {item.quantity}×
+                    </span>
+                    {item.name}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-ink-600">
+                    {money(item.total_price)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <footer className="flex items-baseline justify-between border-t border-ink-200 px-4 py-2.5">
+              <span className="text-2xs font-bold uppercase tracking-wider text-ink-500">
+                Total
+              </span>
+              <span className="text-base font-bold tabular-nums text-ink-900">
+                {money(order.total)}
+              </span>
+            </footer>
+          </section>
+        );
+      })}
+    </main>
   );
 }

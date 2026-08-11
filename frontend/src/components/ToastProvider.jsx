@@ -2,46 +2,45 @@
 
 import { Toaster } from "react-hot-toast";
 
-const ToastProvider = () => {
+/**
+ * Mounted exactly once, in the root layout. It used to be mounted in the
+ * dashboard layout AND again inside individual pages, which produced duplicate
+ * toasts on every action.
+ */
+export default function ToastProvider() {
   return (
     <Toaster
       position="top-right"
+      gutter={8}
       toastOptions={{
+        duration: 3000,
         style: {
-          background: "#FEF3C7",
-          color: "#92400E",
-          border: "1px solid #FCD34D",
-          padding: "6px 12px",
-          borderRadius: "8px",
-          fontSize: "14px",
-          lineHeight: "1.2",
-          minHeight: "auto",
+          background: "#ffffff",
+          color: "var(--color-ink-800)",
+          border: "1px solid var(--color-ink-200)",
+          borderRadius: "10px",
+          boxShadow: "var(--shadow-pop)",
+          padding: "10px 14px",
+          fontSize: "0.8125rem",
+          fontWeight: 500,
+          maxWidth: "22rem",
         },
-
         success: {
-          style: {
-            background: "#ECFDF5",
-            color: "#065F46",
-            border: "1px solid #34D399",
-            padding: "6px 12px",
-            lineHeight: "1.2",
-            minHeight: "auto",
+          iconTheme: {
+            primary: "var(--color-success-600)",
+            secondary: "#ffffff",
           },
+          style: { borderColor: "var(--color-success-200)" },
         },
-
         error: {
-          style: {
-            background: "#FEF2F2",
-            color: "#B91C1C",
-            border: "1px solid #F87171",
-            padding: "6px 12px",
-            lineHeight: "1.2",
-            minHeight: "auto",
+          duration: 4500,
+          iconTheme: {
+            primary: "var(--color-danger-600)",
+            secondary: "#ffffff",
           },
+          style: { borderColor: "var(--color-danger-200)" },
         },
       }}
     />
   );
-};
-
-export default ToastProvider;
+}

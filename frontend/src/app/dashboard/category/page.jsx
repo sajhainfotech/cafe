@@ -1,100 +1,53 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { Pencil, Plus, Tag, Trash2 } from "lucide-react";
 
-import "@/styles/customButtons.css";
-import ToastProvider from "@/components/ToastProvider";
-import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
-import { X } from "lucide-react";
-import HeaderWithSearch from "@/components/HeaderWithSearch";
-import DeleteModal from "@/components/DeleteModal";
-import CustomTable from "@/components/CustomTable";
-import CustomPagination from "@/components/CustomPagination";
+import PageShell, { PageHeader } from "@/components/ui/PageShell";
+import DataTable, { RowActions } from "@/components/ui/DataTable";
+import Pagination from "@/components/ui/Pagination";
+import Modal, { ConfirmDialog } from "@/components/ui/Modal";
+import Button, { IconButton } from "@/components/ui/Button";
+import { CharCount, Field, Input, Textarea } from "@/components/ui/Field";
+import { authHeader, getAuthToken } from "@/lib/cookies";
+import { usePaginatedRows } from "@/lib/usePagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const DESCRIPTION_MAX = 500;
 
-const getCookie = (name) => {
-  if (typeof document === "undefined") return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-  return null;
-};
+const EMPTY_FORM = { name: "", description: "" };
 
 export default function AdminCategoryManager() {
   const [categories, setCategories] = useState([]);
-  const [showForm, setShowForm] = useState(false);
+  const [fetching, setFetching] = useState(true);
+
+  const [form, setForm] = useState(EMPTY_FORM);
   const [editId, setEditId] = useState(null);
-  const [categoryName, setCategoryName] = useState("");
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const [search, setSearch] = useState("");
-  const [deleteCategory, setDeleteCategory] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  const [validationErrors, setValidationErrors] = useState({
-    name: "",
-    description: "",
-  });
-
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
 
-  const categoryColumns = [
-    {
-      header: "S.N.",
-      width: "40px",
-      render: (_, index) => (page - 1) * rowsPerPage + index + 1,
-    },
-    {
-      header: "Name",
-      render: (row) => row.name,
-    },
-    {
-      header: "Description",
-      render: (row) => row.description || "-",
-    },
-    {
-      header: "Action",
-      width: "80px",
-      render: (row) => (
-        <div className="flex justify-end gap-1.5">
-          <button
-            onClick={() => handleEdit(row)}
-            className="text-blue-500 hover:scale-110 transition cursor-pointer"
-          >
-            <PencilIcon className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => {
-              setDeleteCategory(row);
-              setShowDeleteModal(true);
-            }}
-            className="text-red-500 hover:scale-110 transition cursor-pointer"
-          >
-            <TrashIcon className="w-4 h-4" />
-          </button>
-        </div>
-      ),
-    },
-  ];
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchCategories = async () => {
     try {
-      const token = getCookie("adminToken");
-      if (!token) return;
+      if (!getAuthToken()) return;
       const res = await fetch(`${API_URL}/api/item-categories/`, {
-        headers: { Authorization: `Token ${token}` },
+        headers: authHeader(),
       });
       const data = await res.json();
       setCategories(data.data || []);
-      setTotalCount(data.data?.length || 0);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to fetch categories");
+      toast.error("Failed to load categories");
+    } finally {
+      setFetching(false);
     }
   };
 
@@ -102,286 +55,286 @@ export default function AdminCategoryManager() {
     fetchCategories();
   }, []);
 
-  const filteredCategories = useMemo(() => {
-    return categories.filter((cat) =>
-      cat.name.toLowerCase().includes(search.toLowerCase()),
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return categories;
+    return categories.filter(
+      (c) =>
+        c.name?.toLowerCase().includes(q) ||
+        c.description?.toLowerCase().includes(q),
     );
   }, [categories, search]);
 
-  const validateForm = () => {
-    const errors = {
-      name: "",
-      description: "",
-    };
-    let hasError = false;
+  // The old page passed the full list to the table while rendering a pager
+  // beside it, so changing page did nothing. Slice before rendering.
+  const { rows, total } = usePaginatedRows(filtered, page, rowsPerPage);
 
-    if (!categoryName || categoryName.trim() === "") {
-      errors.name = "Category name is required";
-      hasError = true;
-    } else {
-      const duplicate = categories.some(
-        (cat) =>
-          cat.name.toLowerCase() === categoryName.trim().toLowerCase() &&
-          cat.reference_id !== editId,
-      );
-      if (duplicate) {
-        errors.name = "Category name already exists";
-        hasError = true;
-      }
+  useEffect(() => setPage(1), [search]);
+
+  const validate = () => {
+    const next = {};
+    const name = form.name.trim();
+
+    if (!name) {
+      next.name = "Category name is required";
+    } else if (
+      categories.some(
+        (c) =>
+          c.name?.toLowerCase() === name.toLowerCase() &&
+          c.reference_id !== editId,
+      )
+    ) {
+      next.name = "A category with this name already exists";
     }
 
-    if (description && description.length > 500) {
-      errors.description = "Description must be less than 500 characters";
-      hasError = true;
+    if (form.description.length > DESCRIPTION_MAX) {
+      next.description = `Description must be under ${DESCRIPTION_MAX} characters`;
     }
 
-    setValidationErrors(errors);
-    return !hasError;
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
 
-    const isValid = validateForm();
-    if (!isValid) {
-      const errorElement = document.querySelector(".border-red-500");
-      if (errorElement) {
-        errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        errorElement.focus();
-      }
-      return;
-    }
-
-    setLoading(true);
+    setSaving(true);
     try {
-      const token = getCookie("adminToken");
-      if (!token) throw new Error("Login again!");
-
-      const payload = {
-        name: categoryName.trim(),
-        description: description.trim() || "",
-      };
-      const url = editId
-        ? `${API_URL}/api/item-categories/${editId}/`
-        : `${API_URL}/api/item-categories/`;
-      const method = editId ? "PATCH" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Token ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.message || "Failed to save");
-
-      toast.success(editId ? "Category updated!" : "Category created!");
-      closeModal();
-      fetchCategories();
-    } catch (err) {
-      toast.error(err.message || "Error saving category");
-    }
-    setLoading(false);
-  };
-
-  const handleEdit = (cat) => {
-    setEditId(cat.reference_id);
-    setCategoryName(cat.name);
-    setDescription(cat.description || "");
-    setValidationErrors({ name: "", description: "" });
-    setShowForm(true);
-  };
-
-  const closeModal = () => {
-    setShowForm(false);
-    setEditId(null);
-    setCategoryName("");
-    setDescription("");
-    setValidationErrors({ name: "", description: "" });
-  };
-
-  const handleDeleteConfirmed = async () => {
-    if (!deleteCategory) return;
-
-    try {
-      const token = getCookie("adminToken");
       const res = await fetch(
-        `${API_URL}/api/item-categories/${deleteCategory.reference_id}/`,
+        editId
+          ? `${API_URL}/api/item-categories/${editId}/`
+          : `${API_URL}/api/item-categories/`,
         {
-          method: "DELETE",
-          headers: { Authorization: `Token ${token}` },
+          method: editId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json", ...authHeader() },
+          body: JSON.stringify({
+            name: form.name.trim(),
+            description: form.description.trim(),
+          }),
         },
       );
 
-      if (!res.ok) throw new Error("Delete failed");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to save category");
 
-      toast.success("Category deleted!");
+      toast.success(editId ? "Category updated" : "Category created");
+      closeForm();
       fetchCategories();
     } catch (err) {
-      console.error(err);
-      toast.error(err.message || "Delete failed");
+      toast.error(err.message);
     } finally {
-      setShowDeleteModal(false);
-      setDeleteCategory(null);
+      setSaving(false);
     }
   };
 
-  return (
-    <>
-      <div className="min-h-screen mx-auto font-sans p-4 bg-[#ddf4e2]">
-        <ToastProvider />
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/item-categories/${pendingDelete.reference_id}/`,
+        { method: "DELETE", headers: authHeader() },
+      );
+      if (!res.ok) throw new Error("Could not delete this category");
 
-        <HeaderWithSearch
-          title="Category"
-          searchValue={search}
-          onSearchChange={setSearch}
-          buttonLabel="Create"
-          placeholder="Search Category..."
-          onButtonClick={() => {
-            closeModal();
-            setShowForm(true);
-          }}
-        />
+      toast.success("Category deleted");
+      fetchCategories();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
+    }
+  };
 
-        {showDeleteModal && (
-          <DeleteModal
-            branch={deleteCategory?.name}
-            setShowDeleteModal={() => {
-              setShowDeleteModal(false);
-            }}
-            handleDeleteConfirmed={handleDeleteConfirmed}
+  const openCreate = () => {
+    setEditId(null);
+    setForm(EMPTY_FORM);
+    setErrors({});
+    setShowForm(true);
+  };
+
+  const openEdit = (category) => {
+    setEditId(category.reference_id);
+    setForm({
+      name: category.name ?? "",
+      description: category.description ?? "",
+    });
+    setErrors({});
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditId(null);
+    setForm(EMPTY_FORM);
+    setErrors({});
+  };
+
+  const columns = [
+    {
+      header: "S.N.",
+      width: "68px",
+      render: (_row, i) => (
+        <span className="text-ink-400">{(page - 1) * rowsPerPage + i + 1}</span>
+      ),
+    },
+    {
+      header: "Name",
+      render: (row) => (
+        <span className="font-semibold text-ink-900">{row.name}</span>
+      ),
+    },
+    {
+      header: "Description",
+      render: (row) =>
+        row.description ? (
+          <span className="text-ink-600">{row.description}</span>
+        ) : (
+          <span className="text-ink-400">—</span>
+        ),
+    },
+    {
+      header: "Actions",
+      width: "96px",
+      align: "right",
+      render: (row) => (
+        <RowActions>
+          <IconButton
+            icon={Pencil}
+            label={`Edit ${row.name}`}
+            size="sm"
+            onClick={() => openEdit(row)}
+            variant="ghost-brand"
           />
-        )}
+          <IconButton
+            icon={Trash2}
+            label={`Delete ${row.name}`}
+            size="sm"
+            onClick={() => setPendingDelete(row)}
+            variant="ghost-danger"
+          />
+        </RowActions>
+      ),
+    },
+  ];
 
-        {showForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-[1px] p-3">
-            <div className="bg-white w-full max-w-md rounded shadow-lg overflow-hidden animate-in fade-in zoom-in duration-150 border border-gray-300">
-              <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 bg-white">
-                <h2 className="text-[14px] font-semibold text-gray-800 tracking-tight">
-                  {editId ? "Edit Category" : "Create Category"}
-                </h2>
-                <button
-                  onClick={closeModal}
-                  className="text-gray-400 hover:text-red-500 transition-all p-1 hover:bg-gray-100 rounded cursor-pointer"
-                >
-                  <X size={16} strokeWidth={2} />
-                </button>
-              </div>
+  return (
+    <PageShell>
+      <PageHeader
+        title="Categories"
+        subtitle="Group menu items so customers can find them quickly."
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search categories…"
+        action={
+          <Button icon={Plus} onClick={openCreate}>
+            New category
+          </Button>
+        }
+      />
 
-              <form
-                onSubmit={handleSubmit}
-                className="p-4 space-y-3"
-                noValidate
-              >
-                <div className="space-y-1">
-                  <label className="block text-[12px] font-medium text-gray-600">
-                    Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={categoryName}
-                    onChange={(e) => {
-                      setCategoryName(e.target.value);
-                      if (validationErrors.name) {
-                        setValidationErrors({ ...validationErrors, name: "" });
-                      }
-                    }}
-                    placeholder="e.g. Beverages"
-                    className={`w-full border px-3 py-1.5 rounded text-[12px] focus:border-[#236B28] focus:ring-1 focus:ring-[#236B28]/20 outline-none transition-all placeholder:text-gray-400 ${
-                      validationErrors.name
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                    required
-                    autoFocus
-                  />
-                  {validationErrors.name && (
-                    <p className="text-red-500 text-[10px] mt-0.5">
-                      {validationErrors.name}
-                    </p>
-                  )}
-                </div>
+      <DataTable
+        data={rows}
+        columns={columns}
+        loading={fetching}
+        searchQuery={search}
+        onClearSearch={() => setSearch("")}
+        emptyIcon={Tag}
+        emptyTitle="No categories yet"
+        emptyDescription="Categories organise your menu — add one to get started."
+        emptyAction={
+          <Button icon={Plus} size="sm" onClick={openCreate}>
+            New category
+          </Button>
+        }
+      />
 
-                <div className="space-y-1">
-                  <label className="block text-[12px] font-medium text-gray-600">
-                    Description
-                  </label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => {
-                      setDescription(e.target.value);
-                      if (validationErrors.description) {
-                        setValidationErrors({
-                          ...validationErrors,
-                          description: "",
-                        });
-                      }
-                    }}
-                    placeholder="Brief description..."
-                    rows={3}
-                    className={`w-full border px-3 py-1.5 rounded text-[12px] focus:border-[#236B28] focus:ring-1 focus:ring-[#236B28]/20 outline-none transition-all placeholder:text-gray-400 resize-none ${
-                      validationErrors.description
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                  />
-                  {validationErrors.description && (
-                    <p className="text-red-500 text-[10px] mt-0.5">
-                      {validationErrors.description}
-                    </p>
-                  )}
-                  {description && description.length > 0 && (
-                    <p
-                      className={`text-[10px] mt-0.5 ${
-                        description.length > 450
-                          ? "text-orange-500"
-                          : "text-gray-400"
-                      }`}
-                    >
-                      {description.length}/500 characters
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2 border-t border-gray-50 mt-4">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-4 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-6 py-1.5 bg-[#236B28] text-white rounded text-[12px] font-medium hover:bg-[#1C5721] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {loading ? "Saving..." : editId ? "Update" : "Create"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        <CustomTable
-          data={filteredCategories}
-          columns={categoryColumns}
-          emptyMessage="No category found"
-          searchQuery={search}
-        />
-
-        <CustomPagination
+      {total > 0 && (
+        <Pagination
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
           setRowsPerPage={setRowsPerPage}
-          totalCount={totalCount}
+          totalCount={total}
         />
-      </div>
-    </>
+      )}
+
+      <Modal
+        open={showForm}
+        onClose={closeForm}
+        title={editId ? "Edit category" : "New category"}
+        size="md"
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={closeForm}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              loading={saving}
+              type="submit"
+              form="category-form"
+            >
+              {editId ? "Update category" : "Create category"}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="category-form"
+          onSubmit={handleSubmit}
+          className="space-y-4"
+          noValidate
+        >
+          <Field label="Name" required error={errors.name}>
+            {(props) => (
+              <Input
+                {...props}
+                value={form.name}
+                onChange={(e) => {
+                  setForm({ ...form, name: e.target.value });
+                  if (errors.name) setErrors({ ...errors, name: "" });
+                }}
+                placeholder="e.g. Beverages"
+              />
+            )}
+          </Field>
+
+          <Field
+            label="Description"
+            error={errors.description}
+            hint="Optional — shown to staff, not customers."
+          >
+            {(props) => (
+              <>
+                <Textarea
+                  {...props}
+                  value={form.description}
+                  onChange={(e) => {
+                    setForm({ ...form, description: e.target.value });
+                    if (errors.description)
+                      setErrors({ ...errors, description: "" });
+                  }}
+                  placeholder="Hot and cold drinks"
+                  rows={3}
+                />
+                <CharCount value={form.description} max={DESCRIPTION_MAX} />
+              </>
+            )}
+          </Field>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleDelete}
+        itemName={pendingDelete?.name}
+        loading={deleting}
+        title="Delete category"
+      />
+    </PageShell>
   );
 }
