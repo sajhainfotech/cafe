@@ -12,6 +12,7 @@ import Button, { IconButton } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import SearchSelect from "@/components/ui/SearchSelect";
 import { authHeader, getAuthToken } from "@/lib/cookies";
+import { toList } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -57,7 +58,7 @@ export default function BranchPage() {
       const restJson = await restRes.json();
       const branchJson = await branchRes.json();
 
-      const restaurantList = restJson.data?.results || restJson.data || [];
+      const restaurantList = toList(restJson.data);
       setRestaurants(restaurantList);
       setTotalCount(branchJson.data?.count || 0);
 
@@ -83,8 +84,7 @@ export default function BranchPage() {
   }, [load]);
 
   const restaurantOptions = useMemo(
-    () =>
-      restaurants.map((r) => ({ value: r.reference_id, label: r.name })),
+    () => restaurants.map((r) => ({ value: r.reference_id, label: r.name })),
     [restaurants],
   );
 
@@ -158,7 +158,9 @@ export default function BranchPage() {
     setSaving(true);
     try {
       const res = await fetch(
-        editId ? `${API_URL}/api/branches/${editId}/` : `${API_URL}/api/branches/`,
+        editId
+          ? `${API_URL}/api/branches/${editId}/`
+          : `${API_URL}/api/branches/`,
         {
           method: editId ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json", ...authHeader() },
@@ -353,12 +355,7 @@ export default function BranchPage() {
             <Button variant="ghost" size="sm" onClick={closeForm}>
               Cancel
             </Button>
-            <Button
-              size="sm"
-              loading={saving}
-              type="submit"
-              form="branch-form"
-            >
+            <Button size="sm" loading={saving} type="submit" form="branch-form">
               {editId ? "Update branch" : "Create branch"}
             </Button>
           </>

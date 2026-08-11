@@ -9,6 +9,7 @@ import Button from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import SearchSelect from "@/components/ui/SearchSelect";
 import { authHeader, getAuthToken } from "@/lib/cookies";
+import { toList } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -43,8 +44,11 @@ export default function AdminRegisterPage({
   const router = useRouter();
   const isEditing = Boolean(adminData?.reference_id);
 
-  const [restaurants, setRestaurants] = useState(restaurantsProp ?? []);
-  const [branches, setBranches] = useState(branchesProp ?? []);
+  // toList on the way in: the Users page hands these straight from the API, and
+  // a paginated payload would otherwise arrive as { results, count } and blow up
+  // the first .map() below.
+  const [restaurants, setRestaurants] = useState(() => toList(restaurantsProp));
+  const [branches, setBranches] = useState(() => toList(branchesProp));
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -55,11 +59,13 @@ export default function AdminRegisterPage({
   const lastRestaurant = useRef(null);
 
   useEffect(() => {
-    if (restaurantsProp?.length) setRestaurants(restaurantsProp);
+    const rows = toList(restaurantsProp);
+    if (rows.length) setRestaurants(rows);
   }, [restaurantsProp]);
 
   useEffect(() => {
-    if (branchesProp?.length) setBranches(branchesProp);
+    const rows = toList(branchesProp);
+    if (rows.length) setBranches(rows);
   }, [branchesProp]);
 
   // Only fetch what the parent didn't already hand us.
@@ -73,15 +79,16 @@ export default function AdminRegisterPage({
       try {
         const res = await fetch(`${API_URL}${path}`, { headers: authHeader() });
         const data = await res.json();
-        setter(data.data?.results || data.data || []);
+        setter(toList(data.data));
       } catch {
         toast.error(`Failed to load ${label}`);
       }
     };
 
-    if (!restaurantsProp?.length)
+    if (!toList(restaurantsProp).length)
       load("/api/restaurants/", setRestaurants, "restaurants");
-    if (!branchesProp?.length) load("/api/branches/", setBranches, "branches");
+    if (!toList(branchesProp).length)
+      load("/api/branches/", setBranches, "branches");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -299,7 +306,9 @@ export default function AdminRegisterPage({
           label={isEditing ? "New password" : "Password"}
           required={!isEditing}
           error={errors.password}
-          hint={isEditing ? "Leave blank to keep the current password." : undefined}
+          hint={
+            isEditing ? "Leave blank to keep the current password." : undefined
+          }
         >
           {(props) => (
             <div className="relative">
