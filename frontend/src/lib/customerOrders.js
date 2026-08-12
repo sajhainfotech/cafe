@@ -43,11 +43,29 @@ const ORDERS_PATH =
 
 const historyKey = (token) => `cafe:orders:${token}`;
 
+/**
+ * How long one visit lasts.
+ *
+ * The storage key is the table token, which never changes — so without a cutoff
+ * the list accumulates every visit this phone has ever made to that table, and
+ * a diner sees last week's paid meal alongside today's. A restaurant "visit"
+ * ends at payment, but the client can't see that (no token-scoped read
+ * endpoint), so elapsed time is the honest local approximation. Once the server
+ * endpoint exists it returns only the open session and this stops mattering.
+ */
+const VISIT_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+const withinVisit = (order) => {
+  const placed = Date.parse(order?.placedAt ?? "");
+  if (Number.isNaN(placed)) return false;
+  return Date.now() - placed < VISIT_WINDOW_MS;
+};
+
 export function readHistory(token) {
   if (typeof window === "undefined" || !token) return [];
   try {
     const parsed = JSON.parse(window.localStorage.getItem(historyKey(token)));
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter(withinVisit) : [];
   } catch {
     return [];
   }
@@ -56,10 +74,11 @@ export function readHistory(token) {
 export function writeHistory(token, orders) {
   if (typeof window === "undefined" || !token) return;
   try {
-    // Bounded — a table gets reused all day.
+    // Drop expired visits on write too, so storage doesn't grow forever on a
+    // regular's phone.
     window.localStorage.setItem(
       historyKey(token),
-      JSON.stringify(orders.slice(0, 20)),
+      JSON.stringify(orders.filter(withinVisit).slice(0, 20)),
     );
   } catch {
     // Private mode or quota exceeded: history just won't persist.

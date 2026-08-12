@@ -6,6 +6,22 @@ export function cn(...inputs) {
 }
 
 /**
+ * Join a path onto NEXT_PUBLIC_API_URL, whether or not it ends in a slash.
+ *
+ * The env value currently ends in "/", so `${API_URL}/api/x` produced
+ * "host//api/x" while `${API_URL}api/x` produced "host/api/x" — both shapes
+ * exist in this codebase. It happens to work today, and breaks the day someone
+ * sets the variable without the trailing slash.
+ *
+ *   apiUrl("/api/tables/")  ->  http://host:8000/api/tables/
+ */
+export function apiUrl(path = "") {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${suffix}`;
+}
+
+/**
  * Coerce an API payload into an array of rows.
  *
  * The API is inconsistent: some endpoints return `data` as a plain array, and

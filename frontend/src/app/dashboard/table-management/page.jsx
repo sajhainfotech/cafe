@@ -111,15 +111,18 @@ export default function TableManager() {
 
     setSaving(true);
     try {
-      const tableToken = editId
-        ? tables.find((t) => t.reference_id === editId)?.token_number
-        : Date.now().toString();
-      const qr = tableToken ? await generateTableQR(tableToken) : "";
-
+      /*
+       * Only the table number is sent.
+       *
+       * This used to also send a `token` of Date.now() and a QR image rendered
+       * from it. Both were discarded: TableSerializer declares table_number
+       * alone, and generates the real token server-side as base62(uuid4()).
+       * Sending them cost a QR render per save and — worse — read as though the
+       * client chose the token, which invites the conclusion that table tokens
+       * are guessable timestamps. They aren't.
+       */
       const body = new FormData();
       body.append("table_number", tableNumber.trim());
-      body.append("qr_code", qr);
-      body.append("token", tableToken ?? "");
       if (editId) body.append("table_id", editId);
 
       const res = await fetch(
