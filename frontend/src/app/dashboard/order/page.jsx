@@ -166,6 +166,9 @@ export default function AdminOrdersDashboard() {
   const [preview, setPreview] = useState(null);
   const [pendingSettle, setPendingSettle] = useState(null);
   const [settling, setSettling] = useState(false);
+  // The bill the server would actually charge, loaded before confirming.
+  const [settleBill, setSettleBill] = useState(null);
+  const [loadingSettleBill, setLoadingSettleBill] = useState(false);
 
   // Only a fallback for the receipt header — GET bill/ supplies these itself.
   const { restaurant, branch } = useAccount();
@@ -471,6 +474,29 @@ export default function AdminOrdersDashboard() {
     }
   };
 
+  /**
+   * Open the settle confirmation, loading the real bill first.
+   *
+   * bill-print/ settles *every* open order at the table, but this card only
+   * shows the orders matching the current status filter. A table with a Pending
+   * order and a Ready one would have been confirmed at the Pending subtotal and
+   * then charged for both. The dialog now quotes the server's own grand total —
+   * the same figure bill-print/ will charge, since both run build_bill().
+   */
+  const askToSettle = async (group) => {
+    setPendingSettle(group);
+    setSettleBill(null);
+    setLoadingSettleBill(true);
+    try {
+      setSettleBill(await fetchBill(group.table_reference_id));
+    } catch {
+      // Leave it null; the dialog says it couldn't confirm rather than
+      // quoting a number that might be wrong.
+    } finally {
+      setLoadingSettleBill(false);
+    }
+  };
+
   /** The irreversible half: closes the order and marks it paid. */
   const settleOrder = async () => {
     const order = pendingSettle;
@@ -498,8 +524,12 @@ export default function AdminOrdersDashboard() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        // Same shape as everywhere else in this API: the message lives under
+        // `errors` or `response`, never `message`.
         throw new Error(
-          data.message ||
+          firstFieldError(data?.errors) ||
+            data.response ||
+            data.message ||
             data.detail ||
             `Request failed with status ${res.status}`,
         );
@@ -507,7 +537,9 @@ export default function AdminOrdersDashboard() {
 
       toast.success(`${order.tableName} marked paid`);
       setPendingSettle(null);
+      setSettleBill(null);
       await fetchOrders(false);
+      fetchCounts();
     } catch (err) {
       toast.error(err.message || "Unable to close this order");
     } finally {
@@ -665,7 +697,7 @@ export default function AdminOrdersDashboard() {
               onChangeStatus={changeStatus}
               onPrint={openBillPreview}
               printing={printingFor === group.key}
-              onSettle={setPendingSettle}
+              onSettle={askToSettle}
             />
           ))}
         </div>
@@ -675,25 +707,47 @@ export default function AdminOrdersDashboard() {
 
       <ConfirmDialog
         open={Boolean(pendingSettle)}
-        onClose={() => setPendingSettle(null)}
+        onClose={() => {
+          // Clear the bill too, or the next table briefly shows this one's total.
+          setPendingSettle(null);
+          setSettleBill(null);
+        }}
         onConfirm={settleOrder}
         loading={settling}
         title="Mark order as paid"
         confirmLabel="Mark paid"
         tone="primary"
         message={
-          <>
-            This closes{" "}
-            <span className="font-semibold text-ink-900">
-              {pendingSettle?.tableName}
-            </span>{" "}
-            for{" "}
-            <span className="font-semibold text-ink-900">
-              {money(pendingSettle?.total_price)}
-            </span>{" "}
-            and frees the table. Only do this once the customer has actually
-            paid — it can&apos;t be undone from here.
-          </>
+          loadingSettleBill ? (
+            "Checking the bill…"
+          ) : settleBill ? (
+            <>
+              This closes{" "}
+              <span className="font-semibold text-ink-900">
+                {pendingSettle?.tableName}
+              </span>{" "}
+              — every open order on it,{" "}
+              <span className="font-semibold text-ink-900">
+                {settleBill.items.length} line
+                {settleBill.items.length === 1 ? "" : "s"}
+              </span>{" "}
+              totalling{" "}
+              <span className="font-semibold text-ink-900">
+                {money(settleBill.grandTotal)}
+              </span>
+              . Only do this once the customer has actually paid — it
+              can&apos;t be undone from here.
+            </>
+          ) : (
+            <>
+              Couldn&apos;t load the bill for{" "}
+              <span className="font-semibold text-ink-900">
+                {pendingSettle?.tableName}
+              </span>
+              . Settling still closes <em>every</em> open order on this table,
+              which may be more than the {statusFilter} orders shown here.
+            </>
+          )
         }
       />
     </PageShell>
