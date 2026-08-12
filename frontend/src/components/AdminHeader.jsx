@@ -17,9 +17,7 @@ import { getPageMeta } from "@/app/dashboard/navigation";
 import { authHeader, deleteCookie, getAuthToken } from "@/lib/cookies";
 import { useNotificationSound } from "@/lib/useNotificationSound";
 import { useAccount } from "@/lib/useAccount";
-import { cn } from "@/lib/utils";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { apiUrl, cn } from "@/lib/utils";
 const POLL_INTERVAL = 5000;
 
 /**
@@ -48,7 +46,7 @@ export default function AdminHeader() {
       if (!getAuthToken()) return;
 
       try {
-        const res = await fetch(`${API_URL}api/orders-list/?status=pending`, {
+        const res = await fetch(apiUrl("/api/orders-list/?status=pending"), {
           headers: { ...authHeader(), Accept: "application/json" },
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

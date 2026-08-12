@@ -1,6 +1,7 @@
 "use client";
 
 import { authHeader } from "./cookies";
+import { apiUrl } from "./utils";
 
 /**
  * Bill fetching for the order screen.
@@ -27,8 +28,6 @@ import { authHeader } from "./cookies";
  * needs to change.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
 /** First key that's actually present, else `fallback`. */
 const pick = (source, keys, fallback = null) => {
   for (const key of keys) {
@@ -38,10 +37,18 @@ const pick = (source, keys, fallback = null) => {
   return fallback;
 };
 
-export async function fetchBill(tableReferenceId) {
-  const res = await fetch(`${API_URL}api/table/${tableReferenceId}/bill/`, {
-    headers: { ...authHeader(), Accept: "application/json" },
-  });
+/**
+ * @param paidAt ISO timestamp identifying one settled sitting. Omit for the
+ *   table's current bill (or its most recent, if nothing is open). A table is
+ *   billed repeatedly through the day, so reprinting the *right* one means
+ *   naming the batch rather than always taking the latest.
+ */
+export async function fetchBill(tableReferenceId, paidAt = null) {
+  const query = paidAt ? `?paid_at=${encodeURIComponent(paidAt)}` : "";
+  const res = await fetch(
+    apiUrl(`/api/table/${tableReferenceId}/bill/${query}`),
+    { headers: { ...authHeader(), Accept: "application/json" } },
+  );
 
   const payload = await res.json().catch(() => null);
 
@@ -100,6 +107,10 @@ export function normalizeBill(data) {
     tableNumber: pick(data, ["table_number", "table"], null),
     restaurantName: pick(data, ["restaurant_name", "restaurant"], ""),
     branchName: pick(data, ["branch_name", "branch"], ""),
+    // Set when the table is already settled and the server rebuilt the bill
+    // from the last paid batch. The copy gets stamped DUPLICATE.
+    isReprint: Boolean(pick(data, ["is_reprint"], false)),
+    paidAt: pick(data, ["paid_at"]),
     // "Both timestamps": when the table's first order landed, and when the bill
     // was produced.
     openedAt: pick(data, [

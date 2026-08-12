@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   ChevronDown,
   ClipboardList,
+  Download,
   Printer,
   RotateCcw,
   Utensils,
@@ -19,12 +20,12 @@ import PageShell, {
 import { StatCard } from "@/components/ui/Card";
 import Badge, { StatusBadge } from "@/components/ui/Badge";
 import Button, { IconButton } from "@/components/ui/Button";
-import { ConfirmDialog } from "@/components/ui/Modal";
-import { Select } from "@/components/ui/Field";
+import Modal, { ConfirmDialog } from "@/components/ui/Modal";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
 import { authHeader, getAuthToken } from "@/lib/cookies";
 import { fetchBill } from "@/lib/bill";
+import { buildReceiptPdfBlob } from "@/lib/receiptPdf";
 import { useNotificationSound } from "@/lib/useNotificationSound";
 import { useAccount } from "@/lib/useAccount";
 import { cn } from "@/lib/utils";
@@ -32,11 +33,14 @@ import { cn } from "@/lib/utils";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const POLL_INTERVAL = 5000;
 
+/* Ordered as an order actually progresses, so the dropdown reads as a
+   lifecycle rather than an arbitrary list. */
 const STATUS_FILTERS = [
   { value: "pending", label: "Pending" },
   { value: "preparing", label: "Preparing" },
   { value: "ready", label: "Ready" },
   { value: "served", label: "Served" },
+  { value: "paid", label: "Paid" },
   { value: "cancelled", label: "Cancelled" },
 ];
 
@@ -48,6 +52,29 @@ const RANGE_OPTIONS = [
 /** Statuses an order can be moved to from the card. */
 const NEXT_STATUSES = ["Pending", "Preparing", "Ready", "Served", "Cancelled"];
 
+/**
+ * The normal next step in the kitchen flow, as a one-tap button.
+ *
+ * Almost every status change is just "move this along", so that shouldn't cost
+ * two taps and a menu. The dropdown stays for the exceptions — going backwards,
+ * or cancelling.
+ */
+const NEXT_STEP = {
+  Pending: { to: "Preparing", label: "Start preparing" },
+  Preparing: { to: "Ready", label: "Mark ready" },
+  Ready: { to: "Served", label: "Mark served" },
+};
+
+/**
+ * Statuses whose orders can't be moved elsewhere from the board.
+ *
+ * Only Paid: money has changed hands, so reopening it belongs in a refund flow,
+ * not a dropdown. Served used to be here because the old table-wide endpoint
+ * excluded it, which meant a mis-tapped Served could never be undone.
+ * orders/status/<pk> has no such exclusion, so it's correctable again.
+ */
+const LOCKED_STATUSES = new Set(["Paid"]);
+
 /* Left-edge accent per status, so a full board scans by colour without tinting
    every card background the way the previous version did. */
 const ACCENT = {
@@ -57,6 +84,16 @@ const ACCENT = {
   Served: "bg-success-600",
   Paid: "bg-ink-400",
   Cancelled: "bg-danger-600",
+};
+
+/** Same colours as ACCENT, keyed by the lowercase filter value. */
+const TAB_DOT = {
+  pending: "bg-warning-600",
+  preparing: "bg-info-600",
+  ready: "bg-brand-500",
+  served: "bg-success-600",
+  paid: "bg-ink-400",
+  cancelled: "bg-danger-600",
 };
 
 const toNepalDate = (date) => {
@@ -94,15 +131,44 @@ const normalizeStatus = (status) => {
 
 const money = (n) => `Rs ${Number(n ?? 0).toLocaleString()}`;
 
+/**
+ * Pull a readable sentence out of this API's `errors` object.
+ *
+ * DRF ValidationErrors arrive as { field: [{ message, code }] } (or
+ * { field: ["…"] }). The sibling `response` key holds str(exc.detail), which
+ * for a ValidationError is a stringified Python dict — technically the message,
+ * but not something to show a waiter mid-service.
+ */
+function firstFieldError(errors) {
+  if (!errors || typeof errors !== "object") return null;
+
+  for (const value of Object.values(errors)) {
+    const entry = Array.isArray(value) ? value[0] : value;
+    if (typeof entry === "string") return entry;
+    if (entry && typeof entry.message === "string") return entry.message;
+  }
+  return null;
+}
+
 export default function AdminOrdersDashboard() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState("today");
   const [statusFilter, setStatusFilter] = useState("pending");
+  // At 40+ tables, scanning the board for one table number is slower than
+  // typing it.
+  const [tableSearch, setTableSearch] = useState("");
+  // Per-status totals for the tab badges: how much is waiting in the statuses
+  // you're *not* looking at.
+  const [counts, setCounts] = useState({});
   const [openMenuFor, setOpenMenuFor] = useState(null);
   const [printingFor, setPrintingFor] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [pendingSettle, setPendingSettle] = useState(null);
   const [settling, setSettling] = useState(false);
+  // The bill the server would actually charge, loaded before confirming.
+  const [settleBill, setSettleBill] = useState(null);
+  const [loadingSettleBill, setLoadingSettleBill] = useState(false);
 
   // Only a fallback for the receipt header — GET bill/ supplies these itself.
   const { restaurant, branch } = useAccount();
@@ -127,10 +193,12 @@ export default function AdminOrdersDashboard() {
         const result = await res.json();
         const raw = Array.isArray(result?.data) ? result.data : [];
 
+        // Keyed on the order, not the table. Keyed on the table, a party's
+        // second round was already "known" and never rang the bell.
         const currentIds = new Set(
           raw
-            .filter((o) => o.table_reference_id)
-            .map((o) => o.table_reference_id),
+            .filter((o) => o.order_reference_id)
+            .map((o) => o.order_reference_id),
         );
 
         if (notify && !isFirstLoad.current) {
@@ -138,7 +206,7 @@ export default function AdminOrdersDashboard() {
             (id) => !knownOrderIds.current.has(id),
           );
           if (newId) {
-            const order = raw.find((o) => o.table_reference_id === newId);
+            const order = raw.find((o) => o.order_reference_id === newId);
             await playChime();
             toast.success(
               order?.table_number
@@ -154,6 +222,9 @@ export default function AdminOrdersDashboard() {
 
         setOrders(
           raw.map((o) => ({
+            // Each row is one order (a "ticket"), not a whole table — a table
+            // with two rounds appears twice, each with its own status.
+            order_reference_id: o.order_reference_id,
             table_reference_id: o.table_reference_id,
             table_number: o.table_number,
             tableName: o.table_number ? `Table ${o.table_number}` : "Takeout",
@@ -167,6 +238,10 @@ export default function AdminOrdersDashboard() {
             total_price: Number(o.grand_total),
             status: normalizeStatus(o.status),
             created_at: o.order_time || new Date().toISOString(),
+            // Null until settled. Used for date filtering on paid orders, so a
+            // table that ordered before midnight and paid after still counts as
+            // today's — mirrors the Coalesce in OrderStatusCountApiView.
+            paid_at: o.paid_at ?? null,
           })),
         );
       } catch (err) {
@@ -179,15 +254,43 @@ export default function AdminOrdersDashboard() {
     [statusFilter, playChime],
   );
 
+  /**
+   * Tab badges. Counted server-side over the same date window the board shows,
+   * because a badge counting a different range from the cards under it would be
+   * worse than no badge.
+   *
+   * Its own request rather than part of the list response: the list returns one
+   * status, the badges need all six. It's a single grouped count, so it's cheap
+   * at polling frequency.
+   */
+  const fetchCounts = useCallback(async () => {
+    if (!getAuthToken()) return;
+    try {
+      const res = await fetch(`${API_URL}/api/orders-count/?range=${range}`, {
+        headers: { ...authHeader(), Accept: "application/json" },
+      });
+      if (!res.ok) return; // Badges are a nicety — never break the board over them.
+      const result = await res.json();
+      if (result?.data) setCounts(result.data);
+    } catch {
+      // Same: a failed count leaves the previous badges in place.
+    }
+  }, [range]);
+
   useEffect(() => {
     knownOrderIds.current = new Set();
     isFirstLoad.current = true;
     setLoading(true);
 
-    fetchOrders(false);
-    const interval = setInterval(() => fetchOrders(true), POLL_INTERVAL);
+    const poll = (notify) => {
+      fetchOrders(notify);
+      fetchCounts();
+    };
+
+    poll(false);
+    const interval = setInterval(() => poll(true), POLL_INTERVAL);
     return () => clearInterval(interval);
-  }, [fetchOrders]);
+  }, [fetchOrders, fetchCounts]);
 
   useEffect(() => {
     if (!openMenuFor) return;
@@ -203,7 +306,10 @@ export default function AdminOrdersDashboard() {
     const weekAgoString = getNepalDateString(weekAgo);
 
     return orders.filter((o) => {
-      const day = getNepalDateString(o.created_at);
+      // Date an order by when it closed if it has closed, otherwise by when it
+      // arrived — the same rule the counts endpoint applies, so the badge and
+      // the cards below it can never disagree.
+      const day = getNepalDateString(o.paid_at ?? o.created_at);
       return range === "today" ? day === today : day >= weekAgoString;
     });
   }, [orders, range]);
@@ -217,12 +323,67 @@ export default function AdminOrdersDashboard() {
     0,
   );
 
+  /**
+   * Orders grouped under their table.
+   *
+   * Status is per order — a party's drinks can be Preparing while their starters
+   * are Served. The bill is per table, so Print and Mark paid live on the group
+   * header rather than being repeated on every card.
+   */
+  const tableGroups = useMemo(() => {
+    const query = tableSearch.trim().toLowerCase();
+    const groups = new Map();
+
+    for (const order of visibleOrders) {
+      if (query && !String(order.tableName).toLowerCase().includes(query)) {
+        continue;
+      }
+      /*
+       * Grouped by sitting, not just by table.
+       *
+       * A table is billed several times a day: one diner orders twice and pays,
+       * the next sits down and orders again. Those are separate bills, and
+       * everything settled together shares a paid_at — so keying on it keeps
+       * two customers' orders from merging into one card with one combined
+       * total. Open orders have no paid_at and are all one running bill.
+       */
+      const key = `${order.table_reference_id}::${order.paid_at ?? "open"}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          table_reference_id: order.table_reference_id,
+          paid_at: order.paid_at ?? null,
+          tableName: order.tableName,
+          orders: [],
+          total_price: 0,
+        });
+      }
+      const group = groups.get(key);
+      group.orders.push(order);
+      group.total_price += order.total_price || 0;
+    }
+
+    return [...groups.values()];
+  }, [visibleOrders, tableSearch]);
+
   const changeStatus = async (order, nextStatus) => {
     setOpenMenuFor(null);
     try {
       // add slash after api_url
       const res = await fetch(
-        `${API_URL}/api/orders/${order.table_reference_id}/`,
+        /*
+         * Single order, not the whole table.
+         *
+         * This used to PATCH orders/<table_reference_id>/, which is
+         * OrderStatusUpdateApiView — it updates *every* active order at the
+         * table in one query. A party with two rounds had both flipped
+         * together, so marking the first round Served also marked the drinks
+         * that hadn't left the kitchen.
+         *
+         * orders/status/<pk>/ is OrderChangeStatusApiView, which touches one
+         * order.
+         */
+        `${API_URL}/api/orders/status/${order.order_reference_id}/`,
         {
           method: "PATCH",
           headers: {
@@ -243,9 +404,14 @@ export default function AdminOrdersDashboard() {
       }
 
       if (!res.ok) {
+        // `response` first: that's where this API puts its message
+        // (globalparameters.RESPONSE_MESSAGE). Without it every failure showed
+        // the bare status code, so a rejected transition looked like nothing
+        // had happened at all.
         throw new Error(
-          payload?.message ||
-            payload?.error ||
+          firstFieldError(payload?.errors) ||
+            payload?.response ||
+            payload?.message ||
             payload?.detail ||
             `Request failed with status ${res.status}`,
         );
@@ -266,41 +432,68 @@ export default function AdminOrdersDashboard() {
   };
 
   /**
-   * Prints from GET bill/ — read-only, so this is safe to repeat and settles
-   * nothing. The figures come from the server's build_bill(), the same function
-   * PATCH bill-print/ uses, so the printed bill and the charged amount agree.
+   * Loads the bill and opens a preview. Read-only, so it settles nothing and is
+   * safe to repeat — the figures come from the server's build_bill(), the same
+   * function PATCH bill-print/ uses.
    *
-   * The popup is opened synchronously, before the await: a window.open() that
-   * happens after an await has lost the user-gesture context and gets blocked.
-   * It shows "Preparing bill…" until the response lands.
+   * This used to write into a popup and fire window.print() immediately, so the
+   * bill was never actually visible: the print dialog appeared over a window you
+   * hadn't seen. Now it renders in-app first, and printing is a deliberate
+   * second click. Dropping the popup also removes the pop-up-blocker failure
+   * mode entirely.
    */
-  const printReceipt = async (order) => {
-    const win = window.open("", "_blank", "width=380,height=680");
-    if (!win) {
-      toast.error("Allow pop-ups for this site to print bills");
-      return;
-    }
-    win.document.write(loadingDocument());
-    win.document.close();
-
-    setPrintingFor(order.table_reference_id);
+  const openBillPreview = async (group) => {
+    setPrintingFor(group.key ?? group.table_reference_id);
     try {
-      const bill = await fetchBill(order.table_reference_id);
+      // paid_at names the sitting, so reprinting an earlier customer's bill
+      // doesn't hand back whoever settled most recently.
+      const bill = await fetchBill(group.table_reference_id, group.paid_at);
 
-      win.document.open();
-      win.document.write(receiptDocument(bill, { restaurant, branch }));
-      win.document.close();
-      win.focus();
-      win.print();
+      // Resolved once and shared by all three outputs — on-screen preview,
+      // printout and PDF — so they can't disagree on a name or a timestamp.
+      const context = {
+        restaurant: bill.restaurantName || restaurant || "Cafe",
+        branch: bill.branchName || branch || "",
+        openedLabel: stampNepal(bill.openedAt),
+        printedLabel:
+          stampNepal(bill.printedAt) ?? stampNepal(new Date().toISOString()),
+      };
+
+      setPreview({
+        order: group,
+        bill,
+        context,
+        html: receiptDocument(bill, context),
+      });
     } catch (err) {
-      // Never fall back to the card's own numbers: printing a total the server
+      // Never fall back to the card's own numbers: showing a total the server
       // didn't produce is the exact drift this endpoint split prevents.
-      win.document.open();
-      win.document.write(errorDocument(err.message));
-      win.document.close();
       toast.error(err.message || "Couldn't load the bill");
     } finally {
       setPrintingFor(null);
+    }
+  };
+
+  /**
+   * Open the settle confirmation, loading the real bill first.
+   *
+   * bill-print/ settles *every* open order at the table, but this card only
+   * shows the orders matching the current status filter. A table with a Pending
+   * order and a Ready one would have been confirmed at the Pending subtotal and
+   * then charged for both. The dialog now quotes the server's own grand total —
+   * the same figure bill-print/ will charge, since both run build_bill().
+   */
+  const askToSettle = async (group) => {
+    setPendingSettle(group);
+    setSettleBill(null);
+    setLoadingSettleBill(true);
+    try {
+      setSettleBill(await fetchBill(group.table_reference_id));
+    } catch {
+      // Leave it null; the dialog says it couldn't confirm rather than
+      // quoting a number that might be wrong.
+    } finally {
+      setLoadingSettleBill(false);
     }
   };
 
@@ -331,8 +524,12 @@ export default function AdminOrdersDashboard() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        // Same shape as everywhere else in this API: the message lives under
+        // `errors` or `response`, never `message`.
         throw new Error(
-          data.message ||
+          firstFieldError(data?.errors) ||
+            data.response ||
+            data.message ||
             data.detail ||
             `Request failed with status ${res.status}`,
         );
@@ -340,7 +537,9 @@ export default function AdminOrdersDashboard() {
 
       toast.success(`${order.tableName} marked paid`);
       setPendingSettle(null);
+      setSettleBill(null);
       await fetchOrders(false);
+      fetchCounts();
     } catch (err) {
       toast.error(err.message || "Unable to close this order");
     } finally {
@@ -353,25 +552,76 @@ export default function AdminOrdersDashboard() {
       <PageHeader
         title="Orders"
         subtitle="Live kitchen board — refreshes every 5 seconds."
+        searchValue={tableSearch}
+        onSearchChange={setTableSearch}
+        searchPlaceholder="Find table…"
       >
         <SegmentedControl
           value={range}
           onChange={setRange}
           options={RANGE_OPTIONS}
         />
-        <Select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          aria-label="Filter by status"
-          className="sm:w-40"
-        >
-          {STATUS_FILTERS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </Select>
       </PageHeader>
+
+      {/*
+        Status as tabs, not a <select>. Switching status is the single most
+        frequent action on this screen, and a native select costs open → scan →
+        pick where a tab costs one tap. Scrolls sideways on a phone rather than
+        wrapping into a second row.
+      */}
+      <div
+        role="tablist"
+        aria-label="Filter by status"
+        className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-hide"
+      >
+        {STATUS_FILTERS.map((s) => {
+          const active = s.value === statusFilter;
+          const count = counts[s.value];
+          return (
+            <button
+              key={s.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setStatusFilter(s.value)}
+              aria-label={
+                count === undefined ? s.label : `${s.label}, ${count} orders`
+              }
+              className={cn(
+                "flex shrink-0 items-center gap-1.5 rounded-full border py-1.5 pl-3",
+                count === undefined ? "pr-3" : "pr-1.5",
+                "text-xs font-semibold transition-colors cursor-pointer",
+                active
+                  ? "border-brand-600 bg-brand-600 text-white"
+                  : "border-ink-300 bg-white text-ink-600 hover:border-ink-400 hover:text-ink-900",
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "size-1.5 rounded-full",
+                  active ? "bg-white/70" : TAB_DOT[s.value],
+                )}
+              />
+              {s.label}
+              {count !== undefined && (
+                <span
+                  className={cn(
+                    "min-w-5 rounded-full px-1.5 py-0.5 text-2xs font-bold tabular-nums",
+                    active
+                      ? "bg-white/20 text-white"
+                      : count > 0
+                        ? "bg-ink-100 text-ink-700"
+                        : "bg-transparent text-ink-400",
+                  )}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
@@ -389,12 +639,18 @@ export default function AdminOrdersDashboard() {
           loading={loading}
         />
         <StatCard
-          label="Value in view"
+          label={statusFilter === "paid" ? "Collected" : "Value in view"}
           value={money(inViewRevenue)}
           icon={Wallet}
           tone="success"
           loading={loading}
-          hint={`${statusFilter} only — not total sales`}
+          // Paid is the one filter where this figure is money actually taken;
+          // for every other status it's the value of orders still owed.
+          hint={
+            statusFilter === "paid"
+              ? "Settled and collected"
+              : `${statusFilter} only — not yet paid`
+          }
         />
       </div>
 
@@ -425,107 +681,218 @@ export default function AdminOrdersDashboard() {
           />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {visibleOrders.map((order, idx) => (
-            <OrderCard
-              key={`${order.table_reference_id}-${idx}`}
-              order={order}
-              index={idx}
-              menuOpen={openMenuFor === order.table_reference_id}
-              onToggleMenu={() =>
-                setOpenMenuFor((prev) =>
-                  prev === order.table_reference_id
-                    ? null
-                    : order.table_reference_id,
-                )
-              }
+        /*
+          Tables across, not stacked. One full-width block per table meant a
+          60-table cafe scrolled 60 screens; four columns makes that 15 rows,
+          and items-start keeps a table with four orders from stretching its
+          neighbours to match.
+        */
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {tableGroups.map((group) => (
+            <TableGroup
+              key={group.key}
+              group={group}
+              openMenuFor={openMenuFor}
+              setOpenMenuFor={setOpenMenuFor}
               onChangeStatus={changeStatus}
-              onPrint={printReceipt}
-              printing={printingFor === order.table_reference_id}
-              onSettle={setPendingSettle}
+              onPrint={openBillPreview}
+              printing={printingFor === group.key}
+              onSettle={askToSettle}
             />
           ))}
         </div>
       )}
 
+      <BillPreview preview={preview} onClose={() => setPreview(null)} />
+
       <ConfirmDialog
         open={Boolean(pendingSettle)}
-        onClose={() => setPendingSettle(null)}
+        onClose={() => {
+          // Clear the bill too, or the next table briefly shows this one's total.
+          setPendingSettle(null);
+          setSettleBill(null);
+        }}
         onConfirm={settleOrder}
         loading={settling}
         title="Mark order as paid"
         confirmLabel="Mark paid"
         tone="primary"
         message={
-          <>
-            This closes{" "}
-            <span className="font-semibold text-ink-900">
-              {pendingSettle?.tableName}
-            </span>{" "}
-            for{" "}
-            <span className="font-semibold text-ink-900">
-              {money(pendingSettle?.total_price)}
-            </span>{" "}
-            and frees the table. Only do this once the customer has actually
-            paid — it can&apos;t be undone from here.
-          </>
+          loadingSettleBill ? (
+            "Checking the bill…"
+          ) : settleBill ? (
+            <>
+              This closes{" "}
+              <span className="font-semibold text-ink-900">
+                {pendingSettle?.tableName}
+              </span>{" "}
+              — every open order on it,{" "}
+              <span className="font-semibold text-ink-900">
+                {settleBill.items.length} line
+                {settleBill.items.length === 1 ? "" : "s"}
+              </span>{" "}
+              totalling{" "}
+              <span className="font-semibold text-ink-900">
+                {money(settleBill.grandTotal)}
+              </span>
+              . Only do this once the customer has actually paid — it
+              can&apos;t be undone from here.
+            </>
+          ) : (
+            <>
+              Couldn&apos;t load the bill for{" "}
+              <span className="font-semibold text-ink-900">
+                {pendingSettle?.tableName}
+              </span>
+              . Settling still closes <em>every</em> open order on this table,
+              which may be more than the {statusFilter} orders shown here.
+            </>
+          )
         }
       />
     </PageShell>
   );
 }
 
-function OrderCard({
-  order,
-  index,
-  menuOpen,
-  onToggleMenu,
+/**
+ * One table, with each of its orders listed separately.
+ *
+ * The split matters: status is a property of an order (the kitchen makes one
+ * round at a time), while the bill is a property of the table (the party pays
+ * once). So Print and Mark paid sit up here, and each order below carries its
+ * own status control.
+ */
+function TableGroup({
+  group,
+  openMenuFor,
+  setOpenMenuFor,
   onChangeStatus,
   onPrint,
-  onSettle,
   printing,
+  onSettle,
 }) {
-  const closed = order.status === "Cancelled" || order.status === "Paid";
+  const allClosed = group.orders.every(
+    (o) => o.status === "Cancelled" || o.status === "Paid",
+  );
+  const isPaid = group.orders.some((o) => o.status === "Paid");
 
+  // A cancelled order was never charged, so there's no bill to produce. If
+  // every order here is cancelled the server has nothing to build from either
+  // — offering Print would only ever return "No orders found for this table".
+  // A mixed group still bills its surviving orders.
+  const canPrint = group.orders.some((o) => o.status !== "Cancelled");
+
+  // No overflow-hidden on the section: it would clip the status menu that opens
+  // out of a card below. The header rounds its own top corners instead.
   return (
-    <article className="relative flex flex-col overflow-hidden rounded-xl border border-ink-200 bg-white shadow-card transition-shadow hover:shadow-card-hover">
+    <section className="rounded-xl border border-ink-300 bg-white shadow-card">
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b border-ink-200 bg-ink-50 px-4 py-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold text-ink-900">{group.tableName}</h3>
+          <p className="mt-0.5 text-2xs text-ink-500">
+            {group.orders.length} order{group.orders.length > 1 ? "s" : ""} ·{" "}
+            <span className="font-semibold tabular-nums text-ink-700">
+              {money(group.total_price)}
+            </span>
+            {/* One table can appear more than once when it's been billed
+                twice today; the settle time tells the two sittings apart. */}
+            {group.paid_at && <> · paid {formatNepalTime(group.paid_at)}</>}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {!canPrint && (
+            <Badge tone="danger">Cancelled — nothing to bill</Badge>
+          )}
+
+          {canPrint && (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={isPaid ? RotateCcw : Printer}
+              loading={printing}
+              onClick={() => onPrint(group)}
+            >
+              {isPaid ? "Reprint" : "Print bill"}
+            </Button>
+          )}
+          {!allClosed && (
+            <Button
+              size="sm"
+              variant="primary"
+              icon={BadgeCheck}
+              onClick={() => onSettle(group)}
+            >
+              Mark paid
+            </Button>
+          )}
+        </div>
+      </header>
+
+      {/* Single column: the group itself is now one cell of the page grid, so
+          its orders stack rather than competing for width. */}
+      <div className="space-y-2 p-2.5">
+        {group.orders.map((order, index) => (
+          <OrderCard
+            key={order.order_reference_id ?? index}
+            order={order}
+            index={index}
+            menuOpen={openMenuFor === order.order_reference_id}
+            onToggleMenu={() =>
+              setOpenMenuFor((prev) =>
+                prev === order.order_reference_id
+                  ? null
+                  : order.order_reference_id,
+              )
+            }
+            onChangeStatus={onChangeStatus}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** A single order — its own items, its own status. */
+function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
+  const statusLocked = LOCKED_STATUSES.has(order.status);
+  const nextStep = NEXT_STEP[order.status];
+
+  // Also no overflow-hidden here — the status menu opens beyond this box. The
+  // accent bar rounds itself rather than being clipped to shape.
+  return (
+    <article className="relative flex flex-col rounded-lg border border-ink-200 bg-white">
       <span
         aria-hidden="true"
         className={cn(
-          "absolute inset-y-0 left-0 w-1",
+          "absolute inset-y-0 left-0 w-1 rounded-l-lg",
           ACCENT[order.status] ?? "bg-ink-300",
         )}
       />
 
-      <header className="flex items-start justify-between gap-2 border-b border-ink-100 px-4 py-3 pl-5">
+      <header className="flex items-start justify-between gap-2 border-b border-ink-100 px-3 py-2 pl-4">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-2xs font-bold text-ink-400">
-              #{index + 1}
-            </span>
-            <h3 className="truncate text-sm font-bold text-ink-900">
-              {order.tableName}
-            </h3>
-          </div>
+          <p className="text-2xs font-bold uppercase tracking-wider text-ink-500">
+            Order {index + 1}
+          </p>
           <p className="mt-0.5 text-2xs text-ink-500 tabular-nums">
             {formatNepalTime(order.created_at)}
           </p>
         </div>
-
         {/* The old card printed the *filter* value here rather than the order's
             own status, so a card could contradict its own colour. */}
         <StatusBadge status={order.status} />
       </header>
 
-      <div className="flex-1 px-4 py-3 pl-5">
-        <ul className="space-y-1.5">
+      <div className="flex-1 px-3 py-2 pl-4">
+        <ul className="space-y-1">
           {order.items.map((item, i) => (
             <li
               key={i}
               className="flex items-baseline justify-between gap-3 text-sm"
             >
               <span className="min-w-0 text-ink-700">
-                <span className="mr-1.5 font-bold text-ink-400 tabular-nums">
+                <span className="mr-1.5 font-bold tabular-nums text-ink-400">
                   {item.quantity}×
                 </span>
                 {item.name}
@@ -538,100 +905,142 @@ function OrderCard({
         </ul>
       </div>
 
-      <footer className="border-t border-ink-100 px-4 py-3 pl-5">
-        <div className="mb-3 flex items-baseline justify-between">
-          <span className="text-2xs font-semibold uppercase tracking-wider text-ink-500">
-            Total
-          </span>
-          <span className="text-base font-bold tabular-nums text-ink-900">
-            {money(order.total_price)}
-          </span>
-        </div>
+      <footer className="flex items-center justify-between gap-2 border-t border-ink-100 px-3 py-2 pl-4">
+        <span className="text-sm font-bold tabular-nums text-ink-900">
+          {money(order.total_price)}
+        </span>
 
-        {closed ? (
-          <div className="flex items-center justify-between gap-2">
-            <Badge tone={order.status === "Cancelled" ? "danger" : "neutral"}>
-              {order.status === "Cancelled" ? "Cancelled" : "Paid & closed"}
-            </Badge>
-            {order.status === "Paid" && (
-              <Button
-                size="sm"
-                variant="ghost"
-                icon={RotateCcw}
-                loading={printing}
-                onClick={() => onPrint(order)}
-              >
-                Reprint
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            {/* Print is now read-only — it opens the receipt and changes
-                nothing. Settling is the separate button below. */}
+        <div className="flex items-center gap-1.5">
+          {nextStep && !statusLocked && (
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => onChangeStatus(order, nextStep.to)}
+            >
+              {nextStep.label}
+            </Button>
+          )}
+
+          <div className="relative" onMouseDown={(e) => e.stopPropagation()}>
             <Button
               size="sm"
               variant="secondary"
-              icon={Printer}
-              loading={printing}
-              onClick={() => onPrint(order)}
-              className="flex-1"
-            >
-              Print bill
-            </Button>
+              iconRight={ChevronDown}
+              onClick={onToggleMenu}
+              disabled={statusLocked}
+              title={
+                statusLocked
+                  ? "Paid orders can't be moved to another status"
+                  : "Change status"
+              }
+              aria-label="Change status"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+            />
 
-            <div className="relative" onMouseDown={(e) => e.stopPropagation()}>
-              <Button
-                size="sm"
-                variant="secondary"
-                iconRight={ChevronDown}
-                onClick={onToggleMenu}
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
+            {menuOpen && (
+              <div
+                role="menu"
+                className="absolute bottom-full right-0 z-30 mb-1.5 w-40 overflow-hidden rounded-lg border border-ink-200 bg-white shadow-pop animate-pop-in"
               >
-                Status
-              </Button>
-
-              {menuOpen && (
-                <div
-                  role="menu"
-                  className="absolute bottom-full right-0 z-30 mb-1.5 w-40 overflow-hidden rounded-lg border border-ink-200 bg-white shadow-pop animate-pop-in"
-                >
-                  {NEXT_STATUSES.filter((s) => s !== order.status).map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => onChangeStatus(order, s)}
-                      className={cn(
-                        "flex w-full items-center justify-between px-3 py-2 text-sm transition-colors cursor-pointer",
-                        s === "Cancelled"
-                          ? "font-semibold text-danger-600 hover:bg-danger-50"
-                          : "text-ink-700 hover:bg-ink-50",
-                      )}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                {NEXT_STATUSES.filter((s) => s !== order.status).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => onChangeStatus(order, s)}
+                    className={cn(
+                      "flex w-full items-center justify-between px-3 py-2 text-sm transition-colors cursor-pointer",
+                      s === "Cancelled"
+                        ? "font-semibold text-danger-600 hover:bg-danger-50"
+                        : "text-ink-700 hover:bg-ink-50",
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-
-        {!closed && (
-          <Button
-            size="sm"
-            variant="primary"
-            icon={BadgeCheck}
-            onClick={() => onSettle(order)}
-            className="mt-2 w-full"
-          >
-            Mark paid &amp; close
-          </Button>
-        )}
+        </div>
       </footer>
     </article>
+  );
+}
+
+/**
+ * Bill preview.
+ *
+ * The receipt renders in an iframe from the very same HTML string that gets
+ * printed and downloaded, so the preview is not an approximation of the
+ * printout — it is the printout. Printing targets the iframe's own window, so
+ * the surrounding dashboard is never part of the job and no pop-up is involved.
+ */
+function BillPreview({ preview, onClose }) {
+  const frameRef = useRef(null);
+
+  const handlePrint = () => {
+    const frame = frameRef.current?.contentWindow;
+    if (!frame) return;
+    frame.focus();
+    frame.print();
+  };
+
+  const handleDownload = () => {
+    const { bill, context } = preview;
+    const url = URL.createObjectURL(buildReceiptPdfBlob(bill, context));
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `bill-table-${bill.tableNumber ?? "order"}.pdf`;
+    link.click();
+
+    // Revoke on a later tick: Safari cancels the download if the object URL
+    // disappears in the same frame as the click.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  return (
+    <Modal
+      open={Boolean(preview)}
+      onClose={onClose}
+      title={`Bill — ${preview?.order?.tableName ?? ""}`}
+      description="Check the bill before printing. Nothing is charged yet."
+      size="md"
+      footer={
+        <>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Close
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={Download}
+            onClick={handleDownload}
+          >
+            Download
+          </Button>
+          <Button size="sm" icon={Printer} onClick={handlePrint}>
+            Print
+          </Button>
+        </>
+      }
+    >
+      {preview && (
+        <>
+          <iframe
+            ref={frameRef}
+            srcDoc={preview.html}
+            title="Bill preview"
+            className="h-[55vh] w-full rounded-lg border border-ink-200 bg-ink-50"
+          />
+          <p className="mt-2 text-2xs text-ink-500">
+            To keep a digital copy, choose <b>Save as PDF</b> as the destination
+            in the print dialog.
+          </p>
+        </>
+      )}
+    </Modal>
   );
 }
 
@@ -677,6 +1086,7 @@ const RECEIPT_CSS = `
     color: #111;
   }
   .receipt { width: 100%; max-width: 288px; background: #fff; padding: 12px; }
+  .dup { text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 1px; padding-bottom: 4px; }
   .store { text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .5px; }
   .branch { text-align: center; font-size: 8px; text-transform: uppercase; letter-spacing: .8px; color: #777; margin-top: 2px; }
   .rule { border: none; border-top: 1px dashed #bbb; margin: 8px 0; }
@@ -706,22 +1116,13 @@ const receiptShell = (title, inner) => `<!doctype html>
 <html><head><meta charset="utf-8" /><title>${escapeHtml(title)}</title>
 <style>${RECEIPT_CSS}</style></head><body>${inner}</body></html>`;
 
-/** Written into the popup immediately, while GET bill/ is in flight. */
-const loadingDocument = () =>
-  receiptShell("Preparing bill…", '<div class="wait">Preparing bill…</div>');
-
-const errorDocument = (message) =>
-  receiptShell(
-    "Bill unavailable",
-    `<div class="wait">${escapeHtml(message)}<br /><br />Close this window and try again.</div>`,
-  );
-
-function receiptDocument(bill, fallback) {
-  const restaurant = bill.restaurantName || fallback.restaurant || "Cafe";
-  const branch = bill.branchName || fallback.branch || "";
-  const opened = stampNepal(bill.openedAt);
-  const printed =
-    stampNepal(bill.printedAt) ?? stampNepal(new Date().toISOString());
+function receiptDocument(bill, context) {
+  const {
+    restaurant,
+    branch,
+    openedLabel: opened,
+    printedLabel: printed,
+  } = context;
   const hasDiscount = Number(bill.discount) > 0;
 
   const rows = bill.items
@@ -740,6 +1141,7 @@ function receiptDocument(bill, fallback) {
   return receiptShell(
     `Bill — Table ${bill.tableNumber ?? ""}`,
     `<div class="receipt">
+      ${bill.isReprint ? `<div class="dup">*** DUPLICATE ***</div>` : ""}
       <div class="store">${escapeHtml(restaurant)}</div>
       ${branch ? `<div class="branch">${escapeHtml(branch)}</div>` : ""}
       <hr class="rule" />

@@ -509,7 +509,12 @@ function OrdersTab({ orders, live, tableNumber, onBrowse }) {
             Live status for table {tableNumber} — updates automatically.
           </>
         ) : (
-          <>Orders sent from this phone for table {tableNumber}.</>
+          // Without the server endpoint these are this phone's own records, so
+          // they show what was sent, not what the kitchen has done since.
+          <>
+            This visit&apos;s orders from this phone, table {tableNumber}. Ask a
+            staff member for the latest status.
+          </>
         )}
       </p>
 
