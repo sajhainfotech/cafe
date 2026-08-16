@@ -735,8 +735,8 @@ export default function AdminOrdersDashboard() {
               <span className="font-semibold text-ink-900">
                 {money(settleBill.grandTotal)}
               </span>
-              . Only do this once the customer has actually paid — it
-              can&apos;t be undone from here.
+              . Only do this once the customer has actually paid — it can&apos;t
+              be undone from here.
             </>
           ) : (
             <>
@@ -920,7 +920,8 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
               {nextStep.label}
             </Button>
           )}
-
+          {/*Selected Code*/}
+          {/* 
           <div className="relative" onMouseDown={(e) => e.stopPropagation()}>
             <Button
               size="sm"
@@ -961,7 +962,7 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
                 ))}
               </div>
             )}
-          </div>
+          </div> */}
         </div>
       </footer>
     </article>
