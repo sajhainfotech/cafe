@@ -910,39 +910,52 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
           {money(order.total_price)}
         </span>
 
-        <div className="flex items-center gap-1.5">
-          {nextStep && !statusLocked && (
+        {statusLocked ? (
+          <span className="text-2xs font-semibold text-ink-400">Paid</span>
+        ) : (
+          /*
+           * Split button. The left half is the normal next step in the kitchen
+           * flow, so the common case stays one tap. The attached arrow opens
+           * every status, for when a customer cancels outright or the food is
+           * handed over without passing through Preparing and Ready.
+           */
+          <div
+            className="relative flex items-stretch"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {nextStep && (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => onChangeStatus(order, nextStep.to)}
+                className="rounded-r-none"
+              >
+                {nextStep.label}
+              </Button>
+            )}
+
             <Button
               size="sm"
-              variant="primary"
-              onClick={() => onChangeStatus(order, nextStep.to)}
-            >
-              {nextStep.label}
-            </Button>
-          )}
-          {/*Selected Code*/}
-          {/* 
-          <div className="relative" onMouseDown={(e) => e.stopPropagation()}>
-            <Button
-              size="sm"
-              variant="secondary"
+              variant={nextStep ? "primary" : "secondary"}
               iconRight={ChevronDown}
               onClick={onToggleMenu}
-              disabled={statusLocked}
-              title={
-                statusLocked
-                  ? "Paid orders can't be moved to another status"
-                  : "Change status"
-              }
-              aria-label="Change status"
+              title="Change to any status"
+              aria-label="Change to any status"
               aria-haspopup="menu"
               aria-expanded={menuOpen}
-            />
+              className={cn(
+                // Joined to the primary half, with a hairline to show it's a
+                // separate target rather than part of the same button.
+                nextStep && "rounded-l-none border-l border-white/30 px-2",
+              )}
+            >
+              {nextStep ? null : "Change status"}
+            </Button>
 
             {menuOpen && (
               <div
                 role="menu"
-                className="absolute bottom-full right-0 z-30 mb-1.5 w-40 overflow-hidden rounded-lg border border-ink-200 bg-white shadow-pop animate-pop-in"
+                className="absolute bottom-full right-0 z-30 mb-1.5 w-44 overflow-hidden rounded-lg border border-ink-200 bg-white shadow-pop animate-pop-in"
               >
                 {NEXT_STATUSES.filter((s) => s !== order.status).map((s) => (
                   <button
@@ -951,19 +964,26 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
                     role="menuitem"
                     onClick={() => onChangeStatus(order, s)}
                     className={cn(
-                      "flex w-full items-center justify-between px-3 py-2 text-sm transition-colors cursor-pointer",
+                      "flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors cursor-pointer",
                       s === "Cancelled"
                         ? "font-semibold text-danger-600 hover:bg-danger-50"
                         : "text-ink-700 hover:bg-ink-50",
                     )}
                   >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "size-1.5 shrink-0 rounded-full",
+                        ACCENT[s] ?? "bg-ink-300",
+                      )}
+                    />
                     {s}
                   </button>
                 ))}
               </div>
             )}
-          </div> */}
-        </div>
+          </div>
+        )}
       </footer>
     </article>
   );
