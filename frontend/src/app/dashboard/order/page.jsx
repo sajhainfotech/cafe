@@ -294,7 +294,24 @@ export default function AdminOrdersDashboard() {
 
   useEffect(() => {
     if (!openMenuFor) return;
-    const close = () => setOpenMenuFor(null);
+
+    /*
+     * Close on an outside click — decided by containment, not propagation.
+     *
+     * The menu used to close on *any* mousedown, with the menu's wrapper
+     * calling stopPropagation() to protect itself. That silently failed: the
+     * App Router hydrates the document, so React's delegated listener sits on
+     * the same node as this one, and stopPropagation() only stops an event
+     * moving to the *next* node — listeners already on this node still run.
+     *
+     * So mousedown closed the menu, the item unmounted before mouseup, and the
+     * click event never fired. The status change looked completely dead.
+     */
+    const close = (event) => {
+      if (event.target?.closest?.("[data-status-menu]")) return;
+      setOpenMenuFor(null);
+    };
+
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [openMenuFor]);
@@ -932,10 +949,7 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
            * every status, for when a customer cancels outright or the food is
            * handed over without passing through Preparing and Ready.
            */
-          <div
-            className="relative flex items-stretch"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
+          <div data-status-menu className="relative flex items-stretch">
             {nextStep && (
               <Button
                 size="sm"
