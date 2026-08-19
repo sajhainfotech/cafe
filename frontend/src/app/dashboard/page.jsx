@@ -34,6 +34,7 @@ const POLL_INTERVAL = 30000;
 
 const PERIODS = [
   { value: "daily", label: "Today", tile: "today" },
+  { value: "yesterday", label: "Yesterday", tile: "yesterday" },
   { value: "weekly", label: "This week", tile: "this week" },
   { value: "monthly", label: "This month", tile: "this month" },
   { value: "yearly", label: "This year", tile: "this year" },
