@@ -966,33 +966,60 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
             </Button>
 
             {menuOpen && (
+              /* Opens downward. The card footer sits at the bottom of the card,
+                 so an upward menu covered the order's own items — the very
+                 thing you check before changing its status. */
               <div
                 role="menu"
-                className="absolute bottom-full right-0 z-30 mb-1.5 w-44 overflow-hidden rounded-lg border border-ink-200 bg-white shadow-pop animate-pop-in"
+                className="absolute right-0 top-full z-40 mt-2 w-52 rounded-xl border border-ink-200 bg-white p-1.5 shadow-pop animate-pop-in"
               >
-                {NEXT_STATUSES.filter((s) => s !== order.status).map((s) => (
+                <p className="px-2 pb-1 pt-0.5 text-2xs font-bold uppercase tracking-wider text-ink-400">
+                  Move to
+                </p>
+
+                {NEXT_STATUSES.filter(
+                  (s) => s !== order.status && s !== "Cancelled",
+                ).map((s) => (
                   <button
                     key={s}
                     type="button"
                     role="menuitem"
                     onClick={() => onChangeStatus(order, s)}
-                    className={cn(
-                      "flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors cursor-pointer",
-                      s === "Cancelled"
-                        ? "font-semibold text-danger-600 hover:bg-danger-50"
-                        : "text-ink-700 hover:bg-ink-50",
-                    )}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium text-ink-700 transition-colors cursor-pointer hover:bg-ink-100 hover:text-ink-900"
                   >
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "size-1.5 shrink-0 rounded-full",
+                        "size-2 shrink-0 rounded-full",
                         ACCENT[s] ?? "bg-ink-300",
                       )}
                     />
                     {s}
                   </button>
                 ))}
+
+                {/* Cancelling isn't a step in the flow, so it sits below a
+                    divider rather than inline with the others. */}
+                {order.status !== "Cancelled" && (
+                  <>
+                    <div
+                      aria-hidden="true"
+                      className="my-1 h-px bg-ink-200"
+                    />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => onChangeStatus(order, "Cancelled")}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-semibold text-danger-600 transition-colors cursor-pointer hover:bg-danger-50"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="size-2 shrink-0 rounded-full bg-danger-600"
+                      />
+                      Cancel order
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
