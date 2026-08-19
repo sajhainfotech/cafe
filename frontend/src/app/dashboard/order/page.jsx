@@ -368,6 +368,15 @@ export default function AdminOrdersDashboard() {
 
   const changeStatus = async (order, nextStatus) => {
     setOpenMenuFor(null);
+
+    // Without this the URL becomes .../status/undefined/ and the request either
+    // 404s at routing or never fires, with nothing on screen to explain why.
+    if (!order.order_reference_id) {
+      console.error("Order is missing order_reference_id:", order);
+      toast.error("This order has no id — refresh the page and try again.");
+      return;
+    }
+
     try {
       // add slash after api_url
       const res = await fetch(
@@ -832,22 +841,26 @@ function TableGroup({
       {/* Single column: the group itself is now one cell of the page grid, so
           its orders stack rather than competing for width. */}
       <div className="space-y-2 p-2.5">
-        {group.orders.map((order, index) => (
-          <OrderCard
-            key={order.order_reference_id ?? index}
-            order={order}
-            index={index}
-            menuOpen={openMenuFor === order.order_reference_id}
-            onToggleMenu={() =>
-              setOpenMenuFor((prev) =>
-                prev === order.order_reference_id
-                  ? null
-                  : order.order_reference_id,
-              )
-            }
-            onChangeStatus={onChangeStatus}
-          />
-        ))}
+        {group.orders.map((order, index) => {
+          // Falls back to a per-card key: keying on a missing id made
+          // `undefined === undefined` true for every card, so one tap opened
+          // the menu on all of them.
+          const cardKey =
+            order.order_reference_id ?? `${group.table_reference_id}-${index}`;
+
+          return (
+            <OrderCard
+              key={cardKey}
+              order={order}
+              index={index}
+              menuOpen={openMenuFor === cardKey}
+              onToggleMenu={() =>
+                setOpenMenuFor((prev) => (prev === cardKey ? null : cardKey))
+              }
+              onChangeStatus={onChangeStatus}
+            />
+          );
+        })}
       </div>
     </section>
   );
