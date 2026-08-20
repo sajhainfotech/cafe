@@ -96,19 +96,33 @@ const TAB_DOT = {
   cancelled: "bg-danger-600",
 };
 
-const toNepalDate = (date) => {
-  if (!date) return null;
-  return new Date(new Date(date).getTime() + 5.75 * 60 * 60 * 1000);
-};
+/**
+ * The calendar date an instant falls on in Kathmandu, as YYYY-MM-DD.
+ *
+ * Formats in the target zone rather than doing arithmetic on the epoch. The
+ * previous version added 5:45 to the timestamp and then read getFullYear() /
+ * getDate(), which render in the *browser's* zone — so on a machine already set
+ * to Nepal time the offset was applied twice. Anything after ~18:15 rolled into
+ * the next day, which is why yesterday evening's paid orders sat on today's
+ * board while the server-side count correctly reported none.
+ */
+const NEPAL_DATE = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Kathmandu",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 const getNepalDateString = (date) => {
-  const nepal = toNepalDate(date);
-  if (!nepal) return "";
-  return [
-    nepal.getFullYear(),
-    String(nepal.getMonth() + 1).padStart(2, "0"),
-    String(nepal.getDate()).padStart(2, "0"),
-  ].join("-");
+  if (!date) return "";
+  const when = new Date(date);
+  if (Number.isNaN(when.getTime())) return "";
+
+  const parts = Object.fromEntries(
+    NEPAL_DATE.formatToParts(when).map(({ type, value }) => [type, value]),
+  );
+  // Sortable, so the week comparison below stays a plain string compare.
+  return `${parts.year}-${parts.month}-${parts.day}`;
 };
 
 const formatNepalTime = (iso) => {
@@ -183,9 +197,11 @@ export default function AdminOrdersDashboard() {
       if (!token) return;
 
       try {
+        // range is sent so the server bounds the payload and the board can't
+        // disagree with the badge. The client-side date filter below stays as a
+        // fallback for a backend deployed without it.
         const res = await fetch(
-          // add slash after api_url
-          `${API_URL}/api/orders-list/?status=${statusFilter}`,
+          `${API_URL}/api/orders-list/?status=${statusFilter}&range=${range}`,
           { headers: { ...authHeader(), Accept: "application/json" } },
         );
         if (!res.ok) throw new Error(`Failed to fetch orders: ${res.status}`);
@@ -251,7 +267,9 @@ export default function AdminOrdersDashboard() {
         setLoading(false);
       }
     },
-    [statusFilter, playChime],
+    // `range` is in the URL now, so it has to be a dependency or switching
+    // Today / Last 7 days would keep serving the previous window.
+    [statusFilter, range, playChime],
   );
 
   /**
