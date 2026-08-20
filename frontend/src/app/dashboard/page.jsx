@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Area,
@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import PageShell from "@/components/ui/PageShell";
+import { Select } from "@/components/ui/Field";
 import { SectionLabel, StatCard } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import ChartPanel, { ChartTooltip } from "./ChartPanel";
@@ -30,6 +31,14 @@ import { authHeader, getAuthToken } from "@/lib/cookies";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const POLL_INTERVAL = 30000;
+
+const PERIODS = [
+  { value: "daily", label: "Today", tile: "today" },
+  { value: "yesterday", label: "Yesterday", tile: "yesterday" },
+  { value: "weekly", label: "This week", tile: "this week" },
+  { value: "monthly", label: "This month", tile: "this month" },
+  { value: "yearly", label: "This year", tile: "this year" },
+];
 
 /* Single-series charts, so one brand hue each — no categorical palette and
    therefore no series-identity problem to solve. */
@@ -45,10 +54,10 @@ const compactRupees = (n) =>
 export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState(null);
+  const [period, setPeriod] = useState("daily");
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState("");
   const [nepalTime, setNepalTime] = useState(null);
-  const hasFetched = useRef(false);
 
   useEffect(() => {
     const tick = () =>
@@ -84,9 +93,10 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
       try {
         // add slash after api_url
-        const res = await fetch(`${API_URL}/api/dashboard-stats/`, {
-          headers: authHeader(),
-        });
+        const res = await fetch(
+          `${API_URL}/api/dashboard-stats/?period=${period}`,
+          { headers: authHeader() },
+        );
         if (!res.ok) throw new Error("Failed to fetch stats");
 
         const result = await res.json();
@@ -102,14 +112,15 @@ export default function AdminDashboard() {
       }
     };
 
-    if (!hasFetched.current) {
-      fetchStats();
-      hasFetched.current = true;
-    }
+    // No hasFetched guard: the effect is keyed on `period`, so changing the
+    // dropdown has to refetch. The guard existed to stop a double fetch on
+    // mount, which the dependency array already prevents.
+    setLoading(true);
+    fetchStats();
 
     const interval = setInterval(fetchStats, POLL_INTERVAL);
     return () => clearInterval(interval);
-  }, [router]);
+  }, [router, period]);
 
   const greeting = (() => {
     if (!nepalTime) return "Welcome";
@@ -119,37 +130,46 @@ export default function AdminDashboard() {
     return "Good evening";
   })();
 
-  const weekly = stats?.weekly ?? [];
-  const hasWeekly = weekly.length > 0;
+  /*
+   * Prefer the period-scoped keys, fall back to the legacy ones.
+   *
+   * The API emits both so an older frontend keeps working; reading both here
+   * means this page also survives being deployed before the backend, which is
+   * exactly the version skew that broke status changes earlier.
+   */
+  const periodLabel =
+    PERIODS.find((p) => p.value === period)?.tile ?? "this period";
+  const series = stats?.series ?? stats?.weekly ?? [];
+  const hasSeries = series.length > 0;
+  const pick = (scoped, legacy) => stats?.[scoped] ?? stats?.[legacy] ?? 0;
+  const pendingCount = pick("period_pending_orders", "today_pending_orders");
 
-  const todayTiles = [
+  const periodTiles = [
     {
-      label: "Orders today",
-      value: stats?.today_orders ?? 0,
+      label: `Orders ${periodLabel}`,
+      value: pick("period_orders", "today_orders"),
       icon: Package,
       tone: "brand",
     },
     {
-      label: "Items sold today",
-      value: stats?.today_items_sold ?? 0,
+      label: `Items sold ${periodLabel}`,
+      value: pick("period_items_sold", "today_items_sold"),
       icon: Tag,
       tone: "info",
     },
     {
-      label: "Revenue today",
-      value: rupees(stats?.today_revenue),
+      label: `Revenue ${periodLabel}`,
+      value: rupees(pick("period_revenue", "today_revenue")),
       icon: Wallet,
       tone: "success",
     },
     {
       label: "Pending now",
-      value: stats?.today_pending_orders ?? 0,
+      value: pendingCount,
       icon: Clock,
-      tone: (stats?.today_pending_orders ?? 0) > 0 ? "warning" : "brand",
+      tone: pendingCount > 0 ? "warning" : "brand",
       hint:
-        (stats?.today_pending_orders ?? 0) > 0
-          ? "Needs attention in the kitchen"
-          : "All caught up",
+        pendingCount > 0 ? "Needs attention in the kitchen" : "All caught up",
     },
   ];
 
@@ -195,20 +215,36 @@ export default function AdminDashboard() {
 
         <div className="flex items-center gap-2">
           {nepalTime && (
-            <span className="text-sm font-semibold tabular-nums text-ink-600">
+            <span className="hidden text-sm font-semibold tabular-nums text-ink-600 sm:inline">
               {nepalTime.toTimeString().slice(0, 8)}
             </span>
           )}
           <Badge tone="success" dot>
             Live
           </Badge>
+          {/* Drives both the tiles and the chart, so the two can never show
+              different windows. */}
+          <Select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            aria-label="Reporting period"
+            className="w-36"
+          >
+            {PERIODS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </Select>
         </div>
       </div>
 
       <section className="space-y-3">
-        <SectionLabel>Today</SectionLabel>
+        <SectionLabel>
+          {PERIODS.find((p) => p.value === period)?.label ?? "Today"}
+        </SectionLabel>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {todayTiles.map((tile) => (
+          {periodTiles.map((tile) => (
             <StatCard key={tile.label} loading={loading} {...tile} />
           ))}
         </div>
@@ -227,10 +263,14 @@ export default function AdminDashboard() {
           left scale and items-sold on a right scale, which makes the two lines'
           crossings meaningless — plus a Revenue/Units toggle wired to nothing. */}
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <ChartPanel title="Revenue" subtitle="Last 7 days" hasData={hasWeekly}>
+        <ChartPanel
+          title="Revenue"
+          subtitle={stats?.series_label ?? "Last 7 days"}
+          hasData={hasSeries}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
-              data={weekly}
+              data={series}
               margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
             >
               <defs>
@@ -286,10 +326,14 @@ export default function AdminDashboard() {
           </ResponsiveContainer>
         </ChartPanel>
 
-        <ChartPanel title="Orders" subtitle="Last 7 days" hasData={hasWeekly}>
+        <ChartPanel
+          title="Orders"
+          subtitle={stats?.series_label ?? "Last 7 days"}
+          hasData={hasSeries}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={weekly}
+              data={series}
               margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
             >
               <CartesianGrid

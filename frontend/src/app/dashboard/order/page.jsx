@@ -96,19 +96,33 @@ const TAB_DOT = {
   cancelled: "bg-danger-600",
 };
 
-const toNepalDate = (date) => {
-  if (!date) return null;
-  return new Date(new Date(date).getTime() + 5.75 * 60 * 60 * 1000);
-};
+/**
+ * The calendar date an instant falls on in Kathmandu, as YYYY-MM-DD.
+ *
+ * Formats in the target zone rather than doing arithmetic on the epoch. The
+ * previous version added 5:45 to the timestamp and then read getFullYear() /
+ * getDate(), which render in the *browser's* zone — so on a machine already set
+ * to Nepal time the offset was applied twice. Anything after ~18:15 rolled into
+ * the next day, which is why yesterday evening's paid orders sat on today's
+ * board while the server-side count correctly reported none.
+ */
+const NEPAL_DATE = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Kathmandu",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 const getNepalDateString = (date) => {
-  const nepal = toNepalDate(date);
-  if (!nepal) return "";
-  return [
-    nepal.getFullYear(),
-    String(nepal.getMonth() + 1).padStart(2, "0"),
-    String(nepal.getDate()).padStart(2, "0"),
-  ].join("-");
+  if (!date) return "";
+  const when = new Date(date);
+  if (Number.isNaN(when.getTime())) return "";
+
+  const parts = Object.fromEntries(
+    NEPAL_DATE.formatToParts(when).map(({ type, value }) => [type, value]),
+  );
+  // Sortable, so the week comparison below stays a plain string compare.
+  return `${parts.year}-${parts.month}-${parts.day}`;
 };
 
 const formatNepalTime = (iso) => {
@@ -183,9 +197,11 @@ export default function AdminOrdersDashboard() {
       if (!token) return;
 
       try {
+        // range is sent so the server bounds the payload and the board can't
+        // disagree with the badge. The client-side date filter below stays as a
+        // fallback for a backend deployed without it.
         const res = await fetch(
-          // add slash after api_url
-          `${API_URL}/api/orders-list/?status=${statusFilter}`,
+          `${API_URL}/api/orders-list/?status=${statusFilter}&range=${range}`,
           { headers: { ...authHeader(), Accept: "application/json" } },
         );
         if (!res.ok) throw new Error(`Failed to fetch orders: ${res.status}`);
@@ -251,7 +267,9 @@ export default function AdminOrdersDashboard() {
         setLoading(false);
       }
     },
-    [statusFilter, playChime],
+    // `range` is in the URL now, so it has to be a dependency or switching
+    // Today / Last 7 days would keep serving the previous window.
+    [statusFilter, range, playChime],
   );
 
   /**
@@ -294,7 +312,24 @@ export default function AdminOrdersDashboard() {
 
   useEffect(() => {
     if (!openMenuFor) return;
-    const close = () => setOpenMenuFor(null);
+
+    /*
+     * Close on an outside click — decided by containment, not propagation.
+     *
+     * The menu used to close on *any* mousedown, with the menu's wrapper
+     * calling stopPropagation() to protect itself. That silently failed: the
+     * App Router hydrates the document, so React's delegated listener sits on
+     * the same node as this one, and stopPropagation() only stops an event
+     * moving to the *next* node — listeners already on this node still run.
+     *
+     * So mousedown closed the menu, the item unmounted before mouseup, and the
+     * click event never fired. The status change looked completely dead.
+     */
+    const close = (event) => {
+      if (event.target?.closest?.("[data-status-menu]")) return;
+      setOpenMenuFor(null);
+    };
+
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [openMenuFor]);
@@ -368,6 +403,15 @@ export default function AdminOrdersDashboard() {
 
   const changeStatus = async (order, nextStatus) => {
     setOpenMenuFor(null);
+
+    // Without this the URL becomes .../status/undefined/ and the request either
+    // 404s at routing or never fires, with nothing on screen to explain why.
+    if (!order.order_reference_id) {
+      console.error("Order is missing order_reference_id:", order);
+      toast.error("This order has no id — refresh the page and try again.");
+      return;
+    }
+
     try {
       // add slash after api_url
       const res = await fetch(
@@ -832,22 +876,26 @@ function TableGroup({
       {/* Single column: the group itself is now one cell of the page grid, so
           its orders stack rather than competing for width. */}
       <div className="space-y-2 p-2.5">
-        {group.orders.map((order, index) => (
-          <OrderCard
-            key={order.order_reference_id ?? index}
-            order={order}
-            index={index}
-            menuOpen={openMenuFor === order.order_reference_id}
-            onToggleMenu={() =>
-              setOpenMenuFor((prev) =>
-                prev === order.order_reference_id
-                  ? null
-                  : order.order_reference_id,
-              )
-            }
-            onChangeStatus={onChangeStatus}
-          />
-        ))}
+        {group.orders.map((order, index) => {
+          // Falls back to a per-card key: keying on a missing id made
+          // `undefined === undefined` true for every card, so one tap opened
+          // the menu on all of them.
+          const cardKey =
+            order.order_reference_id ?? `${group.table_reference_id}-${index}`;
+
+          return (
+            <OrderCard
+              key={cardKey}
+              order={order}
+              index={index}
+              menuOpen={openMenuFor === cardKey}
+              onToggleMenu={() =>
+                setOpenMenuFor((prev) => (prev === cardKey ? null : cardKey))
+              }
+              onChangeStatus={onChangeStatus}
+            />
+          );
+        })}
       </div>
     </section>
   );
@@ -910,60 +958,104 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
           {money(order.total_price)}
         </span>
 
-        <div className="flex items-center gap-1.5">
-          {nextStep && !statusLocked && (
+        {statusLocked ? (
+          <span className="text-2xs font-semibold text-ink-400">Paid</span>
+        ) : (
+          /*
+           * Split button. The left half is the normal next step in the kitchen
+           * flow, so the common case stays one tap. The attached arrow opens
+           * every status, for when a customer cancels outright or the food is
+           * handed over without passing through Preparing and Ready.
+           */
+          <div data-status-menu className="relative flex items-stretch">
+            {nextStep && (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => onChangeStatus(order, nextStep.to)}
+                className="rounded-r-none"
+              >
+                {nextStep.label}
+              </Button>
+            )}
+
             <Button
               size="sm"
-              variant="primary"
-              onClick={() => onChangeStatus(order, nextStep.to)}
-            >
-              {nextStep.label}
-            </Button>
-          )}
-          {/*Selected Code*/}
-          {/* 
-          <div className="relative" onMouseDown={(e) => e.stopPropagation()}>
-            <Button
-              size="sm"
-              variant="secondary"
+              variant={nextStep ? "primary" : "secondary"}
               iconRight={ChevronDown}
               onClick={onToggleMenu}
-              disabled={statusLocked}
-              title={
-                statusLocked
-                  ? "Paid orders can't be moved to another status"
-                  : "Change status"
-              }
-              aria-label="Change status"
+              title="Change to any status"
+              aria-label="Change to any status"
               aria-haspopup="menu"
               aria-expanded={menuOpen}
-            />
+              className={cn(
+                // Joined to the primary half, with a hairline to show it's a
+                // separate target rather than part of the same button.
+                nextStep && "rounded-l-none border-l border-white/30 px-2",
+              )}
+            >
+              {nextStep ? null : "Change status"}
+            </Button>
 
             {menuOpen && (
+              /* Opens downward. The card footer sits at the bottom of the card,
+                 so an upward menu covered the order's own items — the very
+                 thing you check before changing its status. */
               <div
                 role="menu"
-                className="absolute bottom-full right-0 z-30 mb-1.5 w-40 overflow-hidden rounded-lg border border-ink-200 bg-white shadow-pop animate-pop-in"
+                className="absolute right-0 top-full z-40 mt-2 w-52 rounded-xl border border-ink-200 bg-white p-1.5 shadow-pop animate-pop-in"
               >
-                {NEXT_STATUSES.filter((s) => s !== order.status).map((s) => (
+                <p className="px-2 pb-1 pt-0.5 text-2xs font-bold uppercase tracking-wider text-ink-400">
+                  Move to
+                </p>
+
+                {NEXT_STATUSES.filter(
+                  (s) => s !== order.status && s !== "Cancelled",
+                ).map((s) => (
                   <button
                     key={s}
                     type="button"
                     role="menuitem"
                     onClick={() => onChangeStatus(order, s)}
-                    className={cn(
-                      "flex w-full items-center justify-between px-3 py-2 text-sm transition-colors cursor-pointer",
-                      s === "Cancelled"
-                        ? "font-semibold text-danger-600 hover:bg-danger-50"
-                        : "text-ink-700 hover:bg-ink-50",
-                    )}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium text-ink-700 transition-colors cursor-pointer hover:bg-ink-100 hover:text-ink-900"
                   >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "size-2 shrink-0 rounded-full",
+                        ACCENT[s] ?? "bg-ink-300",
+                      )}
+                    />
                     {s}
                   </button>
                 ))}
+
+                {/* Cancelling isn't a step in the flow, so it sits below a
+                    divider rather than inline with the others. */}
+                {order.status !== "Cancelled" && (
+                  <>
+                    <div
+                      aria-hidden="true"
+                      className="my-1 h-px bg-ink-200"
+                    />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => onChangeStatus(order, "Cancelled")}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-semibold text-danger-600 transition-colors cursor-pointer hover:bg-danger-50"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="size-2 shrink-0 rounded-full bg-danger-600"
+                      />
+                      Cancel order
+                    </button>
+                  </>
+                )}
               </div>
             )}
-          </div> */}
-        </div>
+          </div>
+        )}
       </footer>
     </article>
   );
