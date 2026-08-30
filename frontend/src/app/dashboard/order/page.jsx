@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import {
   BadgeCheck,
   ChevronDown,
+  ChevronUp,
   ClipboardList,
   Download,
   Printer,
@@ -183,6 +184,9 @@ export default function AdminOrdersDashboard() {
   // The bill the server would actually charge, loaded before confirming.
   const [settleBill, setSettleBill] = useState(null);
   const [loadingSettleBill, setLoadingSettleBill] = useState(false);
+
+  // Discount state per table group (keyed by group.key)
+  const [groupDiscounts, setGroupDiscounts] = useState({});
 
   // Only a fallback for the receipt header — GET bill/ supplies these itself.
   const { restaurant, branch } = useAccount();
@@ -486,7 +490,7 @@ export default function AdminOrdersDashboard() {
    * second click. Dropping the popup also removes the pop-up-blocker failure
    * mode entirely.
    */
-  const openBillPreview = async (group) => {
+  const openBillPreview = async (group, discountPercent = 0) => {
     setPrintingFor(group.key ?? group.table_reference_id);
     try {
       // paid_at names the sitting, so reprinting an earlier customer's bill
@@ -501,6 +505,7 @@ export default function AdminOrdersDashboard() {
         openedLabel: stampNepal(bill.openedAt),
         printedLabel:
           stampNepal(bill.printedAt) ?? stampNepal(new Date().toISOString()),
+        discountPercent,
       };
 
       setPreview({
@@ -527,12 +532,13 @@ export default function AdminOrdersDashboard() {
    * then charged for both. The dialog now quotes the server's own grand total —
    * the same figure bill-print/ will charge, since both run build_bill().
    */
-  const askToSettle = async (group) => {
+  const askToSettle = async (group, discountPercent = 0) => {
     setPendingSettle(group);
     setSettleBill(null);
     setLoadingSettleBill(true);
     try {
-      setSettleBill(await fetchBill(group.table_reference_id));
+      const bill = await fetchBill(group.table_reference_id);
+      setSettleBill({ ...bill, discountPercent });
     } catch {
       // Leave it null; the dialog says it couldn't confirm rather than
       // quoting a number that might be wrong.
@@ -541,10 +547,14 @@ export default function AdminOrdersDashboard() {
     }
   };
 
-  /** The irreversible half: closes the order and marks it paid. */
+  /** The irreversible half: closes the order and marks it paid.
+   *  Sends discountPercent in the request body.
+   */
   const settleOrder = async () => {
     const order = pendingSettle;
     if (!order) return;
+
+    const discountPercent = groupDiscounts[order.key] || 0;
 
     if (!getAuthToken()) {
       toast.error("Please sign in again");
@@ -563,13 +573,12 @@ export default function AdminOrdersDashboard() {
             "Content-Type": "application/json",
             Accept: "application/json",
           },
+          body: JSON.stringify({ discount: discountPercent }),
         },
       );
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        // Same shape as everywhere else in this API: the message lives under
-        // `errors` or `response`, never `message`.
         throw new Error(
           firstFieldError(data?.errors) ||
             data.response ||
@@ -582,6 +591,7 @@ export default function AdminOrdersDashboard() {
       toast.success(`${order.tableName} marked paid`);
       setPendingSettle(null);
       setSettleBill(null);
+      setGroupDiscounts((prev) => ({ ...prev, [order.key]: 0 }));
       await fetchOrders(false);
       fetchCounts();
     } catch (err) {
@@ -607,12 +617,7 @@ export default function AdminOrdersDashboard() {
         />
       </PageHeader>
 
-      {/*
-        Status as tabs, not a <select>. Switching status is the single most
-        frequent action on this screen, and a native select costs open → scan →
-        pick where a tab costs one tap. Scrolls sideways on a phone rather than
-        wrapping into a second row.
-      */}
+      {/* Status tabs */}
       <div
         role="tablist"
         aria-label="Filter by status"
@@ -688,8 +693,6 @@ export default function AdminOrdersDashboard() {
           icon={Wallet}
           tone="success"
           loading={loading}
-          // Paid is the one filter where this figure is money actually taken;
-          // for every other status it's the value of orders still owed.
           hint={
             statusFilter === "paid"
               ? "Settled and collected"
@@ -725,12 +728,6 @@ export default function AdminOrdersDashboard() {
           />
         </div>
       ) : (
-        /*
-          Tables across, not stacked. One full-width block per table meant a
-          60-table cafe scrolled 60 screens; four columns makes that 15 rows,
-          and items-start keeps a table with four orders from stretching its
-          neighbours to match.
-        */
         <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {tableGroups.map((group) => (
             <TableGroup
@@ -742,6 +739,10 @@ export default function AdminOrdersDashboard() {
               onPrint={openBillPreview}
               printing={printingFor === group.key}
               onSettle={askToSettle}
+              discountPercent={groupDiscounts[group.key] || 0}
+              onDiscountChange={(value) =>
+                setGroupDiscounts((prev) => ({ ...prev, [group.key]: value }))
+              }
             />
           ))}
         </div>
@@ -752,7 +753,6 @@ export default function AdminOrdersDashboard() {
       <ConfirmDialog
         open={Boolean(pendingSettle)}
         onClose={() => {
-          // Clear the bill too, or the next table briefly shows this one's total.
           setPendingSettle(null);
           setSettleBill(null);
         }}
@@ -774,13 +774,98 @@ export default function AdminOrdersDashboard() {
               <span className="font-semibold text-ink-900">
                 {settleBill.items.length} line
                 {settleBill.items.length === 1 ? "" : "s"}
-              </span>{" "}
-              totalling{" "}
-              <span className="font-semibold text-ink-900">
-                {money(settleBill.grandTotal)}
               </span>
-              . Only do this once the customer has actually paid — it can&apos;t
-              be undone from here.
+              {" totalling "}
+              <span className="font-semibold text-ink-900">
+                {money(settleBill.subTotal)}
+              </span>
+              .{/* Discount input with up/down arrows inside */}
+              <div className="mt-3 flex items-center gap-2">
+                <label className="text-sm font-medium text-ink-700">
+                  Discount (%):
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={groupDiscounts[pendingSettle?.key] || 0}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "");
+                      if (raw === "") {
+                        setGroupDiscounts((prev) => ({
+                          ...prev,
+                          [pendingSettle?.key]: 0,
+                        }));
+                      } else {
+                        const num = parseInt(raw, 10);
+                        const clamped = Math.min(100, Math.max(0, num));
+                        setGroupDiscounts((prev) => ({
+                          ...prev,
+                          [pendingSettle?.key]: clamped,
+                        }));
+                      }
+                    }}
+                    className="w-16 rounded border border-ink-300 pr-6 py-1 text-center text-sm"
+                  />
+                  <div className="absolute inset-y-0 right-0 flex flex-col">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = groupDiscounts[pendingSettle?.key] || 0;
+                        const newVal = Math.min(100, current + 1);
+                        setGroupDiscounts((prev) => ({
+                          ...prev,
+                          [pendingSettle?.key]: newVal,
+                        }));
+                      }}
+                      className="flex h-1/2 items-center justify-center px-0.5 hover:bg-ink-100 rounded-tr border-l border-ink-300"
+                    >
+                      <ChevronUp className="h-2.5 w-2.5 text-ink-600" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = groupDiscounts[pendingSettle?.key] || 0;
+                        const newVal = Math.max(0, current - 1);
+                        setGroupDiscounts((prev) => ({
+                          ...prev,
+                          [pendingSettle?.key]: newVal,
+                        }));
+                      }}
+                      className="flex h-1/2 items-center justify-center px-0.5 hover:bg-ink-100 rounded-br border-l border-t border-ink-300"
+                    >
+                      <ChevronDown className="h-2.5 w-2.5 text-ink-600" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {(() => {
+                const discount = groupDiscounts[pendingSettle?.key] || 0;
+                const discountAmount = (settleBill.subTotal * discount) / 100;
+                const grandTotal = settleBill.subTotal - discountAmount;
+                return (
+                  <div className="mt-2 space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span>{money(settleBill.subTotal)}</span>
+                    </div>
+                    {discount > 0 && (
+                      <div className="flex justify-between text-success-700">
+                        <span>Discount ({discount}%):</span>
+                        <span>-{money(discountAmount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold">
+                      <span>Total:</span>
+                      <span>{money(grandTotal)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+              <p className="mt-2 text-xs text-ink-500">
+                Only do this once the customer has actually paid — it can&apos;t
+                be undone from here.
+              </p>
             </>
           ) : (
             <>
@@ -814,6 +899,8 @@ function TableGroup({
   onPrint,
   printing,
   onSettle,
+  discountPercent,
+  onDiscountChange,
 }) {
   const allClosed = group.orders.every(
     (o) => o.status === "Cancelled" || o.status === "Paid",
@@ -826,8 +913,6 @@ function TableGroup({
   // A mixed group still bills its surviving orders.
   const canPrint = group.orders.some((o) => o.status !== "Cancelled");
 
-  // No overflow-hidden on the section: it would clip the status menu that opens
-  // out of a card below. The header rounds its own top corners instead.
   return (
     <section className="rounded-xl border border-ink-300 bg-white shadow-card">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b border-ink-200 bg-ink-50 px-4 py-3">
@@ -838,13 +923,62 @@ function TableGroup({
             <span className="font-semibold tabular-nums text-ink-700">
               {money(group.total_price)}
             </span>
-            {/* One table can appear more than once when it's been billed
-                twice today; the settle time tells the two sittings apart. */}
             {group.paid_at && <> · paid {formatNepalTime(group.paid_at)}</>}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Discount input with up/down arrows inside */}
+          {!isPaid && (
+            <div className="flex items-center gap-1">
+              <span className="text-md text-ink-700 font-medium">Disc:</span>
+              <div className="relative">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={discountPercent}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "");
+                    if (raw === "") {
+                      onDiscountChange(0);
+                    } else {
+                      const num = parseInt(raw, 10);
+                      const clamped = Math.min(100, Math.max(0, num));
+                      onDiscountChange(clamped);
+                    }
+                  }}
+                  className="w-12 rounded border border-ink-300 pr-5 py-1 text-center text-xs"
+                  disabled={isPaid}
+                />
+                <div className="absolute inset-y-0 right-0 flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newVal = Math.min(100, discountPercent + 1);
+                      onDiscountChange(newVal);
+                    }}
+                    className="flex h-1/2 items-center justify-center px-0.5 hover:bg-ink-100 rounded-tr border-l border-ink-300"
+                    disabled={isPaid}
+                  >
+                    <ChevronUp className="h-2 w-2 text-ink-600" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newVal = Math.max(0, discountPercent - 1);
+                      onDiscountChange(newVal);
+                    }}
+                    className="flex h-1/2 items-center justify-center px-0.5 hover:bg-ink-100 rounded-br border-l border-t border-ink-300"
+                    disabled={isPaid}
+                  >
+                    <ChevronDown className="h-2 w-2 text-ink-600" />
+                  </button>
+                </div>
+              </div>
+              <span className="text-2xs text-red-600 font-bold">%</span>
+            </div>
+          )}
+
           {!canPrint && (
             <Badge tone="danger">Cancelled — nothing to bill</Badge>
           )}
@@ -855,7 +989,7 @@ function TableGroup({
               variant="secondary"
               icon={isPaid ? RotateCcw : Printer}
               loading={printing}
-              onClick={() => onPrint(group)}
+              onClick={() => onPrint(group, discountPercent)}
             >
               {isPaid ? "Reprint" : "Print bill"}
             </Button>
@@ -865,7 +999,7 @@ function TableGroup({
               size="sm"
               variant="primary"
               icon={BadgeCheck}
-              onClick={() => onSettle(group)}
+              onClick={() => onSettle(group, discountPercent)}
             >
               Mark paid
             </Button>
@@ -873,13 +1007,8 @@ function TableGroup({
         </div>
       </header>
 
-      {/* Single column: the group itself is now one cell of the page grid, so
-          its orders stack rather than competing for width. */}
       <div className="space-y-2 p-2.5">
         {group.orders.map((order, index) => {
-          // Falls back to a per-card key: keying on a missing id made
-          // `undefined === undefined` true for every card, so one tap opened
-          // the menu on all of them.
           const cardKey =
             order.order_reference_id ?? `${group.table_reference_id}-${index}`;
 
@@ -906,8 +1035,6 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
   const statusLocked = LOCKED_STATUSES.has(order.status);
   const nextStep = NEXT_STEP[order.status];
 
-  // Also no overflow-hidden here — the status menu opens beyond this box. The
-  // accent bar rounds itself rather than being clipped to shape.
   return (
     <article className="relative flex flex-col rounded-lg border border-ink-200 bg-white">
       <span
@@ -927,8 +1054,6 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
             {formatNepalTime(order.created_at)}
           </p>
         </div>
-        {/* The old card printed the *filter* value here rather than the order's
-            own status, so a card could contradict its own colour. */}
         <StatusBadge status={order.status} />
       </header>
 
@@ -961,12 +1086,6 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
         {statusLocked ? (
           <span className="text-2xs font-semibold text-ink-400">Paid</span>
         ) : (
-          /*
-           * Split button. The left half is the normal next step in the kitchen
-           * flow, so the common case stays one tap. The attached arrow opens
-           * every status, for when a customer cancels outright or the food is
-           * handed over without passing through Preparing and Ready.
-           */
           <div data-status-menu className="relative flex items-stretch">
             {nextStep && (
               <Button
@@ -989,8 +1108,6 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               className={cn(
-                // Joined to the primary half, with a hairline to show it's a
-                // separate target rather than part of the same button.
                 nextStep && "rounded-l-none border-l border-white/30 px-2",
               )}
             >
@@ -998,9 +1115,6 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
             </Button>
 
             {menuOpen && (
-              /* Opens downward. The card footer sits at the bottom of the card,
-                 so an upward menu covered the order's own items — the very
-                 thing you check before changing its status. */
               <div
                 role="menu"
                 className="absolute right-0 top-full z-40 mt-2 w-52 rounded-xl border border-ink-200 bg-white p-1.5 shadow-pop animate-pop-in"
@@ -1030,14 +1144,9 @@ function OrderCard({ order, index, menuOpen, onToggleMenu, onChangeStatus }) {
                   </button>
                 ))}
 
-                {/* Cancelling isn't a step in the flow, so it sits below a
-                    divider rather than inline with the others. */}
                 {order.status !== "Cancelled" && (
                   <>
-                    <div
-                      aria-hidden="true"
-                      className="my-1 h-px bg-ink-200"
-                    />
+                    <div aria-hidden="true" className="my-1 h-px bg-ink-200" />
                     <button
                       type="button"
                       role="menuitem"
@@ -1088,8 +1197,6 @@ function BillPreview({ preview, onClose }) {
     link.download = `bill-table-${bill.tableNumber ?? "order"}.pdf`;
     link.click();
 
-    // Revoke on a later tick: Safari cancels the download if the object URL
-    // disappears in the same frame as the click.
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
@@ -1141,6 +1248,7 @@ function BillPreview({ preview, onClose }) {
    Receipt rendering
    Every figure below comes from GET bill/ — the client never computes bill
    totals, so what prints always matches what build_bill() will charge.
+   However, we now apply a discount percentage on the client side for preview.
    ========================================================================== */
 
 const escapeHtml = (value) =>
@@ -1149,7 +1257,20 @@ const escapeHtml = (value) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
   );
 
-const rupees = (value) => Math.round(Number(value ?? 0)).toLocaleString();
+/**
+ * Format money with proper decimal places.
+ * Shows 2 decimal places for fractional amounts, and whole numbers without decimals when possible.
+ */
+const rupees = (value) => {
+  const num = Number(value ?? 0);
+  if (Number.isNaN(num)) return "Rs. 0.00";
+  const formatted = num.toFixed(2);
+  // If it's a whole number (e.g., 350.00), show without decimal
+  if (formatted.endsWith(".00")) {
+    return `Rs. ${Math.round(num).toLocaleString()}`;
+  }
+  return `Rs. ${formatted}`;
+};
 
 const stampNepal = (iso) => {
   if (!iso) return null;
@@ -1194,7 +1315,7 @@ const RECEIPT_CSS = `
   .amt { width: 60px; text-align: right; font-weight: 700; }
   .sums { margin-top: 6px; padding-top: 5px; border-top: 1px dashed #bbb; }
   .sum { display: flex; justify-content: space-between; font-size: 10px; padding: 1px 0; }
-  .sum.discount { color: #0f7b3a; }
+  .sum.discount { color: #0f7b3a; font-size: 12px; font-weight: 700; }
   .total { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid #111; padding-top: 6px; margin-top: 5px; }
   .total span:first-child { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
   .total span:last-child { font-size: 15px; font-weight: 700; }
@@ -1209,14 +1330,24 @@ const receiptShell = (title, inner) => `<!doctype html>
 <html><head><meta charset="utf-8" /><title>${escapeHtml(title)}</title>
 <style>${RECEIPT_CSS}</style></head><body>${inner}</body></html>`;
 
+/**
+ * Receipt document – applies discountPercent from context with proper decimal precision.
+ * All monetary values are formatted with 2 decimal places for accuracy.
+ */
 function receiptDocument(bill, context) {
   const {
     restaurant,
     branch,
     openedLabel: opened,
     printedLabel: printed,
+    discountPercent = 0,
   } = context;
-  const hasDiscount = Number(bill.discount) > 0;
+
+  // Use high precision for calculations
+  const subTotal = Number(bill.subTotal) || 0;
+  const discountAmount = (subTotal * discountPercent) / 100;
+  const grandTotal = subTotal - discountAmount;
+  const hasDiscount = discountPercent > 0;
 
   const rows = bill.items
     .map(
@@ -1248,14 +1379,14 @@ function receiptDocument(bill, context) {
       </div>
       ${rows}
       <div class="sums">
-        <div class="sum"><span>Sub total</span><span>Rs. ${rupees(bill.subTotal)}</span></div>
+        <div class="sum"><span>Sub total</span><span>${rupees(subTotal)}</span></div>
         ${
           hasDiscount
-            ? `<div class="sum discount"><span>Discount</span><span>− Rs. ${rupees(bill.discount)}</span></div>`
+            ? `<div class="sum discount"><span>Discount (${discountPercent}%)</span><span>− ${rupees(discountAmount)}</span></div>`
             : ""
         }
       </div>
-      <div class="total"><span>Total</span><span>Rs. ${rupees(bill.grandTotal)}</span></div>
+      <div class="total"><span>Total</span><span>${rupees(grandTotal)}</span></div>
       <div class="foot">
         <div class="thanks">Thank you!</div>
         <div class="sub">We hope to see you again</div>
